@@ -1,0 +1,18 @@
+
+    CARTA DE RECLAMACIÓN
+    
+    Fecha: 15 de Enero de 2025
+    Número de Siniestro: TEST-2025-001
+    Nombre del Asegurado: Juan Pérez González
+    RFC: PEGJ850215XXX
+    Número de Póliza: 123-456-789
+    
+    Por medio de la presente, solicito la indemnización por el siniestro
+    ocurrido el día 10 de enero de 2025, consistente en el robo de mercancía
+    con un valor de $50,000.00 MXN.
+    
+    Placa del vehículo: ABC-123-D
+    
+    Atentamente,
+    Juan Pérez González
+    

@@ -91,7 +91,7 @@ def test_azure_connection():
     print(f"\n{Fore.CYAN}🔌 Probando conexión con Azure...{Style.RESET_ALL}\n")
     
     try:
-        from processors.ocr.azure_ocr import AzureOCRProcessor
+        from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
         processor = AzureOCRProcessor()
         print(f"{Fore.GREEN}✓{Style.RESET_ALL} Conexión con Azure establecida")
         return True
@@ -160,7 +160,7 @@ def test_sample_document():
     try:
         print(f"\n{Fore.CYAN}🔍 Procesando documento de prueba...{Style.RESET_ALL}\n")
         
-        from processors.ocr.document_extractor import UniversalDocumentExtractor
+        from fraud_scorer.processors.ocr.document_extractor import UniversalDocumentExtractor
         
         extractor = UniversalDocumentExtractor()
         

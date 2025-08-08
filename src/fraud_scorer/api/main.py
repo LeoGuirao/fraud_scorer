@@ -110,7 +110,7 @@ async def upload_and_analyze_document(file: UploadFile = File(...)):
         
         # 3. Ejecutar OCR con Azure
         try:
-            from processors.ocr.azure_ocr import analyze_document
+            from fraud_scorer.processors.ocr.azure_ocr import analyze_document
             logger.info("Iniciando análisis OCR...")
             
             ocr_data = analyze_document(str(file_path))

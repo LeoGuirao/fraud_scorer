@@ -1,26 +1,59 @@
+# Core Framework
 fastapi==0.115.5
 uvicorn[standard]==0.32.1
 python-multipart==0.0.18
 python-dotenv==1.0.1
 pydantic==2.10.4
+
+# Database
 asyncpg==0.30.0
 sqlalchemy==2.0.36
 alembic==1.14.0
+
+# Storage
 minio==7.2.12
 redis==5.2.1
+
+# Document Processing
 Pillow==11.0.0
 pdf2image==1.17.0
 PyPDF2==3.0.1
+pypdf==5.1.0
+poppler-utils  # Para pdf2image (instalar con brew en macOS)
+
+# OCR
+azure-ai-formrecognizer==3.3.0
+azure-core==1.30.0
+
+# AI/LLM
 openai==1.58.1
 instructor==1.7.0
 langchain==0.3.15
+tiktoken==0.8.0
+
+# HTTP & API
 httpx==0.28.1
 tenacity==9.0.0
+aiofiles==24.1.0
+
+# Security
 python-jose[cryptography]==3.3.0
 passlib[bcrypt]==1.7.4
+
+# Template & PDF Generation
+Jinja2>=3.1.0
+WeasyPrint>=60.0
+cssselect2>=0.2.0
+tinycss2>=1.2.0
+
+# UI
 streamlit==1.41.1
+
+# Testing
 pytest==8.3.4
 pytest-asyncio==0.25.2
-Jinja2>=3.1.0
-WeasyPrint>=59.0
-colorama
+
+# Utilities
+tqdm==4.66.1
+colorama==0.4.6
+click==8.1.7
