@@ -43,31 +43,55 @@ class UniversalDocumentExtractor:
     def extract_structured_data(self, ocr_result: Dict[str, Any]) -> Dict[str, Any]:
         """
         Extrae y estructura todos los datos del resultado OCR
+        (tolerante a distintas llaves: key_values vs key_value_pairs, metadatos en metadata, etc.)
         """
         logger.info("Iniciando extracción estructurada de datos")
         
         # Texto principal
-        text = ocr_result.get('text', '')
-        
+        text = ocr_result.get('text') or ""
+        if not isinstance(text, str):
+            text = str(text)
+
         # Detectar tipo de documento
         doc_type = self._detect_document_type(text)
         
-        # Extraer entidades comunes
+        # Entidades comunes
         entities = self._extract_common_entities(text)
         
-        # Extraer datos de tablas
-        table_data = self._process_tables(ocr_result.get('tables', []))
+        # Tablas (tolerante a distintos formatos)
+        table_data = self._process_tables(ocr_result.get('tables', []) or [])
         
-        # Extraer pares clave-valor
-        key_values = ocr_result.get('key_value_pairs', {})
-        
-        # Extraer campos específicos por tipo de documento
+        # Pares clave-valor (acepta ambas llaves)
+        key_values = (
+            ocr_result.get('key_value_pairs')
+            or ocr_result.get('key_values')
+            or {}
+        )
+
+        # Campos específicos por tipo
         specific_fields = self._extract_specific_fields(text, doc_type)
         
-        # Buscar códigos QR y URLs
+        # Códigos QR y URLs
         qr_codes = self._extract_qr_codes(text)
+
+        # Metadata OCR tolerante
+        meta = (ocr_result.get('metadata') or {})
+        confidence_scores = (
+            ocr_result.get('confidence_scores')
+            or ocr_result.get('confidence')
+            or {}
+        )
+        page_count = (
+            ocr_result.get('page_count')
+            or meta.get('page_count')
+            or 1
+        )
+        language = (
+            ocr_result.get('language')
+            or meta.get('language')
+            or 'es'
+        )
         
-        # Estructurar resultado
         structured_data = {
             "document_type": doc_type,
             "extracted_at": datetime.now().isoformat(),
@@ -89,11 +113,11 @@ class UniversalDocumentExtractor:
             # QR y URLs
             "qr_codes_urls": qr_codes,
             
-            # Metadata del OCR
+            # Metadata del OCR (normalizada)
             "ocr_metadata": {
-                "confidence": ocr_result.get('confidence_scores', {}),
-                "page_count": ocr_result.get('page_count', 1),
-                "language": ocr_result.get('language', 'es')
+                "confidence": confidence_scores,
+                "page_count": page_count,
+                "language": language
             },
             
             # Secciones del texto (para análisis por partes)
@@ -101,13 +125,12 @@ class UniversalDocumentExtractor:
         }
         
         logger.info(f"Extracción completada. Tipo: {doc_type}, Entidades: {len(entities)}")
-        
         return structured_data
     
     def _detect_document_type(self, text: str) -> str:
         """Detecta el tipo de documento basado en palabras clave"""
         text_lower = text.lower()
-        scores = {}
+        scores: Dict[str, int] = {}
         
         for doc_type, keywords in self.doc_keywords.items():
             score = sum(1 for keyword in keywords if keyword in text_lower)
@@ -120,21 +143,40 @@ class UniversalDocumentExtractor:
     
     def _extract_common_entities(self, text: str) -> Dict[str, List[str]]:
         """Extrae entidades comunes usando expresiones regulares"""
-        entities = {}
+        entities: Dict[str, List[str]] = {}
         
         for entity_type, pattern in self.patterns.items():
             matches = re.findall(pattern, text, re.IGNORECASE)
             if matches:
                 # Limpiar y eliminar duplicados
-                entities[entity_type] = list(set([m.strip() for m in matches]))
+                clean = list({m.strip() for m in matches if str(m).strip()})
+                if clean:
+                    entities[entity_type] = clean
         
         return entities
     
-    def _process_tables(self, tables: List[Dict]) -> List[Dict]:
-        """Procesa y estructura las tablas detectadas"""
-        processed_tables = []
+    def _process_tables(self, tables: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        """
+        Procesa y estructura las tablas detectadas.
+        Soporta:
+          - celdas en formato {"cells": [{"row":..,"column":..,"text":..}, ...]}
+          - filas directas en "data_rows" con "headers"
+        """
+        processed_tables: List[Dict[str, Any]] = []
         
         for i, table in enumerate(tables):
+            # Si vienen data_rows/headers, úsalo directamente
+            if table.get("data_rows"):
+                processed_tables.append({
+                    "table_index": i,
+                    "rows": table.get("row_count", len(table.get("data_rows", []))),
+                    "columns": table.get("column_count", len(table.get("headers", [])) or (len(table["data_rows"][0]) if table["data_rows"] else 0)),
+                    "headers": table.get("headers", []),
+                    "data": table.get("data_rows", [])
+                })
+                continue
+
+            # Caso clásico con "cells"
             processed_table = {
                 "table_index": i,
                 "rows": table.get('row_count', 0),
@@ -142,17 +184,16 @@ class UniversalDocumentExtractor:
                 "data": []
             }
             
-            # Reorganizar celdas en estructura de tabla
-            cells = table.get('cells', [])
+            cells = table.get('cells', []) or []
             if cells:
                 # Crear matriz
-                matrix = {}
+                matrix: Dict[int, Dict[int, str]] = {}
                 for cell in cells:
-                    row = cell.get('row', 0)
-                    col = cell.get('column', 0)
+                    row = int(cell.get('row', cell.get('row_index', 0)) or 0)
+                    col = int(cell.get('column', cell.get('column_index', 0)) or 0)
                     if row not in matrix:
                         matrix[row] = {}
-                    matrix[row][col] = cell.get('text', '')
+                    matrix[row][col] = cell.get('text') or cell.get('content') or ''
                 
                 # Convertir a lista de filas
                 for row_idx in sorted(matrix.keys()):
@@ -167,7 +208,7 @@ class UniversalDocumentExtractor:
     
     def _extract_specific_fields(self, text: str, doc_type: str) -> Dict[str, Any]:
         """Extrae campos específicos según el tipo de documento"""
-        fields = {}
+        fields: Dict[str, Any] = {}
         
         if doc_type == "factura":
             # Buscar número de factura
@@ -203,7 +244,7 @@ class UniversalDocumentExtractor:
     
     def _extract_qr_codes(self, text: str) -> List[Dict[str, str]]:
         """Extrae códigos QR y URLs para verificación posterior"""
-        qr_data = []
+        qr_data: List[Dict[str, str]] = []
         
         # Buscar URLs
         url_pattern = r'https?://[^\s<>"{}|\\^`\[\]]+'
@@ -217,7 +258,8 @@ class UniversalDocumentExtractor:
             })
         
         # Buscar referencias a códigos QR
-        if 'código qr' in text.lower() or 'qr code' in text.lower():
+        tl = text.lower()
+        if 'código qr' in tl or 'codigo qr' in tl or 'qr code' in tl:
             qr_data.append({
                 "type": "qr_reference",
                 "value": "Documento contiene código QR",
@@ -228,7 +270,7 @@ class UniversalDocumentExtractor:
     
     def _segment_text(self, text: str) -> List[Dict[str, str]]:
         """Segmenta el texto en secciones lógicas"""
-        sections = []
+        sections: List[Dict[str, str]] = []
         
         # Dividir por párrafos significativos
         paragraphs = [p.strip() for p in text.split('\n\n') if p.strip()]
