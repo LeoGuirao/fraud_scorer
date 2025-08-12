@@ -18,10 +18,16 @@ logger = logging.getLogger("fraud_scorer.run_report")
 # Imports del paquete (con fallback para ejecución directa desde repo)
 # ------------------------------------------------------------------------------------
 try:
+    # OCR / Extracción / IA
     from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
     from fraud_scorer.processors.ocr.document_extractor import UniversalDocumentExtractor
     from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-    from fraud_scorer.templates.template_processor import TemplateProcessor
+
+    # Template procesador segmentado (forzado) + loader de config opcional
+    from fraud_scorer.pipelines.segmented_processor import (
+        SegmentedTemplateProcessor,
+        load_pipeline_config,  # (no es obligatorio usarlo aquí, pero lo dejamos disponible)
+    )
 
     # Storage
     from fraud_scorer.storage.cases import create_case
@@ -50,7 +56,11 @@ except ImportError:
     from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
     from fraud_scorer.processors.ocr.document_extractor import UniversalDocumentExtractor
     from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-    from fraud_scorer.templates.template_processor import TemplateProcessor
+
+    from fraud_scorer.pipelines.segmented_processor import (
+        SegmentedTemplateProcessor,
+        load_pipeline_config,
+    )
 
     from fraud_scorer.storage.cases import create_case
     from fraud_scorer.storage.db import (
@@ -97,15 +107,41 @@ def _clean_outputs(out_dir: Path, case_id: Optional[str] = None) -> None:
 # Sistema principal
 # ------------------------------------------------------------------------------------
 class FraudAnalysisSystem:
-    """Sistema completo de análisis de fraude con soporte DB/casos."""
+    """
+    Sistema completo de análisis de fraude con soporte DB/casos.
+    **Segmentación forzada**: siempre usa SegmentedTemplateProcessor.
+    """
 
-    def __init__(self):
+    def __init__(self, config_path: Optional[str] = None):
         print("Inicializando procesadores...")
         self.ocr_processor = AzureOCRProcessor()
         self.extractor = UniversalDocumentExtractor()
         self.ai_analyzer = AIDocumentAnalyzer()
-        self.template_processor = TemplateProcessor()
+        # 👇 Siempre usamos el procesador segmentado, con config YAML opcional
+        self.template_processor = SegmentedTemplateProcessor(config_path=config_path)
         print("✓ Procesadores inicializados\n")
+
+    async def _build_ai_case_from_consolidated(self, consolidated: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        En lugar de pasar TODOS los docs a la IA, pasamos un 'documento' sintético con el resumen consolidado.
+        Minimiza el tamaño del prompt y evita mezcla de contexto.
+        """
+        synthetic_doc = {
+            "document_type": "consolidated_summary",
+            "raw_text": json.dumps(
+                {
+                    "case_info": consolidated.get("case_info", {}),
+                    "validation_summary": consolidated.get("validation_summary", {}),
+                    "processing_stats": consolidated.get("processing_stats", {}),
+                },
+                ensure_ascii=False,
+            ),
+            "entities": [],
+            "key_value_pairs": consolidated.get("case_info", {}),
+            "specific_fields": consolidated.get("case_info", {}),
+            "ocr_metadata": {"source_name": "consolidated_summary.json"},
+        }
+        return await self.ai_analyzer.analyze_claim_documents([synthetic_doc])
 
     async def process_new_folder_case(
         self,
@@ -116,7 +152,7 @@ class FraudAnalysisSystem:
         clobber: bool = False,
     ) -> Dict[str, Any]:
         """
-        Nuevo caso: ingesta desde carpeta + OCR + extracción + IA + persistencia (opcional).
+        Nuevo caso: ingesta desde carpeta + OCR + extracción + segmentación/consolidación + IA liviana + persistencia opcional.
         """
         print("=" * 60)
         print(f"📁 Nuevo caso desde carpeta: {folder_path.name}")
@@ -158,7 +194,7 @@ class FraudAnalysisSystem:
                 raw_ocr = self.ocr_processor.analyze_document(str(doc_path))
                 ocr_dict = ocr_result_to_dict(raw_ocr)
 
-                # --- Inyectar metadatos de origen para que el template muestre el nombre real ---
+                # Inyectar metadatos de origen (para trazabilidad en el informe)
                 meta = ocr_dict.setdefault("metadata", {}) or {}
                 meta.setdefault("source_name", doc_path.name)   # nombre del archivo
                 meta.setdefault("source_path", str(doc_path))   # ruta completa
@@ -177,7 +213,7 @@ class FraudAnalysisSystem:
                 save_extracted_data(doc_id, extracted)
 
                 processed_docs.append({
-                    "document_id": doc_id,  # útil si luego quieres IA por documento
+                    "document_id": doc_id,
                     "file_name": doc_path.name,
                     "file_path": str(doc_path),
                     "file_size_kb": doc_path.stat().st_size / 1024.0,
@@ -193,19 +229,24 @@ class FraudAnalysisSystem:
         usable = [d for d in processed_docs if d.get("extracted_data")]
         print(f"\n✓ OCR completado. Documentos con extracción útil: {len(usable)}")
 
-        # IA del caso completo (usa builders de utils que aplican mapeo canónico)
-        print("\n🤖 Analizando con AI (caso completo)...")
+        # Normalización para el template (con mapeo canónico) y segmentación (aislado + consolidado)
         docs_for_template = build_docs_for_template_from_processed(usable)
-        ai_analysis = await self.ai_analyzer.analyze_claim_documents(docs_for_template)
+
+        logger.info("Procesando documentos en modo segmentado/aislado…")
+        consolidated = await self.template_processor.orchestrator.process_documents(docs_for_template)
+
+        # IA del caso (liviana) sobre el consolidado
+        print("\n🤖 Analizando con AI (resumen consolidado)…")
+        ai_analysis = await self._build_ai_case_from_consolidated(consolidated)
 
         # Persistir corrida IA (opcional)
         run_id = None
         if not no_save:
             run_id = create_run(
                 case_id=case_id,
-                purpose="case_summary",
+                purpose="case_summary_segmented",
                 llm_model="gpt-4-turbo-preview",
-                params={"from": "new-folder"},
+                params={"from": "new-folder-segmented"},
             )
 
         # Resumen simple
@@ -219,6 +260,7 @@ class FraudAnalysisSystem:
             "documents_processed": len(processed_docs),
             "documents": processed_docs,
             "errors": ocr_errors,
+            "segmented_consolidated": consolidated,  # 👈 guardamos el consolidado para auditoría
             "fraud_analysis": {
                 "fraud_score": round(fraud_score * 100, 2),
                 "risk_level": risk_level,
@@ -230,11 +272,14 @@ class FraudAnalysisSystem:
             "ai_analysis_raw": ai_analysis,
         }
 
-        # Informe con plantilla
-        print("\n📝 Generando informe con plantilla...")
-        informe = self.template_processor.extract_from_documents(docs_for_template, ai_analysis)
-        numero_siniestro = getattr(informe, "numero_siniestro", folder_path.name)
-        pretty_html_path = output_path / f"INF-{numero_siniestro}.html"
+        # Informe con plantilla (segmentado) — construimos el Informe desde el consolidado
+        print("\n📝 Generando informe (segmentado)…")
+        informe = self.template_processor._build_informe_from_consolidated(consolidated, ai_analysis)
+
+        # (Temporal) fija el número de siniestro para evitar inconsistencias
+        informe.numero_siniestro = "1"
+
+        pretty_html_path = output_path / f"INF-{informe.numero_siniestro}.html"
         self.template_processor.generate_report(informe, str(pretty_html_path))
         print(f"✓ Informe HTML (plantilla) generado: {pretty_html_path}")
 
@@ -266,8 +311,8 @@ class FraudAnalysisSystem:
         clobber: bool = False,
     ) -> Dict[str, Any]:
         """
-        Reanaliza un caso YA OCR-eado, leyendo SOLO de la base local.
-        No ejecuta OCR.
+        Reanaliza un caso YA OCR-eado, leyendo SOLO de la base local (sin OCR),
+        con pipeline segmentado y análisis IA consolidado.
         """
         print("=" * 60)
         print(f"🔁 Re-analizando caso (sin OCR): {case_id}")
@@ -281,18 +326,22 @@ class FraudAnalysisSystem:
         if not docs_for_template:
             raise RuntimeError("No se encontraron documentos/ocr guardados para este case_id")
 
-        # IA del caso completo
-        print("\n🤖 Analizando con AI (caso completo)...")
-        ai_analysis = await self.ai_analyzer.analyze_claim_documents(docs_for_template)
+        # Segmentación + consolidación
+        logger.info("Procesando documentos en modo segmentado/aislado…")
+        consolidated = await self.template_processor.orchestrator.process_documents(docs_for_template)
+
+        # IA del caso (liviana) sobre el consolidado
+        print("\n🤖 Analizando con AI (resumen consolidado)…")
+        ai_analysis = await self._build_ai_case_from_consolidated(consolidated)
 
         # Persistir corrida IA (opcional)
         run_id = None
         if not no_save:
             run_id = create_run(
                 case_id=case_id,
-                purpose="case_summary",
+                purpose="case_summary_segmented",
                 llm_model="gpt-4-turbo-preview",
-                params={"from": "reanalyze"},
+                params={"from": "reanalyze-segmented"},
             )
 
         # Resumen simple
@@ -305,6 +354,7 @@ class FraudAnalysisSystem:
             "documents_processed": len(processed_docs),
             "documents": processed_docs,
             "errors": [],
+            "segmented_consolidated": consolidated,  # 👈 guardamos el consolidado para auditoría
             "fraud_analysis": {
                 "fraud_score": round(fraud_score * 100, 2),
                 "risk_level": risk_level,
@@ -316,11 +366,13 @@ class FraudAnalysisSystem:
             "ai_analysis_raw": ai_analysis,
         }
 
-        # Informe con plantilla
-        print("\n📝 Generando informe con plantilla...")
-        informe = self.template_processor.extract_from_documents(docs_for_template, ai_analysis)
-        numero_siniestro = getattr(informe, "numero_siniestro", case_id)
-        pretty_html_path = output_path / f"INF-{numero_siniestro}.html"
+        # Informe con plantilla (segmentado)
+        print("\n📝 Generando informe (segmentado)…")
+        informe = self.template_processor._build_informe_from_consolidated(consolidated, ai_analysis)
+        # (Temporal) fija el número de siniestro para evitar inconsistencias
+        informe.numero_siniestro = "1"
+
+        pretty_html_path = output_path / f"INF-{informe.numero_siniestro}.html"
         self.template_processor.generate_report(informe, str(pretty_html_path))
         print(f"✓ Informe HTML (plantilla) generado: {pretty_html_path}")
 
@@ -350,7 +402,7 @@ class FraudAnalysisSystem:
 # ------------------------------------------------------------------------------------
 def parse_args(argv: List[str]) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        description="Fraud Scorer - Nuevo caso (carpeta) o reanálisis por case_id."
+        description="Fraud Scorer - Nuevo caso (carpeta) o reanálisis por case_id (pipeline segmentado)."
     )
     p.add_argument("folder", nargs="?", help="Carpeta de documentos (modo nuevo caso).")
     p.add_argument("--case-id", dest="case_id", help="Reanaliza un caso existente (sin OCR).")
@@ -362,6 +414,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
         action="store_true",
         help="Borra INF-*.html/pdf previos (y resultados_*.json) en --out antes de generar nuevos",
     )
+    # 👇 NUEVO: config YAML opcional
+    p.add_argument("--config", dest="config", default=None, help="Ruta a pipeline_config.yaml")
     args = p.parse_args(argv)
 
     # Validaciones simples: o folder o case_id
@@ -379,7 +433,8 @@ async def main(argv: List[str]) -> None:
     output_path = Path(args.out)
     output_path.mkdir(parents=True, exist_ok=True)
 
-    system = FraudAnalysisSystem()
+    # Pasamos la ruta del YAML (si viene) al sistema -> al SegmentedTemplateProcessor
+    system = FraudAnalysisSystem(config_path=args.config)
 
     if args.case_id:
         await system.reanalyze_case_from_db(

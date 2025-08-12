@@ -1,0 +1,540 @@
+{
+  "case_info": {
+    "nombre_asegurado": "MODA YKT, S.A. DE"
+  },
+  "documents_summary": [
+    {
+      "document_id": "doc_000",
+      "type": "poliza",
+      "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+      "fields_extracted": 3,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.09
+    },
+    {
+      "document_id": "doc_001",
+      "type": "factura",
+      "source": "FACTURA MERCANCIA _compressed.pdf",
+      "fields_extracted": 2,
+      "validations_passed": 1,
+      "memory_mb": 0.02,
+      "processing_ms": 0.35
+    },
+    {
+      "document_id": "doc_002",
+      "type": "factura",
+      "source": "2b CANDADOS DE SEGURIDAD.PDF",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.12
+    },
+    {
+      "document_id": "doc_003",
+      "type": "poliza",
+      "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+      "fields_extracted": 3,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.09
+    },
+    {
+      "document_id": "doc_004",
+      "type": "factura",
+      "source": "1h Tarjetas de circulaciOn.PDF",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.09
+    },
+    {
+      "document_id": "doc_005",
+      "type": "poliza",
+      "source": "C&C.pdf",
+      "fields_extracted": 3,
+      "validations_passed": 1,
+      "memory_mb": 0.0,
+      "processing_ms": 0.24
+    },
+    {
+      "document_id": "doc_006",
+      "type": "identificacion",
+      "source": "DENUNCIA INICIAL_compressed.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.17
+    },
+    {
+      "document_id": "doc_007",
+      "type": "factura",
+      "source": "CARTA PORTE MERCANCIA _compressed.pdf",
+      "fields_extracted": 2,
+      "validations_passed": 1,
+      "memory_mb": 0.0,
+      "processing_ms": 0.28
+    },
+    {
+      "document_id": "doc_008",
+      "type": "identificacion",
+      "source": "1C DENUNCIA INICIAL compressed.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.15
+    },
+    {
+      "document_id": "doc_009",
+      "type": "poliza",
+      "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+      "fields_extracted": 3,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.11
+    },
+    {
+      "document_id": "doc_010",
+      "type": "identificacion",
+      "source": "ACREDITACION Y RATIFICACION DENUNCIA_compressed.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.15
+    },
+    {
+      "document_id": "doc_011",
+      "type": "factura",
+      "source": "1j CI 30 compressed.pdf",
+      "fields_extracted": 2,
+      "validations_passed": 1,
+      "memory_mb": 0.0,
+      "processing_ms": 0.29
+    },
+    {
+      "document_id": "doc_012",
+      "type": "otro",
+      "source": "document_12.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.05
+    },
+    {
+      "document_id": "doc_013",
+      "type": "factura",
+      "source": "22741 CSD MODA YKT.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.11
+    },
+    {
+      "document_id": "doc_014",
+      "type": "carta_porte",
+      "source": "2a BITACORA DE RUTA compressed.pdf",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.1
+    },
+    {
+      "document_id": "doc_015",
+      "type": "factura",
+      "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.13
+    },
+    {
+      "document_id": "doc_016",
+      "type": "factura",
+      "source": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.13
+    },
+    {
+      "document_id": "doc_017",
+      "type": "carta_porte",
+      "source": "22741 CEDULA.pdf",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.18
+    },
+    {
+      "document_id": "doc_018",
+      "type": "identificacion",
+      "source": "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.17
+    },
+    {
+      "document_id": "doc_019",
+      "type": "peritaje",
+      "source": "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.06
+    },
+    {
+      "document_id": "doc_020",
+      "type": "bitacora_gps",
+      "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.15
+    },
+    {
+      "document_id": "doc_021",
+      "type": "carta_porte",
+      "source": "1f CARTA PROVEEDOR compressed.pdf",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.06
+    },
+    {
+      "document_id": "doc_022",
+      "type": "bitacora_gps",
+      "source": "1h Tarjetas de circulación.pdf",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.13
+    },
+    {
+      "document_id": "doc_023",
+      "type": "bitacora_gps",
+      "source": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.15
+    },
+    {
+      "document_id": "doc_024",
+      "type": "factura",
+      "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.1
+    },
+    {
+      "document_id": "doc_025",
+      "type": "factura",
+      "source": "REPUVE-Tracto.pdf",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.12
+    },
+    {
+      "document_id": "doc_026",
+      "type": "poliza",
+      "source": "Poliza2346-1.pdf",
+      "fields_extracted": 3,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.17
+    }
+  ],
+  "aggregated_data": {
+    "poliza": {
+      "count": 5,
+      "documents": [
+        "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+        "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+        "C&C.pdf",
+        "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+        "Poliza2346-1.pdf"
+      ],
+      "common_fields": {
+        "numero_poliza": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ],
+        "nombre_asegurado": [
+          "",
+          "",
+          "MODA YKT, S.A. DE",
+          "",
+          ""
+        ],
+        "domicilio": [
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "factura": {
+      "count": 10,
+      "documents": [
+        "FACTURA MERCANCIA _compressed.pdf",
+        "2b CANDADOS DE SEGURIDAD.PDF",
+        "1h Tarjetas de circulaciOn.PDF",
+        "CARTA PORTE MERCANCIA _compressed.pdf",
+        "1j CI 30 compressed.pdf",
+        "22741 CSD MODA YKT.pdf",
+        "MODA YKT S.A. DE C.V._compressed.pdf",
+        "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+        "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+        "REPUVE-Tracto.pdf"
+      ],
+      "common_fields": {
+        "total": [
+          "1,008,399.46",
+          "4,640.01",
+          "4,640.01"
+        ],
+        "folio": [
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      }
+    },
+    "identificacion": {
+      "count": 4,
+      "documents": [
+        "DENUNCIA INICIAL_compressed.pdf",
+        "1C DENUNCIA INICIAL compressed.pdf",
+        "ACREDITACION Y RATIFICACION DENUNCIA_compressed.pdf",
+        "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf"
+      ],
+      "common_fields": {
+        "raw_fields": [
+          {
+            "nuc": "TLA/FTR/RGT/013/058310/25/02",
+            "agente_del_ministerio_publico": "VICTORIA JAQUELINE VEGA TORRES",
+            "fecha_de_entrevista": "27 de febrero de 2025",
+            "nic": "FTR/RGT/00/MPI/625/00319/25/02",
+            "de_entrevista": "00:01 hofas",
+            "nombre_de_la_autoridad_que_realiza_la_entrevista": "LIC. VICTORIA JAQUELINE VEGA TORRES",
+            "lugar_donde_se_realiza_la_entrevista": "FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN",
+            "nombre_del_entrevistado": "JUSTO CASTRO MARTINEZ",
+            "sexo": "HOMBRE",
+            "fecha_de_nacimiento": "29-04-1984",
+            "edad": "40",
+            "nacionalidad": "Mexicana",
+            "originario_de": "MÉXICO - Ciudad de México - Cuauhtémoc",
+            "calidad": "Víctima",
+            "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2092083165",
+            "curp": "CAMJ840429HDFSRS07",
+            "r.f.c": "Sin valor",
+            "¿sabe_leer_y_escribir?": "SABE LEER Y ESCRIBIR",
+            "grado_de_escolaridad": "PRIMARIA",
+            "ocupación": "EMPLEADO"
+          },
+          {
+            "nuc": "TLA/FTR/RGT/013/058310/25/02",
+            "agente_del_ministerio_publico": "VICTORIA JAQUELINE VEGA TORRES",
+            "fecha_de_entrevista": "27 de febrero de 2025",
+            "nic": "FTR/RGT/00/MPI/625/00319/25/02",
+            "de_entrevista": "00:01 hofas",
+            "nombre_de_la_autoridad_que_realiza_la_entrevista": "LIC. VICTORIA JAQUELINE VEGA TORRES",
+            "lugar_donde_se_realiza_la_entrevista": "FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN",
+            "nombre_del_entrevistado": "JUSTO CASTRO MARTINEZ",
+            "sexo": "HOMBRE",
+            "fecha_de_nacimiento": "29-04-1984",
+            "edad": "40",
+            "nacionalidad": "Mexicana",
+            "originario_de": "MÉXICO - Ciudad de México - Cuauhtémoc",
+            "calidad": "Víctima",
+            "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2092083165",
+            "curp": "CAMJ840429HDFSRS07",
+            "r.f.c": "Sin valor",
+            "¿sabe_leer_y_escribir?": "SABE LEER Y ESCRIBIR",
+            "grado_de_escolaridad": "PRIMARIA",
+            "ocupación": "EMPLEADO"
+          },
+          {
+            "entrevista\nnic": "FTR/RGT/00/MPI/625/00319/25/02",
+            "nuc": "TLA/FTR/RGT/013/058310/25/02",
+            "fecha_de_entrevista": "11 de marzo de 2025",
+            "de_entrevista": "12:08 horas",
+            "nombre_de_la_autoridad_que_realiza_la_entrevista": "Lic. Daniel Rodríguez Mendoza A.M.P de Investigación",
+            "lugar_donde_se_realiza_la_entrevista": "Fiscalía Especializada de Delitos cometidos contra el Transporte",
+            "nombre_del_entrevistado": "ANGEL DE JESUS RODRIGUEZ MARTINEZ",
+            "sexo": "HOMBRE",
+            "fecha_de_nacimiento": "18-09-2002",
+            "edad": "22",
+            "nacionalidad": "Mexicana",
+            "originario_de": "MÉXICO - México - Tlalnepantla de Baz",
+            "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL IDMEX2505378800",
+            "curp": "Sin valor",
+            "r.c": "Sin valor",
+            "¿sabe_leer_y_escribir?": "Sin valor",
+            "grado_de_escolaridad": "SECUNDARIA",
+            "deutoocupación": "EMPLEADO",
+            "lugar_de_trabajo_o_negocios": "SIATA DI SHMAYA S.A DE C.V.",
+            "estado_civil": "UNION LIBRE"
+          },
+          {
+            "entrevista\nnic": "FTR/RGT/00/MPI/625/00319/25/02",
+            "nuc": "TLA/FTR/RGT/013/058310/25/02",
+            "fecha_de_entrevista": "11 de marzo de 2025",
+            "de_entrevista": "12:08 horas",
+            "nombre_de_la_autoridad_que_realiza_la_entrevista": "Lic. Daniel Rodríguez Mendoza A.M.P de Investigación",
+            "lugar_donde_se_realiza_la_entrevista": "Fiscalía Especializada de Delitos cometidos contra el Transporte",
+            "nombre_del_entrevistado": "ANGEL DE JESUS RODRIGUEZ MARTINEZ",
+            "sexo": "HOMBRE",
+            "fecha_de_nacimiento": "18-09-2002",
+            "edad": "22",
+            "nacionalidad": "Mexicana",
+            "originario_de": "MÉXICO - México - Tlalnepantla de Baz",
+            "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL IDMEX2505378800",
+            "curp": "Sin valor",
+            "r.c": "Sin valor",
+            "¿sabe_leer_y_escribir?": "Sin valor",
+            "grado_de_escolaridad": "SECUNDARIA",
+            "deutoocupación": "EMPLEADO",
+            "lugar_de_trabajo_o_negocios": "SIATA DI SHMAYA S.A DE C.V.",
+            "estado_civil": "UNION LIBRE"
+          }
+        ]
+      }
+    },
+    "otro": {
+      "count": 1,
+      "documents": [
+        "document_12.pdf"
+      ],
+      "common_fields": {
+        "raw_fields": [
+          {}
+        ]
+      }
+    },
+    "carta_porte": {
+      "count": 3,
+      "documents": [
+        "2a BITACORA DE RUTA compressed.pdf",
+        "22741 CEDULA.pdf",
+        "1f CARTA PROVEEDOR compressed.pdf"
+      ],
+      "common_fields": {
+        "origen": [
+          "",
+          "",
+          ""
+        ],
+        "destino": [
+          "",
+          "Tlanepantla, Estado de México.",
+          ""
+        ]
+      }
+    },
+    "peritaje": {
+      "count": 1,
+      "documents": [
+        "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf"
+      ],
+      "common_fields": {
+        "raw_fields": [
+          {
+            "nombre": "Jesús Manuel Quintero Marin"
+          }
+        ]
+      }
+    },
+    "bitacora_gps": {
+      "count": 3,
+      "documents": [
+        "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+        "1h Tarjetas de circulación.pdf",
+        "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf"
+      ],
+      "common_fields": {}
+    }
+  },
+  "validation_summary": {
+    "total": 45,
+    "passed": 4,
+    "success_rate": 0.08888888888888889,
+    "failures_by_type": {
+      "poliza": [
+        "has_policy_number",
+        "has_insured_name",
+        "has_validity",
+        "has_policy_number",
+        "has_insured_name",
+        "has_validity",
+        "has_policy_number",
+        "has_validity",
+        "has_policy_number",
+        "has_insured_name",
+        "has_validity",
+        "has_policy_number",
+        "has_insured_name",
+        "has_validity"
+      ],
+      "factura": [
+        "has_rfc",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date",
+        "has_rfc",
+        "has_date",
+        "has_rfc",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date",
+        "has_rfc",
+        "has_total",
+        "has_date"
+      ]
+    }
+  },
+  "processing_stats": {
+    "total_documents": 27,
+    "total_memory_mb": 0.015625,
+    "avg_memory_mb": 0.0005787037037037037,
+    "max_memory_mb": 0.015625,
+    "total_time_ms": 3.938,
+    "avg_time_ms": 0.14585185185185187,
+    "max_time_ms": 0.35
+  },
+  "pipeline_metrics": {
+    "documents_processed": 27,
+    "batches_completed": 9,
+    "errors": [],
+    "warnings": []
+  }
+}

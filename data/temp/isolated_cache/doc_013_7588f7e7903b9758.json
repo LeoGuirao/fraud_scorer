@@ -1,0 +1,69 @@
+{
+  "document_id": "doc_013",
+  "document_hash": "7588f7e7903b9758",
+  "document_type": "factura",
+  "source_file": "22741 CSD MODA YKT.pdf",
+  "processing_timestamp": "2025-08-12 15:50:38.423197",
+  "raw_data": {
+    "text": "Park Perales\nModa YKT, S.A. de C.V. Abiram Jesui siniestrosdanos@yoseguro.com.mx\nHDI Ref: 20250000002429 PP Ref .: PP22741 02 de abril de 2025\nCARTA SOLICITUD DE DOCUMENTOS\nROBO TOTAL DE MERCANCIA POR ASALTO AL OPERADOR DEL VEHICULO TRANSPORTISTA; OCURRIDO EL 26 DE FEBRERO DEL 2025.\nEn seguimiento y atención al siniestro citado en la referencia, mucho le agradecemos que a la brevedad posible nos proporcione la siguiente documentación de soporte para el seguimiento y conclusión del caso que nos ocupa:\nDocumentación que debe ser proporcionada por el Asegurado:\n1) Documentos del Asegurado (Mercancía)\na) Carta de formal reclamación del Asegurado (Moda YKT, S.A. de C.V.) a la Aseguradora (HDI Seguros) - valorizada y cuantificada.\nb) Carta de formal reclamación del Asegurado (Moda YKT, S.A. de C.V.) a la empresa transportista - valorizada y cuantificada, con acuse de recibido (firma y sellos) o bien, carta respuesta de la empresa transportista.\nc) Denuncia inicial levantada ante el Ministeri...",
+    "entities": [
+      {
+        "type": "moneda",
+        "value": "55"
+      },
+      {
+        "type": "moneda",
+        "value": "02"
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      },
+      {
+        "type": "moneda",
+        "value": "22741"
+      },
+      {
+        "type": "moneda",
+        "value": "6,"
+      },
+      {
+        "type": "moneda",
+        "value": "2025."
+      },
+      {
+        "type": "moneda",
+        "value": "20250000002429"
+      },
+      {
+        "type": "moneda",
+        "value": "77"
+      },
+      {
+        "type": "moneda",
+        "value": "26"
+      },
+      {
+        "type": "moneda",
+        "value": "2"
+      }
+    ],
+    "key_value_pairs": {
+      "hdi_ref": "20250000002429",
+      "pp_ref_.": "PP22741",
+      "cdmx.": "55 55598077",
+      "ofna.": "55 55 59 80 77"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "folio": ""
+  },
+  "validation_results": {
+    "has_rfc": false,
+    "has_total": false,
+    "has_date": false
+  },
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.112
+}

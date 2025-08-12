@@ -1,0 +1,70 @@
+{
+  "document_id": "doc_024",
+  "document_hash": "015865e7ac1e54ce",
+  "document_type": "factura",
+  "source_file": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+  "processing_timestamp": "2025-08-12 15:50:39.364462",
+  "raw_data": {
+    "text": "SIATA DI SHMAYA S.A. DE C.V.\nTRANSPORTES MEDINA\nAsunto: Reclamación por daños en transporte de mercancía\nTlalnepantla, Estado de México, 07/04/2025\nA quien corresponda en Transportes Medina,\nPor medio de la presente, SIATA DI SHMAYA, S.A. de C.V., presenta una reclamación formal por los daños ocasionados durante el traslado de mercancía bajo su responsabilidad, realizado el día 26 de febrero del 2025.\nConcepto\nDescripción\nValor estimado (MXN)\nRobo de mercancía\nROBO DE BULTO POR ENTERO\n$1,169,743.37\nTotal estimado de daños: $1,169,743.37 MXN\n(Un millón ciento sesenta y nueve mil setecientos cuarenta y tres con treinta y siete centavos 37/100 M.N.)\nSolicitamos de su parte una respuesta formal a la presente reclamación, así como la activación de su procedimiento interno para el resarcimiento de los daños mencionados.\nAgradecemos de antemano su atención y quedamos a la espera de su pronta respuesta.\nAtentamente,\nANGEL DE JESUS RODRIGUEZ MARTINEZ SIATA DI SHMAYA, S.A. de C.V.\nBlvd. Abraham ...",
+    "entities": [
+      {
+        "type": "fecha",
+        "value": "07/04/2025"
+      },
+      {
+        "type": "moneda",
+        "value": "37"
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      },
+      {
+        "type": "moneda",
+        "value": "54090"
+      },
+      {
+        "type": "moneda",
+        "value": "2025."
+      },
+      {
+        "type": "moneda",
+        "value": "26"
+      },
+      {
+        "type": "moneda",
+        "value": "2025"
+      },
+      {
+        "type": "moneda",
+        "value": "1"
+      },
+      {
+        "type": "moneda",
+        "value": "100"
+      },
+      {
+        "type": "moneda",
+        "value": "04"
+      }
+    ],
+    "key_value_pairs": {
+      "asunto": "Reclamación por daños en transporte de mercancía Tlalnepantla, Estado de México, 07/04/2025",
+      "concepto": "Robo de mercancía",
+      "descripción": "ROBO DE BULTO POR ENTERO",
+      "valor_estimado_(mxn)": "$1,169,743.37",
+      "total_estimado_de_daños": "$1,169,743.37 MXN"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "folio": ""
+  },
+  "validation_results": {
+    "has_rfc": false,
+    "has_total": false,
+    "has_date": false
+  },
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.096
+}

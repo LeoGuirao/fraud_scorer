@@ -1,0 +1,23 @@
+# src/fraud_scorer/config/pipeline_config.yaml
+pipeline:
+  isolation_level: strict
+  batch_size: 3
+  parallel_workers: 2
+  memory_limits:
+    factura: 50
+    poliza: 30
+    denuncia: 100
+    bitacora_gps: 200
+    default: 50
+  
+consolidation:
+  strategy: priority
+  field_priorities:
+    numero_poliza:
+      - poliza
+      - carta_reclamacion
+    nombre_asegurado:
+      - poliza
+      - denuncia
+    monto_total:
+      - factura
