@@ -1,39 +1,76 @@
--- Extensiones necesarias
-CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgvector";
+-- scripts/init.sql
+PRAGMA journal_mode=WAL;
 
--- Tabla principal de siniestros
-CREATE TABLE IF NOT EXISTS siniestros (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    numero_siniestro VARCHAR(100) UNIQUE NOT NULL,
-    fecha_creacion TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    estado VARCHAR(50) DEFAULT 'pendiente',
-    metadata JSONB DEFAULT '{}'::jsonb
+CREATE TABLE IF NOT EXISTS cases (
+  id            TEXT PRIMARY KEY,
+  title         TEXT,
+  status        TEXT DEFAULT 'new',
+  created_at    TEXT NOT NULL,
+  updated_at    TEXT
 );
 
--- Tabla de documentos
-CREATE TABLE IF NOT EXISTS documentos (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    siniestro_id UUID REFERENCES siniestros(id) ON DELETE CASCADE,
-    tipo_documento VARCHAR(50) NOT NULL,
-    nombre_archivo VARCHAR(255) NOT NULL,
-    url_s3 TEXT NOT NULL,
-    texto_raw TEXT,
-    datos_extraidos JSONB DEFAULT '{}'::jsonb,
-    fecha_carga TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS documents (
+  id            TEXT PRIMARY KEY,
+  case_id       TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  filename      TEXT,
+  filepath      TEXT,
+  file_hash     TEXT NOT NULL,
+  mime_type     TEXT,
+  size_bytes    INTEGER,
+  page_count    INTEGER,
+  language      TEXT,
+  ocr_success   INTEGER DEFAULT 0,
+  created_at    TEXT NOT NULL,
+  UNIQUE(file_hash, case_id)
 );
 
--- Tabla de análisis de fraude
-CREATE TABLE IF NOT EXISTS analisis_fraude (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-    siniestro_id UUID REFERENCES siniestros(id) ON DELETE CASCADE,
-    score_fraude DECIMAL(3,2) CHECK (score_fraude >= 0 AND score_fraude <= 1),
-    reglas_activadas JSONB DEFAULT '[]'::jsonb,
-    explicacion TEXT,
-    fecha_analisis TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+CREATE TABLE IF NOT EXISTS ocr_results (
+  document_id   TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  raw_text      TEXT,
+  key_value_pairs JSON,
+  tables        JSON,
+  entities      JSON,
+  confidence    JSON,
+  metadata      JSON,
+  errors        JSON,
+  engine        TEXT,
+  engine_version TEXT,
+  processed_at  TEXT NOT NULL
 );
 
--- Índices para performance
-CREATE INDEX idx_siniestros_estado ON siniestros(estado);
-CREATE INDEX idx_documentos_siniestro ON documentos(siniestro_id);
-CREATE INDEX idx_analisis_siniestro ON analisis_fraude(siniestro_id);
+CREATE TABLE IF NOT EXISTS extracted_data (
+  document_id     TEXT PRIMARY KEY REFERENCES documents(id) ON DELETE CASCADE,
+  document_type   TEXT,
+  entities        JSON,
+  key_value_pairs JSON,
+  extra           JSON,
+  extractor_version TEXT,
+  processed_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS runs (
+  id            TEXT PRIMARY KEY,
+  case_id       TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+  purpose       TEXT,
+  llm_model     TEXT,
+  params        JSON,
+  created_at    TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS ai_analyses (
+  id              TEXT PRIMARY KEY,
+  document_id     TEXT NOT NULL REFERENCES documents(id) ON DELETE CASCADE,
+  run_id          TEXT REFERENCES runs(id) ON DELETE SET NULL,
+  content_analysis   JSON,
+  visual_analysis    JSON,
+  contextual_analysis JSON,
+  summary         TEXT,
+  report_points   JSON,
+  alerts          JSON,
+  model           TEXT,
+  temperature     REAL,
+  processed_at    TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_documents_hash ON documents(file_hash);
+CREATE INDEX IF NOT EXISTS idx_documents_case ON documents(case_id);

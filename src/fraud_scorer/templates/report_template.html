@@ -1,604 +1,385 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Informe de Siniestro - {{ numero_siniestro }}</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
-        body {
-            font-family: 'Arial', sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: #f5f5f5;
-        }
-        
-        .container {
-            max-width: 210mm;
-            margin: 20px auto;
-            background: white;
-            padding: 30mm 25mm;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
-        }
-        
-        /* Header */
-        .header {
-            border-bottom: 3px solid #2c3e50;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .header h1 {
-            color: #2c3e50;
-            font-size: 24px;
-            margin-bottom: 10px;
-        }
-        
-        .header .subtitle {
-            color: #7f8c8d;
-            font-size: 14px;
-        }
-        
-        /* Información General */
-        .info-general {
-            background: #f8f9fa;
-            border-left: 4px solid #3498db;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-        
-        .info-general h2 {
-            color: #2c3e50;
-            font-size: 18px;
-            margin-bottom: 15px;
-            border-bottom: 1px solid #dee2e6;
-            padding-bottom: 10px;
-        }
-        
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 2fr;
-            gap: 10px;
-        }
-        
-        .info-label {
-            font-weight: bold;
-            color: #495057;
-            padding: 5px 0;
-        }
-        
-        .info-value {
-            color: #212529;
-            padding: 5px 0;
-        }
-        
-        .highlight {
-            background: #fff3cd;
-            padding: 2px 5px;
-            border-radius: 3px;
-        }
-        
-        /* Secciones */
-        .section {
-            margin-bottom: 30px;
-            page-break-inside: avoid;
-        }
-        
-        .section h2 {
-            color: #2c3e50;
-            font-size: 18px;
-            border-bottom: 2px solid #3498db;
-            padding-bottom: 10px;
-            margin-bottom: 20px;
-        }
-        
-        .section h3 {
-            color: #34495e;
-            font-size: 16px;
-            margin: 20px 0 10px 0;
-            font-weight: 600;
-        }
-        
-        .section p {
-            text-align: justify;
-            margin-bottom: 15px;
-            line-height: 1.8;
-        }
-        
-        /* Alertas y Advertencias */
-        .alert {
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 5px;
-            border-left: 5px solid;
-        }
-        
-        .alert-danger {
-            background: #f8d7da;
-            color: #721c24;
-            border-color: #dc3545;
-        }
-        
-        .alert-warning {
-            background: #fff3cd;
-            color: #856404;
-            border-color: #ffc107;
-        }
-        
-        .alert-info {
-            background: #d1ecf1;
-            color: #0c5460;
-            border-color: #17a2b8;
-        }
-        
-        .alert-success {
-            background: #d4edda;
-            color: #155724;
-            border-color: #28a745;
-        }
-        
-        /* Evidencia */
-        .evidence-box {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 15px;
-            margin: 15px 0;
-        }
-        
-        .evidence-box h4 {
-            color: #495057;
-            font-size: 14px;
-            font-weight: 600;
-            margin-bottom: 10px;
-        }
-        
-        .evidence-list {
-            list-style: none;
-            padding-left: 0;
-        }
-        
-        .evidence-list li {
-            padding: 8px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .evidence-list li:last-child {
-            border-bottom: none;
-        }
-        
-        /* Tablas */
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin: 20px 0;
-        }
-        
-        th {
-            background: #34495e;
-            color: white;
-            padding: 12px;
-            text-align: left;
-            font-weight: 600;
-        }
-        
-        td {
-            padding: 10px 12px;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        tr:nth-child(even) {
-            background: #f8f9fa;
-        }
-        
-        /* Imágenes */
-        .image-container {
-            margin: 20px 0;
-            text-align: center;
-        }
-        
-        .image-container img {
-            max-width: 100%;
-            height: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-        }
-        
-        .image-caption {
-            font-size: 12px;
-            color: #6c757d;
-            margin-top: 10px;
-            font-style: italic;
-        }
-        
-        /* Footer y Conclusiones */
-        .conclusion {
-            background: #e8f4fd;
-            border: 2px solid #2c3e50;
-            border-radius: 10px;
-            padding: 25px;
-            margin-top: 40px;
-        }
-        
-        .conclusion h2 {
-            color: #2c3e50;
-            margin-bottom: 15px;
-        }
-        
-        .conclusion-verdict {
-            font-size: 20px;
-            font-weight: bold;
-            text-align: center;
-            padding: 15px;
-            margin: 20px 0;
-            border-radius: 5px;
-        }
-        
-        .verdict-tentativa {
-            background: #dc3545;
-            color: white;
-        }
-        
-        .verdict-procedente {
-            background: #28a745;
-            color: white;
-        }
-        
-        .verdict-investigacion {
-            background: #ffc107;
-            color: #212529;
-        }
-        
-        /* Métodos de investigación */
-        .method-list {
-            list-style: none;
-            padding: 0;
-        }
-        
-        .method-list li {
-            padding: 10px;
-            margin: 10px 0;
-            background: #f8f9fa;
-            border-left: 3px solid #3498db;
-        }
-        
-        .method-list li strong {
-            color: #2c3e50;
-        }
-        
-        /* Soporte Legal */
-        .legal-support {
-            background: #f8f9fa;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            padding: 20px;
-            margin: 30px 0;
-        }
-        
-        .legal-article {
-            font-family: 'Courier New', monospace;
-            background: white;
-            padding: 15px;
-            border-left: 3px solid #6c757d;
-            margin: 15px 0;
-        }
-        
-        /* Print Styles */
-        @media print {
-            body {
-                background: white;
-            }
-            
-            .container {
-                box-shadow: none;
-                padding: 0;
-                max-width: 100%;
-            }
-            
-            .section {
-                page-break-inside: avoid;
-            }
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Informe de Siniestro - {{ numero_siniestro|default('SIN_NUMERO') }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; background: #f5f5f5; }
+    .container { max-width: 210mm; margin: 20px auto; background: #fff; padding: 30mm 25mm; box-shadow: 0 0 20px rgba(0,0,0,0.1); }
+
+    /* Header */
+    .header { border-bottom: 3px solid #2c3e50; padding-bottom: 20px; margin-bottom: 30px; }
+    .header h1 { color: #2c3e50; font-size: 24px; margin-bottom: 10px; }
+    .header .subtitle { color: #7f8c8d; font-size: 14px; }
+
+    /* Info general */
+    .info-general { background: #f8f9fa; border-left: 4px solid #3498db; padding: 20px; margin-bottom: 30px; }
+    .info-general h2 { color: #2c3e50; font-size: 18px; margin-bottom: 15px; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+    .info-label { font-weight: bold; color: #495057; padding: 5px 0; }
+    .info-value { color: #212529; padding: 5px 0; }
+    .highlight { background: #fff3cd; padding: 2px 5px; border-radius: 3px; }
+
+    /* Secciones */
+    .section { margin-bottom: 30px; page-break-inside: avoid; }
+    .section h2 { color: #2c3e50; font-size: 18px; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-bottom: 20px; }
+    .section h3 { color: #34495e; font-size: 16px; margin: 20px 0 10px 0; font-weight: 600; }
+    .section p { text-align: justify; margin-bottom: 15px; line-height: 1.8; }
+
+    /* Alertas */
+    .alert { padding: 15px; margin: 20px 0; border-radius: 5px; border-left: 5px solid; }
+    .alert-danger { background: #f8d7da; color: #721c24; border-color: #dc3545; }
+    .alert-warning { background: #fff3cd; color: #856404; border-color: #ffc107; }
+    .alert-info { background: #d1ecf1; color: #0c5460; border-color: #17a2b8; }
+    .alert-success { background: #d4edda; color: #155724; border-color: #28a745; }
+
+    /* Evidencia */
+    .evidence-box { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 15px; margin: 15px 0; }
+    .evidence-box h4 { color: #495057; font-size: 14px; font-weight: 600; margin-bottom: 10px; }
+    .evidence-list { list-style: none; padding-left: 0; }
+    .evidence-list li { padding: 8px 0; border-bottom: 1px solid #e9ecef; }
+    .evidence-list li:last-child { border-bottom: none; }
+
+    /* Tablas */
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th { background: #34495e; color: #fff; padding: 12px; text-align: left; font-weight: 600; }
+    td { padding: 10px 12px; border-bottom: 1px solid #dee2e6; vertical-align: top; }
+    tr:nth-child(even) { background: #f8f9fa; }
+
+    /* Imágenes */
+    .image-container { margin: 20px 0; text-align: center; }
+    .image-container img { max-width: 100%; height: auto; border: 1px solid #dee2e6; border-radius: 5px; }
+    .image-caption { font-size: 12px; color: #6c757d; margin-top: 10px; font-style: italic; }
+
+    /* Conclusión */
+    .conclusion { background: #e8f4fd; border: 2px solid #2c3e50; border-radius: 10px; padding: 25px; margin-top: 40px; }
+    .conclusion h2 { color: #2c3e50; margin-bottom: 15px; }
+    .conclusion-verdict { font-size: 20px; font-weight: bold; text-align: center; padding: 15px; margin: 20px 0; border-radius: 5px; }
+    .verdict-tentativa { background: #dc3545; color: #fff; }
+    .verdict-procedente { background: #28a745; color: #fff; }
+    .verdict-investigacion { background: #ffc107; color: #212529; }
+
+    /* Métodos */
+    .method-list { list-style: none; padding: 0; }
+    .method-list li { padding: 10px; margin: 10px 0; background: #f8f9fa; border-left: 3px solid #3498db; }
+    .method-list li strong { color: #2c3e50; }
+
+    /* Soporte legal */
+    .legal-support { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 5px; padding: 20px; margin: 30px 0; }
+    .legal-article { font-family: "Courier New", monospace; background: #fff; padding: 15px; border-left: 3px solid #6c757d; margin: 15px 0; }
+
+    /* Print */
+    @media print {
+      body { background: #fff; }
+      .container { box-shadow: none; padding: 0; max-width: 100%; }
+      .section { page-break-inside: avoid; }
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <!-- HEADER -->
-        <div class="header">
-            <h1>INFORME DE ANÁLISIS DE SINIESTRO</h1>
-            <div class="subtitle">
-                Número de Informe: INF-{{ numero_siniestro }}
-                <br>Fecha de emisión: {{ fecha_emision }}
-            </div>
-        </div>
-
-        <!-- INFORMACIÓN GENERAL -->
-        <div class="info-general">
-            <h2>INFORMACIÓN GENERAL</h2>
-            <div class="info-grid">
-                <div class="info-label">Número de siniestro:</div>
-                <div class="info-value"><span class="highlight">{{ numero_siniestro }}</span></div>
-                
-                <div class="info-label">Nombre del asegurado:</div>
-                <div class="info-value">{{ nombre_asegurado }}</div>
-                
-                <div class="info-label">Número de póliza:</div>
-                <div class="info-value">{{ numero_poliza }}</div>
-                
-                <div class="info-label">Vigencia:</div>
-                <div class="info-value">{{ vigencia_desde }} AL {{ vigencia_hasta }}</div>
-                
-                <div class="info-label">Domicilio de la póliza:</div>
-                <div class="info-value">{{ domicilio_poliza }}</div>
-                
-                <div class="info-label">Bien reclamado:</div>
-                <div class="info-value">{{ bien_reclamado }}</div>
-                
-                <div class="info-label">Monto de reclamación:</div>
-                <div class="info-value"><strong>${{ monto_reclamacion }} MXN</strong></div>
-                
-                <div class="info-label">Tipo de siniestro:</div>
-                <div class="info-value">{{ tipo_siniestro }}</div>
-                
-                <div class="info-label">Fecha de ocurrencia:</div>
-                <div class="info-value">{{ fecha_ocurrencia }}</div>
-                
-                <div class="info-label">Fecha de reclamación:</div>
-                <div class="info-value">{{ fecha_reclamacion }}</div>
-                
-                <div class="info-label">Lugar de los hechos:</div>
-                <div class="info-value">{{ lugar_hechos }}</div>
-                
-                <div class="info-label">Ajustador:</div>
-                <div class="info-value">{{ ajustador }}</div>
-                
-                <div class="info-label">Conclusión preliminar:</div>
-                <div class="info-value"><strong>{{ conclusion_preliminar }}</strong></div>
-            </div>
-        </div>
-
-        <!-- SECCIÓN 1: ANÁLISIS DEL TURNO -->
-        <div class="section">
-            <h2>1. ANÁLISIS DEL TURNO PARA SU INVESTIGACIÓN</h2>
-            <p>{{ analisis_turno }}</p>
-        </div>
-
-        <!-- SECCIÓN 2: PLANTEAMIENTO DEL PROBLEMA -->
-        <div class="section">
-            <h2>2. PLANTEAMIENTO DEL PROBLEMA</h2>
-            <p>{{ planteamiento_problema }}</p>
-            
-            {% if alertas_iniciales %}
-            <div class="alert alert-warning">
-                <strong>⚠️ Alertas Identificadas:</strong>
-                <ul>
-                {% for alerta in alertas_iniciales %}
-                    <li>{{ alerta }}</li>
-                {% endfor %}
-                </ul>
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- SECCIÓN 3: MÉTODOS DE INVESTIGACIÓN -->
-        <div class="section">
-            <h2>3. MÉTODOS EMPLEADOS PARA LA INVESTIGACIÓN</h2>
-            <ul class="method-list">
-                {% for metodo in metodos_investigacion %}
-                <li>
-                    <strong>{{ metodo.nombre }}:</strong> {{ metodo.descripcion }}
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-
-        <!-- SECCIÓN 4: ESTUDIO DE EMPRESAS -->
-        <div class="section">
-            <h2>4. ESTUDIO DE LAS EMPRESAS ASEGURADAS</h2>
-            <p>{{ estudio_empresas }}</p>
-            
-            {% if empresas_involucradas %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Empresa</th>
-                        <th>RFC</th>
-                        <th>Rol</th>
-                        <th>Observaciones</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for empresa in empresas_involucradas %}
-                    <tr>
-                        <td>{{ empresa.nombre }}</td>
-                        <td>{{ empresa.rfc }}</td>
-                        <td>{{ empresa.rol }}</td>
-                        <td>{{ empresa.observaciones }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            {% endif %}
-        </div>
-
-        <!-- SECCIÓN 5: ANÁLISIS DOCUMENTAL -->
-        <div class="section">
-            <h2>5. ANÁLISIS DE LA DOCUMENTACIÓN PROPORCIONADA</h2>
-            
-            {% for documento in documentos_analizados %}
-            <div class="evidence-box">
-                <h4>{{ documento.tipo_documento }}</h4>
-                <p>{{ documento.descripcion }}</p>
-                
-                {% if documento.hallazgos %}
-                <div class="alert alert-{{ documento.nivel_alerta }}">
-                    <strong>Hallazgos:</strong>
-                    <ul>
-                        {% for hallazgo in documento.hallazgos %}
-                        <li>{{ hallazgo }}</li>
-                        {% endfor %}
-                    </ul>
-                </div>
-                {% endif %}
-                
-                {% if documento.imagen %}
-                <div class="image-container">
-                    <img src="{{ documento.imagen }}" alt="{{ documento.tipo_documento }}">
-                    <div class="image-caption">{{ documento.tipo_documento }}</div>
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- ANÁLISIS TÉCNICO DE RUTA (si aplica) -->
-        {% if analisis_ruta %}
-        <div class="section">
-            <h2>ESTUDIO TÉCNICO DE RUTA</h2>
-            
-            <h3>1. Origen del Trayecto</h3>
-            <div class="evidence-box">
-                <ul class="evidence-list">
-                    <li><strong>Origen Declarado:</strong> {{ analisis_ruta.origen_declarado }}</li>
-                    <li><strong>Verificación GPS:</strong> {{ analisis_ruta.verificacion_gps_origen }}</li>
-                </ul>
-            </div>
-            
-            <h3>2. Lugar de los Hechos</h3>
-            <div class="evidence-box">
-                <ul class="evidence-list">
-                    <li><strong>Lugar Declarado:</strong> {{ analisis_ruta.lugar_declarado }}</li>
-                    <li><strong>Verificación GPS:</strong> {{ analisis_ruta.verificacion_gps_hechos }}</li>
-                    <li><strong>Análisis del Evento:</strong> {{ analisis_ruta.analisis_evento }}</li>
-                </ul>
-            </div>
-            
-            <h3>3. Destino Previsto</h3>
-            <div class="evidence-box">
-                <ul class="evidence-list">
-                    <li><strong>Destino Declarado:</strong> {{ analisis_ruta.destino_declarado }}</li>
-                    <li><strong>Verificación de Trayectoria:</strong> {{ analisis_ruta.verificacion_trayectoria }}</li>
-                </ul>
-            </div>
-        </div>
-        {% endif %}
-
-        <!-- VALIDACIONES EXTERNAS -->
-        {% if validaciones_externas %}
-        <div class="section">
-            <h2>VALIDACIONES EXTERNAS</h2>
-            
-            {% for validacion in validaciones_externas %}
-            <div class="evidence-box">
-                <h4>{{ validacion.tipo }}</h4>
-                <p>{{ validacion.descripcion }}</p>
-                
-                {% if validacion.resultado_critico %}
-                <div class="alert alert-danger">
-                    <strong>🚨 Resultado Crítico:</strong> {{ validacion.resultado }}
-                </div>
-                {% else %}
-                <div class="alert alert-info">
-                    <strong>Resultado:</strong> {{ validacion.resultado }}
-                </div>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <!-- INCONSISTENCIAS DETECTADAS -->
-        {% if inconsistencias %}
-        <div class="section">
-            <h2>INCONSISTENCIAS DETECTADAS</h2>
-            
-            <table>
-                <thead>
-                    <tr>
-                        <th>Dato</th>
-                        <th>Según Documento A</th>
-                        <th>Según Documento B</th>
-                        <th>Severidad</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for inconsistencia in inconsistencias %}
-                    <tr>
-                        <td>{{ inconsistencia.dato }}</td>
-                        <td>{{ inconsistencia.valor_a }}</td>
-                        <td>{{ inconsistencia.valor_b }}</td>
-                        <td>
-                            {% if inconsistencia.severidad == 'critica' %}
-                            <span style="color: red; font-weight: bold;">CRÍTICA</span>
-                            {% elif inconsistencia.severidad == 'alta' %}
-                            <span style="color: orange; font-weight: bold;">ALTA</span>
-                            {% else %}
-                            <span style="color: gray;">{{ inconsistencia.severidad|upper }}</span>
-                            {% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
-        {% endif %}
-
-        <!-- CONSIDERACIONES -->
-        <div class="section">
-            <h2>6. CONSIDERACIONES</h2>
-            
-            {% for consideracion in consideraciones %}
-            <div style="margin: 20px 0;">
-                <h3>{{ loop.index }}. {{ consideracion.titulo }}</h3>
-                <p>{{ consideracion.descripcion }}</p>
-                
-                {% if consideracion.evidencias %}
-                <ul>
-                    {% for evidencia in consideracion.evidencias %}
-                    <li>{{ evidencia }}</li>
-                    {% endfor %}
-                </ul>
-                {% endif %}
-            </div>
-            {% endfor %}
-        </div>
-
-        <!-- CONCLUSIÓN -->
-        <div class="conclusion">
-            <h2>7. CONCLUSIÓN DE VERIFICACIÓN</h2>
-            
-            <p>{{ conclusion_texto }}</p>
-            
-            <div class="conclusion-verdict verdict-{{ conclusion_tipo }}">
-                {{ conclusion_veredicto }}
-            </div>
-            
-            {% if soporte_legal %}
-            <div class="legal-support">
-                <h3>Soporte Legal:</h3>
-                {% for articulo in soporte_legal %}
-                <div class="legal-article">
-                    <strong>{{ articulo.referencia }}</strong><br>
-                    {{ articulo.texto }}
-                </div>
-                {% endfor %}
-            </div>
-            {% endif %}
-        </div>
-
-        <!-- FIRMA Y FECHA -->
-        <div style="margin-top: 50px; text-align: right;">
-            <p style="color: #6c757d; font-size: 12px;">
-                Documento generado automáticamente por el Sistema de Análisis de Siniestros<br>
-                Fecha: {{ fecha_generacion }}<br>
-                Versión: 1.0
-            </p>
-        </div>
+  <div class="container">
+    <!-- HEADER -->
+    <div class="header">
+      <h1>INFORME DE ANÁLISIS DE SINIESTRO</h1>
+      <div class="subtitle">
+        Número de Informe: INF-{{ numero_siniestro|default('SIN_NUMERO') }}<br/>
+        Fecha de emisión: {{ fecha_emision|default('') }}
+      </div>
     </div>
+
+    <!-- INFORMACIÓN GENERAL -->
+    <div class="info-general">
+      <h2>INFORMACIÓN GENERAL</h2>
+      <div class="info-grid">
+        <div class="info-label">Número de siniestro:</div>
+        <div class="info-value"><span class="highlight">{{ numero_siniestro|default('SIN_NUMERO') }}</span></div>
+
+        <div class="info-label">Nombre del asegurado:</div>
+        <div class="info-value">{{ nombre_asegurado|default('NO IDENTIFICADO') }}</div>
+
+        <div class="info-label">Número de póliza:</div>
+        <div class="info-value">{{ numero_poliza|default('SIN_POLIZA') }}</div>
+
+        <div class="info-label">Vigencia:</div>
+        <div class="info-value">{{ vigencia_desde|default('') }} AL {{ vigencia_hasta|default('') }}</div>
+
+        <div class="info-label">Domicilio de la póliza:</div>
+        <div class="info-value">{{ domicilio_poliza|default('NO ESPECIFICADO') }}</div>
+
+        <div class="info-label">Bien reclamado:</div>
+        <div class="info-value">{{ bien_reclamado|default('MERCANCÍA DIVERSA') }}</div>
+
+        <div class="info-label">Monto de reclamación:</div>
+        <div class="info-value"><strong>${{ monto_reclamacion|default('0.00') }} MXN</strong></div>
+
+        <div class="info-label">Tipo de siniestro:</div>
+        <div class="info-value">{{ tipo_siniestro|default('NO ESPECIFICADO') }}</div>
+
+        <div class="info-label">Fecha de ocurrencia:</div>
+        <div class="info-value">{{ fecha_ocurrencia|default('') }}</div>
+
+        <div class="info-label">Fecha de reclamación:</div>
+        <div class="info-value">{{ fecha_reclamacion|default('') }}</div>
+
+        <div class="info-label">Lugar de los hechos:</div>
+        <div class="info-value">{{ lugar_hechos|default('NO ESPECIFICADO') }}</div>
+
+        <div class="info-label">Ajustador:</div>
+        <div class="info-value">{{ ajustador|default('') }}</div>
+
+        <div class="info-label">Conclusión preliminar:</div>
+        <div class="info-value"><strong>{{ conclusion_preliminar|default('POR DETERMINAR') }}</strong></div>
+      </div>
+    </div>
+
+    <!-- 1. ANÁLISIS DEL TURNO -->
+    <div class="section">
+      <h2>1. ANÁLISIS DEL TURNO PARA SU INVESTIGACIÓN</h2>
+      <p>{{ analisis_turno|default('') }}</p>
+    </div>
+
+    <!-- 2. PLANTEAMIENTO DEL PROBLEMA -->
+    <div class="section">
+      <h2>2. PLANTEAMIENTO DEL PROBLEMA</h2>
+      <p>{{ planteamiento_problema|default('') }}</p>
+
+      {% if alertas_iniciales %}
+        <div class="alert alert-warning">
+          <strong>⚠️ Alertas Identificadas:</strong>
+          <ul>
+            {% for alerta in alertas_iniciales %}
+              <li>{{ alerta }}</li>
+            {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- 3. MÉTODOS DE INVESTIGACIÓN -->
+    <div class="section">
+      <h2>3. MÉTODOS EMPLEADOS PARA LA INVESTIGACIÓN</h2>
+      <ul class="method-list">
+        {% for metodo in metodos_investigacion|default([]) %}
+          <li><strong>{{ metodo.nombre }}</strong>: {{ metodo.descripcion }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <!-- 4. ESTUDIO DE EMPRESAS -->
+    <div class="section">
+      <h2>4. ESTUDIO DE LAS EMPRESAS ASEGURADAS</h2>
+      <p>{{ estudio_empresas|default('') }}</p>
+
+      {% if empresas_involucradas %}
+        <table>
+          <thead>
+            <tr>
+              <th>Empresa</th>
+              <th>RFC</th>
+              <th>Rol</th>
+              <th>Observaciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for empresa in empresas_involucradas %}
+              <tr>
+                <td>{{ empresa.nombre }}</td>
+                <td>{{ empresa.rfc }}</td>
+                <td>{{ empresa.rol }}</td>
+                <td>{{ empresa.observaciones }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% endif %}
+    </div>
+
+    <!-- 5. ANÁLISIS DOCUMENTAL -->
+    <div class="section">
+      <h2>5. ANÁLISIS DE LA DOCUMENTACIÓN PROPORCIONADA</h2>
+
+      {% for documento in documentos_analizados|default([]) %}
+        <div class="evidence-box">
+          <h4>{{ documento.tipo_documento|default('DOCUMENTO') }}</h4>
+          <p>{{ documento.descripcion|default('') }}</p>
+
+          {% if documento.hallazgos %}
+            <div class="alert alert-{{ documento.nivel_alerta|default('info') }}">
+              <strong>Hallazgos:</strong>
+              <ul>
+                {% for hallazgo in documento.hallazgos %}
+                  <li>{{ hallazgo }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+
+          {% if documento.imagen %}
+            <div class="image-container">
+              <img src="{{ documento.imagen }}" alt="{{ documento.tipo_documento }}">
+              <div class="image-caption">{{ documento.tipo_documento }}</div>
+            </div>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- ESTUDIO TÉCNICO DE RUTA (si aplica) -->
+    {% if analisis_ruta %}
+      <div class="section">
+        <h2>ESTUDIO TÉCNICO DE RUTA</h2>
+
+        <h3>1. Origen del Trayecto</h3>
+        <div class="evidence-box">
+          <ul class="evidence-list">
+            <li><strong>Origen Declarado:</strong> {{ analisis_ruta.origen_declarado|default('') }}</li>
+            <li><strong>Verificación GPS:</strong> {{ analisis_ruta.verificacion_gps_origen|default('') }}</li>
+          </ul>
+        </div>
+
+        <h3>2. Lugar de los Hechos</h3>
+        <div class="evidence-box">
+          <ul class="evidence-list">
+            <li><strong>Lugar Declarado:</strong> {{ analisis_ruta.lugar_declarado|default('') }}</li>
+            <li><strong>Verificación GPS:</strong> {{ analisis_ruta.verificacion_gps_hechos|default('') }}</li>
+            <li><strong>Análisis del Evento:</strong> {{ analisis_ruta.analisis_evento|default('') }}</li>
+          </ul>
+        </div>
+
+        <h3>3. Destino Previsto</h3>
+        <div class="evidence-box">
+          <ul class="evidence-list">
+            <li><strong>Destino Declarado:</strong> {{ analisis_ruta.destino_declarado|default('') }}</li>
+            <li><strong>Verificación de Trayectoria:</strong> {{ analisis_ruta.verificacion_trayectoria|default('') }}</li>
+          </ul>
+        </div>
+      </div>
+    {% endif %}
+
+    <!-- VALIDACIONES EXTERNAS -->
+    {% if validaciones_externas %}
+      <div class="section">
+        <h2>VALIDACIONES EXTERNAS</h2>
+
+        {% for validacion in validaciones_externas %}
+          <div class="evidence-box">
+            <h4>{{ validacion.tipo|default('Verificación') }}</h4>
+            <p>{{ validacion.descripcion|default('') }}</p>
+
+            {% if validacion.resultado_critico %}
+              <div class="alert alert-danger"><strong>🚨 Resultado Crítico:</strong> {{ validacion.resultado|default('') }}</div>
+            {% else %}
+              <div class="alert alert-info"><strong>Resultado:</strong> {{ validacion.resultado|default('') }}</div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- INCONSISTENCIAS DETECTADAS -->
+    {% if inconsistencias %}
+      <div class="section">
+        <h2>INCONSISTENCIAS DETECTADAS</h2>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Dato</th>
+              <th>Según Documento A</th>
+              <th>Según Documento B</th>
+              <th>Severidad</th>
+              <th>Documentos Afectados</th> <!-- Nueva columna -->
+            </tr>
+          </thead>
+          <tbody>
+            {% for inconsistencia in inconsistencias %}
+              <tr>
+                <td>{{ inconsistencia.dato|default('Campo') }}</td>
+                <td>{{ inconsistencia.valor_a|default('—') }}</td>
+                <td>{{ inconsistencia.valor_b|default('—') }}</td>
+                <td>
+                  {% set sev = inconsistencia.severidad|default('media')|lower %}
+                  {% if sev == 'critica' or sev == 'crítica' %}
+                    <span style="color: red; font-weight: bold;">CRÍTICA</span>
+                  {% elif sev == 'alta' %}
+                    <span style="color: orange; font-weight: bold;">ALTA</span>
+                  {% elif sev == 'media' %}
+                    <span style="color: #6c757d;">MEDIA</span>
+                  {% else %}
+                    <span style="color: #6c757d;">{{ sev|upper }}</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if inconsistencia.documentos_afectados %}
+                    {{ inconsistencia.documentos_afectados | join(', ') }}
+                  {% else %}
+                    —
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
+
+    <!-- CONSIDERACIONES -->
+    <div class="section">
+      <h2>6. CONSIDERACIONES</h2>
+      {% for consideracion in consideraciones|default([]) %}
+        <div style="margin: 20px 0;">
+          <h3>{{ loop.index }}. {{ consideracion.titulo }}</h3>
+          <p>{{ consideracion.descripcion }}</p>
+          {% if consideracion.evidencias %}
+            <ul>
+              {% for evidencia in consideracion.evidencias %}
+                <li>{{ evidencia }}</li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      {% endfor %}
+    </div>
+
+    <!-- CONCLUSIÓN -->
+    {% set _ver = (conclusion_tipo|default('investigacion')) %}
+    {% set _class = 'verdict-investigacion' %}
+    {% if _ver == 'tentativa' %}
+      {% set _class = 'verdict-tentativa' %}
+    {% elif _ver == 'procedente' %}
+      {% set _class = 'verdict-procedente' %}
+    {% endif %}
+
+    <div class="conclusion">
+      <h2>7. CONCLUSIÓN DE VERIFICACIÓN</h2>
+      <p>{{ conclusion_texto|default('') }}</p>
+      <div class="conclusion-verdict {{ _class }}">
+        {{ conclusion_veredicto|default('') }}
+      </div>
+
+      {% if soporte_legal %}
+        <div class="legal-support">
+          <h3>Soporte Legal:</h3>
+          {% for articulo in soporte_legal %}
+            <div class="legal-article">
+              <strong>{{ articulo.referencia }}</strong><br/>
+              {{ articulo.texto }}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </div>
+
+    <!-- FIRMA -->
+    <div style="margin-top: 50px; text-align: right;">
+      <p style="color: #6c757d; font-size: 12px;">
+        Documento generado automáticamente por el Sistema de Análisis de Siniestros<br/>
+        Fecha: {{ fecha_generacion|default('') }}<br/>
+        Versión: 1.0
+      </p>
+    </div>
+  </div>
 </body>
 </html>
