@@ -13,7 +13,7 @@ import logging
 
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-from templates.template_processor import TemplateProcessor, InformeSiniestro
+from fraud_scorer.templates.template_processor import TemplateProcessor
 
 logger = logging.getLogger(__name__)
 

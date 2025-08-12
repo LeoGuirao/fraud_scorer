@@ -1,0 +1,65 @@
+global:
+  numero_siniestro:
+    - "no. de siniestro"
+    - "número de siniestro"
+    - "folio de siniestro"
+    - "folio"
+    - "reporte"
+    - "claim number"
+  numero_poliza:
+    - "póliza"
+    - "no. póliza"
+    - "num poliza"
+    - "policy number"
+  nombre_asegurado:
+    - "asegurado"
+    - "insured"
+    - "insured name"
+  domicilio_poliza:
+    - "domicilio"
+    - "dirección"
+    - "address"
+  fecha_siniestro:
+    - "fecha del siniestro"
+    - "fecha de ocurrencia"
+    - "occurrence date"
+  fecha_reclamacion:
+    - "fecha de reclamación"
+    - "claim date"
+  vigencia_inicio:
+    - "vigencia desde"
+    - "inicio de vigencia"
+    - "vigente del"
+    - "vigencia del"
+  vigencia_fin:
+    - "vigencia hasta"
+    - "fin de vigencia"
+    - "vigente hasta"
+    - "vigencia al"
+  claim_type:
+    - "tipo de siniestro"
+    - "clase de siniestro"
+  claim_amount:
+    - "monto reclamado"
+    - "importe reclamado"
+    - "total reclamación"
+
+factura:
+  rfc:
+    - "rfc"
+  total:
+    - "total"
+    - "importe"
+    - "monto"
+  fecha:
+    - "fecha"
+
+poliza:
+  numero_poliza:
+    - "póliza"
+    - "no. póliza"
+
+denuncia:
+  numero_carpeta:
+    - "carpeta"
+    - "carpeta de investigación"

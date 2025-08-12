@@ -5,21 +5,34 @@ from pathlib import Path
 import json
 import logging
 from datetime import datetime
+import os  # por si luego lees envs
 
 logger = logging.getLogger(__name__)
 
+# -------------------------------------------------
 # DB access (para modo replay y consultas compartidas)
+# -------------------------------------------------
 try:
     from fraud_scorer.storage.db import get_conn  # type: ignore
 except Exception:
     get_conn = None  # en entornos donde no haya DB (tests unitarios de utilidades)
 
-# Intentamos importar OCRResult para compatibilidad, pero utils debe funcionar
-# aunque no esté disponible (por ejemplo, en modo replay sin Azure).
+# -------------------------------------------------
+# Intentamos importar OCRResult (utils debe funcionar aunque no esté disponible)
+# -------------------------------------------------
 try:
     from fraud_scorer.processors.ocr.azure_ocr import OCRResult  # type: ignore
 except Exception:
     OCRResult = None  # type: ignore[misc]
+
+# -------------------------------------------------
+# Mapeo canónico (YAML + semántico)
+# apply_canonical_mapping fusiona en specific_fields los campos canónicos detectados.
+# -------------------------------------------------
+try:
+    from fraud_scorer.pipelines.mapper import apply_canonical_mapping  # type: ignore
+except Exception:
+    apply_canonical_mapping = None  # fallback: si no está disponible, no rompe
 
 
 # -------------------------------------------------
@@ -43,12 +56,20 @@ def ocr_result_to_dict(ocr_obj: Any) -> Dict[str, Any]:
             c = out.get("confidence", {})
             out["confidence_scores"] = c if isinstance(c, dict) else {}
         meta = out.get("metadata", {}) or {}
+        # homogenizar metadatos básicos
         out.setdefault("page_count", out.get("page_count", meta.get("page_count", 1)))
         out.setdefault("language", out.get("language", meta.get("language", "es")))
+        # ayudar a tener source_name si Azure guardó file_name
+        if "source_name" not in meta and meta.get("file_name"):
+            meta["source_name"] = meta["file_name"]
+        out["metadata"] = meta
         return out
 
     if OCRResult and isinstance(ocr_obj, OCRResult):
         meta = ocr_obj.metadata or {}
+        # ayudar a tener source_name si Azure guardó file_name
+        if "source_name" not in meta and meta.get("file_name"):
+            meta["source_name"] = meta["file_name"]
         return {
             "text": ocr_obj.text or "",
             "tables": ocr_obj.tables or [],
@@ -63,6 +84,9 @@ def ocr_result_to_dict(ocr_obj: Any) -> Dict[str, Any]:
         }
 
     md = getattr(ocr_obj, "metadata", {}) or {}
+    # ayudar a tener source_name si Azure guardó file_name
+    if "source_name" not in md and md.get("file_name"):
+        md["source_name"] = md["file_name"]
     return {
         "text": getattr(ocr_obj, "text", "") or "",
         "tables": getattr(ocr_obj, "tables", []) or [],
@@ -89,6 +113,9 @@ def _normalize_for_template(
     {
       document_type, raw_text, entities(list), key_value_pairs, specific_fields, ocr_metadata
     }
+    Aplica además:
+      - Inyección de ocr_metadata.source_name (si solo viene file_name).
+      - Mapeo canónico de campos (YAML + semántico) sobre specific_fields.
     """
     raw_ocr = raw_ocr or {}
     ext = extracted or {}
@@ -107,13 +134,31 @@ def _normalize_for_template(
     else:
         entities_out = raw_ocr.get("entities", [])
 
+    # --- Asegurar metadatos de origen (source_name a partir de file_name) ---
+    ocr_meta = ext.get("ocr_metadata", raw_ocr.get("metadata", {}) or {})
+    if "source_name" not in ocr_meta:
+        if ocr_meta.get("file_name"):
+            ocr_meta["source_name"] = ocr_meta["file_name"]
+        elif raw_ocr.get("metadata", {}) and raw_ocr["metadata"].get("file_name"):
+            ocr_meta["source_name"] = raw_ocr["metadata"]["file_name"]
+
+    # --- Aplicar mapeo canónico (YAML + semántico) ---
+    extracted_aug = dict(ext)
+    extracted_aug["ocr_metadata"] = ocr_meta
+    if apply_canonical_mapping is not None:
+        try:
+            extracted_aug = apply_canonical_mapping(extracted_aug, raw_ocr)
+        except Exception as e:
+            # Blindaje: no cortar flujo si el mapeo (embeddings/fuzzy) falla
+            logger.warning(f"apply_canonical_mapping falló; continuando sin mapeo canónico: {e}")
+
     return {
-        "document_type": ext.get("document_type", "otro"),
-        "raw_text": ext.get("raw_text") or raw_ocr.get("text", ""),
+        "document_type": extracted_aug.get("document_type", "otro"),
+        "raw_text": extracted_aug.get("raw_text") or raw_ocr.get("text", ""),
         "entities": entities_out,
-        "key_value_pairs": ext.get("key_value_pairs", {}),
-        "specific_fields": ext.get("specific_fields", {}),
-        "ocr_metadata": ext.get("ocr_metadata", raw_ocr.get("metadata", {})),
+        "key_value_pairs": extracted_aug.get("key_value_pairs", {}),
+        "specific_fields": extracted_aug.get("specific_fields", {}),
+        "ocr_metadata": ocr_meta,
     }
 
 
@@ -235,6 +280,7 @@ def build_docs_for_template_from_db(case_id: str) -> Tuple[List[Dict[str, Any]],
             "extracted_data": extracted if extracted.get("document_type") else None,
         })
 
+        # Aquí también pasa por el mismo normalizador -> mapeo canónico incluido
         docs_for_template.append(_normalize_for_template(extracted, ocr_dict))
 
     return docs_for_template, processed_docs

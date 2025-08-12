@@ -1,19 +1,12 @@
-[project]
-name = "fraud_scorer"
-version = "0.1.0"
-description = "Sistema de análisis de siniestros y scoring de fraude"
-requires-python = ">=3.11"
-
-[project.optional-dependencies]
-dev = ["pytest", "pytest-asyncio", "ruff", "black", "mypy"]
-
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools]
-package-dir = {"" = "src"}
+[project]
+name = "fraud-scorer"
+version = "0.0.1"
+description = "Fraud Scorer"
+requires-python = ">=3.10"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["fraud_scorer*"]
