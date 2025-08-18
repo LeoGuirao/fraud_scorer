@@ -5,7 +5,9 @@ pipeline:
   parallel_workers: 2
   memory_limits:
     factura: 50
+    factura_compra: 50
     poliza: 30
+    poliza_seguro: 30
     denuncia: 100
     bitacora_gps: 200
     default: 50
@@ -15,9 +17,27 @@ consolidation:
   field_priorities:
     numero_poliza:
       - poliza
+      - poliza_seguro
       - carta_reclamacion
     nombre_asegurado:
       - poliza
+      - poliza_seguro
       - denuncia
-    monto_total:
+    vigencia_inicio:  # ⚠️ Corregido
+      - poliza
+      - poliza_seguro
+    vigencia_fin:     # ⚠️ Corregido
+      - poliza
+      - poliza_seguro
+    domicilio_poliza: # ⚠️ Agregado
+      - poliza
+      - poliza_seguro
+    total:           # ⚠️ Cambiado de monto_total
       - factura
+      - factura_compra
+    fecha_siniestro:
+      - denuncia
+      - bitacora_gps
+    lugar_hechos:
+      - denuncia
+      - bitacora_gps

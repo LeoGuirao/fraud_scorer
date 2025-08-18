@@ -160,7 +160,9 @@
 │   │           ├── pip
 │   │           └── pip-25.1.1.dist-info
 │   └── pyvenv.cfg
+├── estructura_final.txt
 ├── estructura-v2.txt
+├── estructura-v3.txt
 ├── estructura.txt
 ├── infra
 ├── logs
@@ -686,4 +688,4 @@
                 ├── isympy.1
                 └── ttx.1
 
-416 directories, 271 files
+416 directories, 273 files

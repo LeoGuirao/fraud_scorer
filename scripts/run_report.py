@@ -26,7 +26,7 @@ try:
     # Template procesador segmentado (forzado) + loader de config opcional
     from fraud_scorer.pipelines.segmented_processor import (
         SegmentedTemplateProcessor,
-        load_pipeline_config,  # (no es obligatorio usarlo aquí, pero lo dejamos disponible)
+        load_pipeline_config,  # disponible por si quisieras cargar manualmente
     )
 
     # Storage
@@ -101,6 +101,43 @@ def _clean_outputs(out_dir: Path, case_id: Optional[str] = None) -> None:
             pass
         except Exception as e:
             logger.warning(f"No se pudo eliminar {pth}: {e}")
+
+
+def _summarize_docs_for_results(processed_docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Crea un resumen compacto por documento para el JSON final (evita guardar OCR completo).
+    """
+    summary = []
+    for d in processed_docs:
+        ex = d.get("extracted_data") or {}
+        kv_sf = ex.get("specific_fields") or {}
+        # document_type puede venir en differentes lugares; hacemos fallback defensivo
+        doc_type = (
+            d.get("document_type")
+            or ex.get("document_type")
+            or ((d.get("ocr_data") or {}).get("metadata") or {}).get("document_type")
+            or "unknown"
+        )
+        file_name = d.get("file_name") or ((d.get("ocr_data") or {}).get("metadata") or {}).get("source_name")
+        summary.append(
+            {
+                "file_name": file_name,
+                "document_type": doc_type,
+                "extracted_fields_count": len(kv_sf),
+            }
+        )
+    return summary
+
+
+def _consolidated_summary(consolidated: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Reduce el tamaño del consolidado a lo útil para auditoría.
+    """
+    return {
+        "case_info": consolidated.get("case_info", {}),
+        "validation_summary": consolidated.get("validation_summary", {}),
+        "processing_stats": consolidated.get("processing_stats", {}),
+    }
 
 
 # ------------------------------------------------------------------------------------
@@ -249,7 +286,7 @@ class FraudAnalysisSystem:
                 params={"from": "new-folder-segmented"},
             )
 
-        # Resumen simple
+        # Resumen simple (JSON ligero)
         fraud_score = float(ai_analysis.get("fraud_score", 0.0))
         risk_level = "bajo" if fraud_score < 0.3 else ("medio" if fraud_score < 0.6 else "alto")
 
@@ -258,14 +295,15 @@ class FraudAnalysisSystem:
             "folder_name": folder_path.name,
             "processing_date": datetime.now().isoformat(),
             "documents_processed": len(processed_docs),
-            "documents": processed_docs,
+            # 👇 Solo resumen, NO OCR completo
+            "documents_summary": _summarize_docs_for_results(processed_docs),
+            "consolidated_summary": _consolidated_summary(consolidated),
             "errors": ocr_errors,
-            "segmented_consolidated": consolidated,  # 👈 guardamos el consolidado para auditoría
             "fraud_analysis": {
                 "fraud_score": round(fraud_score * 100, 2),
                 "risk_level": risk_level,
-                "indicators": ai_analysis.get("fraud_indicators", []),
-                "inconsistencies": ai_analysis.get("inconsistencies", []),
+                "indicators": (ai_analysis.get("fraud_indicators", []) or [])[:5],
+                "inconsistencies": (ai_analysis.get("inconsistencies", []) or [])[:5],
                 "external_validations": ai_analysis.get("external_validations", []),
                 "route_analysis": ai_analysis.get("route_analysis", {}),
             },
@@ -276,15 +314,15 @@ class FraudAnalysisSystem:
         print("\n📝 Generando informe (segmentado)…")
         informe = self.template_processor._build_informe_from_consolidated(consolidated, ai_analysis)
 
-        # (Temporal) fija el número de siniestro para evitar inconsistencias
-        informe.numero_siniestro = "1"
+        # ✅ Número de siniestro estable: usa el case_id (o deja vacío si prefieres)
+        informe.numero_siniestro = case_id  # o: case_id.split('-')[-1]
 
         pretty_html_path = output_path / f"INF-{informe.numero_siniestro}.html"
         self.template_processor.generate_report(informe, str(pretty_html_path))
         print(f"✓ Informe HTML (plantilla) generado: {pretty_html_path}")
 
-        # JSON técnico
-        json_path = output_path / f"resultados_{folder_path.name}.json"
+        # JSON técnico (ligero)
+        json_path = output_path / f"resultados_{case_id}.json"
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(json.loads(json.dumps(results, default=str)), f, ensure_ascii=False, indent=2)
         print(f"✓ Resultados JSON guardados: {json_path}")
@@ -344,7 +382,7 @@ class FraudAnalysisSystem:
                 params={"from": "reanalyze-segmented"},
             )
 
-        # Resumen simple
+        # Resumen simple (JSON ligero)
         fraud_score = float(ai_analysis.get("fraud_score", 0.0))
         risk_level = "bajo" if fraud_score < 0.3 else ("medio" if fraud_score < 0.6 else "alto")
 
@@ -352,14 +390,15 @@ class FraudAnalysisSystem:
             "case_id": case_id,
             "processing_date": datetime.now().isoformat(),
             "documents_processed": len(processed_docs),
-            "documents": processed_docs,
+            # 👇 Solo resumen, NO OCR completo
+            "documents_summary": _summarize_docs_for_results(processed_docs),
+            "consolidated_summary": _consolidated_summary(consolidated),
             "errors": [],
-            "segmented_consolidated": consolidated,  # 👈 guardamos el consolidado para auditoría
             "fraud_analysis": {
                 "fraud_score": round(fraud_score * 100, 2),
                 "risk_level": risk_level,
-                "indicators": ai_analysis.get("fraud_indicators", []),
-                "inconsistencies": ai_analysis.get("inconsistencies", []),
+                "indicators": (ai_analysis.get("fraud_indicators", []) or [])[:5],
+                "inconsistencies": (ai_analysis.get("inconsistencies", []) or [])[:5],
                 "external_validations": ai_analysis.get("external_validations", []),
                 "route_analysis": ai_analysis.get("route_analysis", {}),
             },
@@ -369,14 +408,14 @@ class FraudAnalysisSystem:
         # Informe con plantilla (segmentado)
         print("\n📝 Generando informe (segmentado)…")
         informe = self.template_processor._build_informe_from_consolidated(consolidated, ai_analysis)
-        # (Temporal) fija el número de siniestro para evitar inconsistencias
-        informe.numero_siniestro = "1"
+        # ✅ Número de siniestro estable: usa el case_id (o deja vacío si prefieres)
+        informe.numero_siniestro = case_id  # o: case_id.split('-')[-1]
 
         pretty_html_path = output_path / f"INF-{informe.numero_siniestro}.html"
         self.template_processor.generate_report(informe, str(pretty_html_path))
         print(f"✓ Informe HTML (plantilla) generado: {pretty_html_path}")
 
-        # JSON técnico
+        # JSON técnico (ligero)
         json_path = output_path / f"resultados_{case_id}.json"
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(json.loads(json.dumps(results, default=str)), f, ensure_ascii=False, indent=2)

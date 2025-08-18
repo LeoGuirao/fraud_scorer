@@ -5,6 +5,7 @@ __pycache__/
 .dist-info/
 
 # Envs
+.env
 .venv/
 venv/
 env/

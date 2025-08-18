@@ -1,16 +1,17 @@
 {
   "case_info": {
-    "nombre_asegurado": "MODA YKT, S.A. DE"
+    "nombre_asegurado": "MODA YKT, S.A. DE",
+    "total": "1,008,399.46"
   },
   "documents_summary": [
     {
       "document_id": "doc_000",
       "type": "poliza",
       "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
-      "fields_extracted": 3,
+      "fields_extracted": 0,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.09
+      "processing_ms": 0.1
     },
     {
       "document_id": "doc_001",
@@ -18,8 +19,8 @@
       "source": "FACTURA MERCANCIA _compressed.pdf",
       "fields_extracted": 2,
       "validations_passed": 1,
-      "memory_mb": 0.02,
-      "processing_ms": 0.35
+      "memory_mb": 0.0,
+      "processing_ms": 0.34
     },
     {
       "document_id": "doc_002",
@@ -28,16 +29,16 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.12
+      "processing_ms": 0.11
     },
     {
       "document_id": "doc_003",
       "type": "poliza",
       "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
-      "fields_extracted": 3,
+      "fields_extracted": 0,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.09
+      "processing_ms": 0.08
     },
     {
       "document_id": "doc_004",
@@ -46,16 +47,16 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.09
+      "processing_ms": 0.06
     },
     {
       "document_id": "doc_005",
       "type": "poliza",
       "source": "C&C.pdf",
-      "fields_extracted": 3,
+      "fields_extracted": 1,
       "validations_passed": 1,
       "memory_mb": 0.0,
-      "processing_ms": 0.24
+      "processing_ms": 0.26
     },
     {
       "document_id": "doc_006",
@@ -64,7 +65,7 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.17
+      "processing_ms": 0.16
     },
     {
       "document_id": "doc_007",
@@ -73,7 +74,7 @@
       "fields_extracted": 2,
       "validations_passed": 1,
       "memory_mb": 0.0,
-      "processing_ms": 0.28
+      "processing_ms": 0.31
     },
     {
       "document_id": "doc_008",
@@ -82,16 +83,16 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.15
+      "processing_ms": 0.16
     },
     {
       "document_id": "doc_009",
       "type": "poliza",
       "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
-      "fields_extracted": 3,
+      "fields_extracted": 0,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.11
+      "processing_ms": 0.15
     },
     {
       "document_id": "doc_010",
@@ -100,7 +101,7 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.15
+      "processing_ms": 0.16
     },
     {
       "document_id": "doc_011",
@@ -109,7 +110,7 @@
       "fields_extracted": 2,
       "validations_passed": 1,
       "memory_mb": 0.0,
-      "processing_ms": 0.29
+      "processing_ms": 0.34
     },
     {
       "document_id": "doc_012",
@@ -118,7 +119,7 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.05
+      "processing_ms": 0.06
     },
     {
       "document_id": "doc_013",
@@ -127,7 +128,7 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.11
+      "processing_ms": 0.1
     },
     {
       "document_id": "doc_014",
@@ -136,7 +137,7 @@
       "fields_extracted": 2,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.1
+      "processing_ms": 0.11
     },
     {
       "document_id": "doc_015",
@@ -154,7 +155,7 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.13
+      "processing_ms": 0.12
     },
     {
       "document_id": "doc_017",
@@ -171,8 +172,8 @@
       "source": "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf",
       "fields_extracted": 1,
       "validations_passed": 0,
-      "memory_mb": 0.0,
-      "processing_ms": 0.17
+      "memory_mb": 0.03,
+      "processing_ms": 0.38
     },
     {
       "document_id": "doc_019",
@@ -190,7 +191,7 @@
       "fields_extracted": 0,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.15
+      "processing_ms": 0.14
     },
     {
       "document_id": "doc_021",
@@ -208,7 +209,7 @@
       "fields_extracted": 0,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.13
+      "processing_ms": 0.12
     },
     {
       "document_id": "doc_023",
@@ -226,7 +227,7 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.1
+      "processing_ms": 0.07
     },
     {
       "document_id": "doc_025",
@@ -235,13 +236,13 @@
       "fields_extracted": 1,
       "validations_passed": 0,
       "memory_mb": 0.0,
-      "processing_ms": 0.12
+      "processing_ms": 0.11
     },
     {
       "document_id": "doc_026",
       "type": "poliza",
       "source": "Poliza2346-1.pdf",
-      "fields_extracted": 3,
+      "fields_extracted": 0,
       "validations_passed": 0,
       "memory_mb": 0.0,
       "processing_ms": 0.17
@@ -258,26 +259,8 @@
         "Poliza2346-1.pdf"
       ],
       "common_fields": {
-        "numero_poliza": [
-          "",
-          "",
-          "",
-          "",
-          ""
-        ],
         "nombre_asegurado": [
-          "",
-          "",
-          "MODA YKT, S.A. DE",
-          "",
-          ""
-        ],
-        "domicilio": [
-          "",
-          "",
-          "",
-          "",
-          ""
+          "MODA YKT, S.A. DE"
         ]
       }
     },
@@ -524,12 +507,12 @@
   },
   "processing_stats": {
     "total_documents": 27,
-    "total_memory_mb": 0.015625,
-    "avg_memory_mb": 0.0005787037037037037,
-    "max_memory_mb": 0.015625,
-    "total_time_ms": 3.938,
-    "avg_time_ms": 0.14585185185185187,
-    "max_time_ms": 0.35
+    "total_memory_mb": 0.03125,
+    "avg_memory_mb": 0.0011574074074074073,
+    "max_memory_mb": 0.03125,
+    "total_time_ms": 4.192,
+    "avg_time_ms": 0.15525925925925926,
+    "max_time_ms": 0.38499999999999995
   },
   "pipeline_metrics": {
     "documents_processed": 27,

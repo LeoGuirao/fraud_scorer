@@ -57,6 +57,45 @@ except ImportError:
     )
 
 
+# ----------------------------
+# Helpers (resumenes ligeros)
+# ----------------------------
+def _summarize_docs_for_results(processed_docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Crea un resumen compacto por documento para el JSON final (evita guardar OCR completo).
+    """
+    summary = []
+    for d in processed_docs:
+        ex = d.get("extracted_data") or {}
+        kv_sf = ex.get("specific_fields") or {}
+        doc_type = (
+            d.get("document_type")
+            or ex.get("document_type")
+            or ((d.get("ocr_data") or {}).get("metadata") or {}).get("document_type")
+            or "unknown"
+        )
+        file_name = d.get("file_name") or ((d.get("ocr_data") or {}).get("metadata") or {}).get("source_name")
+        summary.append(
+            {
+                "file_name": file_name,
+                "document_type": doc_type,
+                "extracted_fields_count": len(kv_sf),
+            }
+        )
+    return summary
+
+
+def _consolidated_summary(consolidated: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Reduce el tamaño del consolidado a lo útil para auditoría.
+    """
+    return {
+        "case_info": consolidated.get("case_info", {}),
+        "validation_summary": consolidated.get("validation_summary", {}),
+        "processing_stats": consolidated.get("processing_stats", {}),
+    }
+
+
 class ReplaySystem:
     def __init__(
         self,
@@ -219,7 +258,7 @@ class ReplaySystem:
                     except Exception as e:
                         logger.warning(f"No se pudo guardar análisis IA de documento {doc_id}: {e}")
 
-        # 8) Preparar resumen técnico
+        # 8) Preparar resumen técnico (JSON ligero)
         fraud_score = float(ai_case.get("fraud_score", 0.0))
         risk_level = "bajo" if fraud_score < 0.3 else ("medio" if fraud_score < 0.6 else "alto")
         results = {
@@ -227,13 +266,14 @@ class ReplaySystem:
             "case_name": header.get("name"),
             "processing_date": datetime.now().isoformat(),
             "documents_processed": len(processed_docs),
-            "documents": processed_docs,
-            "segmented_consolidated": consolidated,  # 👈 guardamos el consolidado para auditoría
+            # 👇 Solo resumen, NO OCR completo
+            "documents_summary": _summarize_docs_for_results(processed_docs),
+            "consolidated_summary": _consolidated_summary(consolidated),
             "fraud_analysis": {
                 "fraud_score": round(fraud_score * 100, 2),
                 "risk_level": risk_level,
-                "indicators": ai_case.get("fraud_indicators", []),
-                "inconsistencies": ai_case.get("inconsistencies", []),
+                "indicators": (ai_case.get("fraud_indicators", []) or [])[:5],
+                "inconsistencies": (ai_case.get("inconsistencies", []) or [])[:5],
                 "external_validations": ai_case.get("external_validations", []),
                 "route_analysis": ai_case.get("route_analysis", {}),
             },
@@ -243,8 +283,8 @@ class ReplaySystem:
         # 9) Construir Informe (a partir del pipeline segmentado)
         print("\n📝 Generando informe (segmentado)…")
         informe = self.template._build_informe_from_consolidated(consolidated, ai_case)
-        # Fijar número de siniestro a “1” como pediste (temporal)
-        informe.numero_siniestro = "1"
+        # ✅ Número de siniestro estable: usa el case_id (o déjalo vacío si prefieres)
+        informe.numero_siniestro = case_id  # o: case_id.split('-')[-1]
 
         # 10) Generar HTML/PDF directamente
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -263,7 +303,7 @@ class ReplaySystem:
 
         logger.info(f"HTML: {html_path}" + (f" | PDF: {pdf_path}" if pdf_path else " | PDF omitido"))
 
-        # 11) Guardar snapshot JSON técnico
+        # 11) Guardar snapshot JSON técnico (ligero)
         out_json = out_dir / f"resultados_{case_id}.json"
         save_json_snapshot(results, out_json)
         print(f"✓ Resultados JSON guardados: {out_json}")

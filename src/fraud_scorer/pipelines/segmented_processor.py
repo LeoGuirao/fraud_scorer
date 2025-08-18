@@ -10,6 +10,7 @@ Pipeline segmentado con aislamiento por documento + consolidación inteligente.
 import json
 import hashlib
 import gc
+import re
 from typing import Dict, List, Any, Optional, Tuple, Callable
 from dataclasses import dataclass, field, asdict
 from pathlib import Path
@@ -54,9 +55,17 @@ DEFAULT_CONFIG = {
     "consolidation": {
         "strategy": "priority",
         "field_priorities": {
-            "numero_poliza": ["poliza", "carta_reclamacion"],
-            "nombre_asegurado": ["poliza", "denuncia"],
-            "monto_total": ["factura"],
+            # Estos defaults serán sobreescritos abajo por los corregidos,
+            # pero se mantienen por compatibilidad si no hay YAML.
+            "numero_poliza": ["poliza", "poliza_seguro", "carta_reclamacion"],
+            "nombre_asegurado": ["poliza", "poliza_seguro", "denuncia"],
+            "vigencia_inicio": ["poliza", "poliza_seguro"],
+            "vigencia_fin": ["poliza", "poliza_seguro"],
+            "domicilio_poliza": ["poliza", "poliza_seguro"],
+            "rfc": ["factura", "factura_compra"],
+            "total": ["factura", "factura_compra"],
+            "fecha_siniestro": ["denuncia", "bitacora_gps"],
+            "lugar_hechos": ["denuncia", "bitacora_gps"],
         },
     },
 }
@@ -253,7 +262,7 @@ class IsolatedDocumentProcessor:
 
         total = sf.get("total") or kv.get("total", "") or kv.get("importe", "")
         total_clean = self._clean_amount(total)
-        if 0 < total_clean < 10_000_000:
+        if 0 < total_clean < 100_000_000:  # límite más holgado y razonable
             fields["total"] = f"{total_clean:,.2f}"
 
         fecha = sf.get("fecha") or kv.get("fecha", "")
@@ -264,20 +273,61 @@ class IsolatedDocumentProcessor:
         return fields
 
     def _extract_poliza_isolated(self, ctx: IsolatedDocumentContext) -> Dict[str, Any]:
+        """
+        Corrección: captura campos con nombres consistentes y extiende nombre_asegurado
+        si en el texto aparece la continuación (ej: 'S.A. DE C.V.').
+        """
         fields: Dict[str, Any] = {}
         kv = ctx.raw_data.get("key_value_pairs", {}) or {}
         sf = ctx.raw_data.get("specific_fields", {}) or {}
 
-        fields["numero_poliza"] = sf.get("numero_poliza") or kv.get("poliza") or kv.get("no_poliza", "")
-        fields["nombre_asegurado"] = sf.get("nombre_asegurado") or kv.get("asegurado") or kv.get("contratante", "")
+        # Número de póliza (con sinónimos)
+        fields["numero_poliza"] = (
+            sf.get("numero_poliza")
+            or kv.get("poliza")
+            or kv.get("no_poliza")
+            or kv.get("número de póliza", "")
+        )
 
-        vi = sf.get("vigencia_inicio") or kv.get("vigencia_desde", "")
-        vf = sf.get("vigencia_fin") or kv.get("vigencia_hasta", "")
-        if vi: fields["vigencia_inicio"] = self._normalize_date(vi)
-        if vf: fields["vigencia_fin"] = self._normalize_date(vf)
+        # Nombre del asegurado (mejorado)
+        nombre = (
+            sf.get("nombre_asegurado")
+            or kv.get("asegurado")
+            or kv.get("contratante")
+            or kv.get("nombre del asegurado", "")
+        )
 
-        fields["domicilio"] = sf.get("domicilio_poliza") or kv.get("domicilio") or kv.get("direccion", "")
-        return fields
+        # Si parece incompleto, buscar extensión en el texto
+        if nombre:
+            trimmed = nombre.strip()
+            if ("S.A." in trimmed and "C.V." not in trimmed) or not trimmed.endswith((".", ",", "C.V.", "S.A.")):
+                text = ctx.raw_data.get("text", "") or ""
+                pos = text.find(trimmed)
+                if pos >= 0:
+                    extended = text[pos : pos + 100].split("\n")[0].strip()
+                    if len(extended) > len(trimmed):
+                        nombre = extended
+
+        fields["nombre_asegurado"] = nombre
+
+        # Vigencias
+        fields["vigencia_inicio"] = self._normalize_date(
+            sf.get("vigencia_inicio") or kv.get("vigencia_desde") or kv.get("del", "")
+        )
+        fields["vigencia_fin"] = self._normalize_date(
+            sf.get("vigencia_fin") or kv.get("vigencia_hasta") or kv.get("al", "")
+        )
+
+        # Domicilio (usar nombre consistente)
+        fields["domicilio_poliza"] = (
+            sf.get("domicilio_poliza")
+            or kv.get("domicilio")
+            or kv.get("direccion")
+            or kv.get("domicilio del asegurado", "")
+        )
+
+        # Retornar solo los que tengan valor
+        return {k: v for k, v in fields.items() if v}
 
     def _extract_denuncia_isolated(self, ctx: IsolatedDocumentContext) -> Dict[str, Any]:
         fields: Dict[str, Any] = {}
@@ -321,14 +371,20 @@ class IsolatedDocumentProcessor:
 
     # utilidades
     def _validate_rfc(self, rfc: str) -> bool:
-        import re
         if not rfc:
             return False
         return bool(re.match(r"^[A-ZÑ&]{3,4}[0-9]{6}[A-Z0-9]{3}$", str(rfc).upper().strip()))
 
     def _clean_amount(self, amount: str) -> float:
         try:
-            clean = str(amount).replace(",", "").replace("$", "").replace("MXN", "").replace("MN", "").strip()
+            clean = (
+                str(amount)
+                .replace(",", "")
+                .replace("$", "")
+                .replace("MXN", "")
+                .replace("MN", "")
+                .strip()
+            )
             return float(clean)
         except Exception:
             return 0.0
@@ -371,18 +427,22 @@ class IntelligentConsolidator:
         if config:
             scfg = (config.get("consolidation") or {})
             strategy = ConsolidationStrategy(scfg.get("strategy", strategy.value))
+            # Permite override desde YAML
             field_priorities = scfg.get("field_priorities") or field_priorities
 
         self.strategy = strategy
+
+        # CORRECCIÓN 1: field_priorities con nombres correctos
         self.field_priorities = field_priorities or {
-            "numero_poliza": ["poliza", "poliza_seguro", "carta_reclamacion", "factura", "factura_compra"],
-            "nombre_asegurado": ["poliza", "poliza_seguro", "denuncia", "carta_reclamacion"],
-            "rfc": ["factura", "factura_compra", "poliza"],
-            "monto_total": ["factura", "factura_compra", "carta_reclamacion"],
-            "fecha_siniestro": ["denuncia", "bitacora_gps", "carta_reclamacion"],
-            "lugar_hechos": ["denuncia", "bitacora_gps", "carta_reclamacion"],
-            "vigencia_inicio": ["poliza", "poliza_seguro"],
-            "vigencia_fin": ["poliza", "poliza_seguro"],
+            "numero_poliza": ["poliza", "poliza_seguro", "carta_reclamacion"],
+            "nombre_asegurado": ["poliza", "poliza_seguro", "denuncia"],
+            "vigencia_inicio": ["poliza", "poliza_seguro"],    # antes: vigencia_desde
+            "vigencia_fin": ["poliza", "poliza_seguro"],       # antes: vigencia_hasta
+            "domicilio_poliza": ["poliza", "poliza_seguro"],   # agregado
+            "rfc": ["factura", "factura_compra"],
+            "total": ["factura", "factura_compra"],            # antes: monto_total
+            "fecha_siniestro": ["denuncia", "bitacora_gps"],
+            "lugar_hechos": ["denuncia", "bitacora_gps"],
         }
 
     def consolidate_contexts(self, contexts: List[IsolatedDocumentContext]) -> Dict[str, Any]:
@@ -500,11 +560,11 @@ class IntelligentConsolidator:
         return {
             "total_documents": len(contexts),
             "total_memory_mb": float(sum(mem)),
-            "avg_memory_mb": float(sum(mem) / len(mem)),
-            "max_memory_mb": float(max(mem)),
+            "avg_memory_mb": float(sum(mem) / len(mem)) if mem else 0.0,
+            "max_memory_mb": float(max(mem)) if mem else 0.0,
             "total_time_ms": float(sum(tms)),
-            "avg_time_ms": float(sum(tms) / len(tms)),
-            "max_time_ms": float(max(tms)),
+            "avg_time_ms": float(sum(tms) / len(tms)) if tms else 0.0,
+            "max_time_ms": float(max(tms)) if tms else 0.0,
         }
 
 # =====================================================
@@ -638,21 +698,30 @@ class SegmentedTemplateProcessor(TemplateProcessor):
             loop.close()
 
     # ------- helpers específicos de este TP -------
+    # CORRECCIÓN 3: _build_informe_from_consolidated mejorado
     def _build_informe_from_consolidated(self, consolidated: Dict[str, Any], ai: Dict[str, Any]) -> InformeSiniestro:
         case_info = consolidated.get("case_info", {})
+
+        # Normalización del nombre del asegurado
+        nombre_asegurado = case_info.get("nombre_asegurado", "") or ""
+        if nombre_asegurado and "S.A. DE" in nombre_asegurado and "C.V." not in nombre_asegurado:
+            nombre_asegurado = nombre_asegurado.replace("S.A. DE", "S.A. DE C.V.")
+
         informe = InformeSiniestro(
-            numero_siniestro="1",  # fijo temporalmente (evitamos fuente ruidosa)
-            nombre_asegurado=case_info.get("nombre_asegurado", "NO IDENTIFICADO"),
-            numero_poliza=case_info.get("numero_poliza", "SIN_POLIZA"),
-            vigencia_desde=case_info.get("vigencia_inicio", ""),
-            vigencia_hasta=case_info.get("vigencia_fin", ""),
-            domicilio_poliza=case_info.get("domicilio", "NO ESPECIFICADO"),
+            numero_siniestro="",  # ⚠️ dejar vacío (ya no "1")
+            nombre_asegurado=nombre_asegurado or "NO IDENTIFICADO",
+            numero_poliza=case_info.get("numero_poliza") or "SIN PÓLIZA",
+            vigencia_desde=self._format_date(case_info.get("vigencia_inicio", "")),
+            vigencia_hasta=self._format_date(case_info.get("vigencia_fin", "")),
+            domicilio_poliza=case_info.get("domicilio_poliza") or "NO ESPECIFICADO",
             bien_reclamado=self._extract_bien_from_aggregated(consolidated.get("aggregated_data", {})),
             monto_reclamacion=self._calculate_total_from_aggregated(consolidated.get("aggregated_data", {})),
-            tipo_siniestro=self._determine_claim_type_from_aggregated(consolidated.get("aggregated_data", {}), ai),
-            fecha_ocurrencia=case_info.get("fecha_siniestro", ""),
-            fecha_reclamacion=case_info.get("fecha_reclamacion", ""),
-            lugar_hechos=case_info.get("lugar_hechos", "NO ESPECIFICADO"),
+            tipo_siniestro=self._determine_claim_type_from_aggregated(
+                consolidated.get("aggregated_data", {}), ai
+            ),
+            fecha_ocurrencia=self._format_date(case_info.get("fecha_siniestro", "")),
+            fecha_reclamacion=self._format_date(case_info.get("fecha_reclamacion", "")),
+            lugar_hechos=case_info.get("lugar_hechos") or "NO ESPECIFICADO",
         )
 
         # Secciones analíticas
@@ -697,20 +766,29 @@ class SegmentedTemplateProcessor(TemplateProcessor):
         desc = cf.get("descripcion") or []
         return (desc[0] if isinstance(desc, list) and desc else "MERCANCÍA DIVERSA")
 
+    # CORRECCIÓN 5: _calculate_total_from_aggregated más robusto
     def _calculate_total_from_aggregated(self, aggregated: Dict[str, Any]) -> str:
         total = 0.0
-        for key in ("factura", "factura_compra"):
-            fd = aggregated.get(key) or {}
-            cf = fd.get("common_fields", {}) if fd else {}
-            totales = cf.get("total") or []
-            for t in (totales or []):
-                try:
-                    clean = str(t).replace(",", "").replace("$", "").strip()
-                    val = float(clean)
-                    if 0 < val < 10_000_000:
-                        total += val
-                except Exception:
-                    continue
+        for key in ["factura", "factura_compra"]:
+            doc_data = aggregated.get(key, {}) or {}
+            common_fields = doc_data.get("common_fields", {}) or {}
+            totales = common_fields.get("total", []) or []
+            if isinstance(totales, list):
+                for t in totales:
+                    try:
+                        clean = (
+                            str(t)
+                            .replace(",", "")
+                            .replace("$", "")
+                            .replace("MXN", "")
+                            .replace("MN", "")
+                            .strip()
+                        )
+                        val = float(clean)
+                        if 0 < val < 100_000_000:  # evitar outliers absurdos
+                            total += val
+                    except Exception:
+                        continue
         return f"{total:,.2f}" if total > 0 else "0.00"
 
     def _determine_claim_type_from_aggregated(self, aggregated: Dict[str, Any], ai: Dict[str, Any]) -> str:
@@ -730,3 +808,24 @@ class SegmentedTemplateProcessor(TemplateProcessor):
             if k in s:
                 return v
         return ai.get("claim_type", "NO ESPECIFICADO")
+
+    # CORRECCIÓN 4: agregar _format_date
+    def _format_date(self, date_str: str) -> str:
+        """Formatea fechas a ISO (YYYY-MM-DD) cuando es posible."""
+        if not date_str:
+            return ""
+        if re.match(r"^\d{4}-\d{2}-\d{2}$", str(date_str).strip()):
+            return str(date_str).strip()
+        from datetime import datetime as _dt
+        formats = [
+            "%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d",
+            "%d/%m/%y", "%Y/%m/%d", "%m/%d/%Y"
+        ]
+        s = str(date_str).strip()
+        for fmt in formats:
+            try:
+                dt = _dt.strptime(s, fmt)
+                return dt.strftime("%Y-%m-%d")
+            except Exception:
+                continue
+        return s

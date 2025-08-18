@@ -1,0 +1,74 @@
+{
+  "document_id": "doc_020",
+  "document_hash": "4f37c699e8b45b61",
+  "document_type": "bitacora_gps",
+  "source_file": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+  "processing_timestamp": "2025-08-12 17:48:46.777389",
+  "raw_data": {
+    "text": "REPORTE DE SINIESTRO CON PLAN DE CONTINGENCIA\nFolio: RSC-20250226-01\nFecha del evento: 26/02/2025\nHora de detección del siniestro: 18:46 hrs\nLugar estimado del incidente: Autopista México-Querétaro, Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.\n1. Datos Generales de la Unidad\nTractor\n- Marca: Peterbilt\n- Modelo: 2006\n- No. de serie (VIN): 1XP7DB9X86D893212\n- No. de motor: MXS24811\n- Placas: 07BE4W\nCaja / Plataforma\n- Marca: Alberto\n- Modelo: 1999\n- No. de serie (VIN): 3S9SP4021XA014065\n- Placas: 63UW1A\n2. Conductor\nNombre completo: Justo Castro Martínez\n3. Ruta Asignada\nOrigen: Francisco I. Madero 146, Lázaro Cárdenas, C.P. 60950, Michoacán\nDestino: Siata Di Shmaya, Tlalnepantla de Baz, Estado de México\nHora de inicio de ruta: 05:47 hrs\n4. Descripción del Evento\nDurante el monitoreo activo de la unidad, se detectó una anomalía a las 18:46 hrs del día 26 de febrero de 2025, momento en el que se perdió la señal del sistema de rastreo satelital. De acuerdo con lo...",
+    "entities": [
+      {
+        "type": "fecha",
+        "value": "26/02/2025"
+      },
+      {
+        "type": "moneda",
+        "value": "18"
+      },
+      {
+        "type": "moneda",
+        "value": "2006"
+      },
+      {
+        "type": "moneda",
+        "value": "146,"
+      },
+      {
+        "type": "moneda",
+        "value": "60950,"
+      },
+      {
+        "type": "moneda",
+        "value": "1999"
+      },
+      {
+        "type": "moneda",
+        "value": "26"
+      },
+      {
+        "type": "moneda",
+        "value": "893212"
+      },
+      {
+        "type": "moneda",
+        "value": "5."
+      },
+      {
+        "type": "moneda",
+        "value": "24811"
+      }
+    ],
+    "key_value_pairs": {
+      "folio": "RSC-20250226-01",
+      "fecha_del_evento": "26/02/2025",
+      "hora_de_detección_del_siniestro": "18:46 hrs",
+      "lugar_estimado_del_incidente": "Autopista México-Querétaro, Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.",
+      "-_marca": "Alberto",
+      "-_modelo": "1999",
+      "-_no._de_serie_(vin)": "3S9SP4021XA014065",
+      "-_no._de_motor": "MXS24811",
+      "-_placas": "63UW1A",
+      "nombre_completo": "Justo Castro Martínez",
+      "origen": "Francisco I. Madero 146, Lázaro Cárdenas, C.P. 60950, Michoacán",
+      "destino": "Siata Di Shmaya, Tlalnepantla de Baz, Estado de México",
+      "hora_de_inicio_de_ruta": "05:47 hrs",
+      "logistics": "QAE JESÚS MANUEL",
+      "gerente_de_seguridad": "QUINTERO MARÍN"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {},
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.145
+}
