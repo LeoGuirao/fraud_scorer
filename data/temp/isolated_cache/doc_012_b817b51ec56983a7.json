@@ -3,7 +3,7 @@
   "document_hash": "b817b51ec56983a7",
   "document_type": "otro",
   "source_file": "document_12.pdf",
-  "processing_timestamp": "2025-08-12 17:48:46.235305",
+  "processing_timestamp": "2025-08-18 01:04:06.914168",
   "raw_data": {
     "text": "...",
     "entities": [],
@@ -15,5 +15,5 @@
   },
   "validation_results": {},
   "memory_usage_mb": 0.0,
-  "processing_time_ms": 0.059
+  "processing_time_ms": 0.056
 }

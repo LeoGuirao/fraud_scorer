@@ -1,0 +1,64 @@
+{
+  "document_id": "doc_004",
+  "document_hash": "6c527fa4314fe0cc",
+  "document_type": "factura",
+  "source_file": "1h Tarjetas de circulaciOn.PDF",
+  "processing_timestamp": "2025-08-18 01:04:06.059043",
+  "raw_data": {
+    "text": "TRANSPORTES\nTel. 443 727 88 03\nCorreo electrónico:\nm\nMEDINA\ncossmedinahectorhugo@gmail.com\nAsunto: Respuesta a solicitud de tarjetas de circulación\nFrancisco I.Madero 146, Lazaro Cardenas, C.P.60950\n16 de Abril 2025\nA quien corresponda en SIATA DI SHMAYA S.A. de C.V.:\nEn atención a su amable solicitud respecto a las copias de las tarjetas de circulación del\ntractor y la plataforma involucrados en el servicio que les brindamos, queremos\ninformarles lo siguiente:\nLamentablemente, no nos es posible proporcionarles dichos documentos en este\nmomento, ya que fueron robados como parte del siniestro ocurrido el pasado 26 de\nfebrero de 2025.\nComo consecuencia directa de este incidente, se produjo el robo total de la\ndocumentación original correspondiente al vehículo, entre ellos las tarjetas de circulación\ntanto del tractor como de la plataforma.\nEsta situación fue reportada de manera inmediata ante las autoridades competentes y se\nlevantó la denuncia correspondiente, misma que se encuentra act...",
+    "entities": [
+      {
+        "type": "moneda",
+        "value": "146,"
+      },
+      {
+        "type": "moneda",
+        "value": "16"
+      },
+      {
+        "type": "moneda",
+        "value": "2025."
+      },
+      {
+        "type": "moneda",
+        "value": "26"
+      },
+      {
+        "type": "moneda",
+        "value": "88"
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      },
+      {
+        "type": "moneda",
+        "value": "03"
+      },
+      {
+        "type": "moneda",
+        "value": "2025"
+      },
+      {
+        "type": "moneda",
+        "value": "443"
+      },
+      {
+        "type": "moneda",
+        "value": "60950"
+      }
+    ],
+    "key_value_pairs": {},
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "folio": ""
+  },
+  "validation_results": {
+    "has_rfc": false,
+    "has_total": false,
+    "has_date": false
+  },
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.079
+}

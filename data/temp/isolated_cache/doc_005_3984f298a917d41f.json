@@ -1,0 +1,114 @@
+{
+  "document_id": "doc_005",
+  "document_hash": "3984f298a917d41f",
+  "document_type": "poliza",
+  "source_file": "C&C.pdf",
+  "processing_timestamp": "2025-08-18 01:04:06.193574",
+  "raw_data": {
+    "text": "Godoy, Araceli (HDI Seguros, MX)\nDe:\nGodoy, Araceli (HDI Seguros, MX)\nEnviado el:\nmiércoles, 26 de marzo de 2025 11:17 a. m.\nPara:\nPark Perales\nCC:\nRamirez, Miriam (HDI Seguros, MX)\nAsunto:\nRE: Atención: Tradicional | Ubicación: TLALNEPANTLA DE BAZ ESTADO DE MEXICO ||\nReporte: 4734127 | Siniestro: 20250000002494 || Asegurado: MODA YKT, S.A. DE\nC.V | Evento: TRANSPORTES || Analista: Araceli Godoy\nComparto cobranza y cumplimiento\nReporte de Cabina\nReporte de Cabina\nGuardar :selected:\nVer Póliza\nEnviar a Cristaleras :selected:\nSiniestro Relevante\nSalir\nINFORMACIÓN GENERAL\nReporte 4734127\nSiniestro 20250000002494\nRamo\nDAÑOS\nFecha Ocurrencia\n26/02/2025 06:45:58 p. n\nInicio de Atención\n24/03/2025 10:24:57 a. n\nEvento\nTRANSPORTES\nFecha Creación 24/03/2025 10:25:58 a. n\nPagos\nmen General\nDATOS GENERALES DE LA PÓLIZA\nPóliza Facultada:\nNO\nProducto :\nTRANSPORTES\nVigencia Inicial :\n26/07/2024\nAgencia :\n141 SOLUCIÓN ACTIVA ET S.C.\nVigencia Final :\n26/07/2025\nPóliza :\n2346\nFecha Emisión :\n31/07/2024...",
+    "entities": [
+      {
+        "type": "rfc",
+        "value": "MYK1612126U8"
+      },
+      {
+        "type": "fecha",
+        "value": "26/07/2024"
+      },
+      {
+        "type": "fecha",
+        "value": "21/11/2024"
+      },
+      {
+        "type": "fecha",
+        "value": "26/01/2025"
+      },
+      {
+        "type": "fecha",
+        "value": "26/02/2025"
+      },
+      {
+        "type": "fecha",
+        "value": "31/07/2024"
+      },
+      {
+        "type": "fecha",
+        "value": "26/04/2025"
+      },
+      {
+        "type": "fecha",
+        "value": "26/07/2025"
+      },
+      {
+        "type": "fecha",
+        "value": "12/12/2016"
+      },
+      {
+        "type": "fecha",
+        "value": "21/02/2025"
+      }
+    ],
+    "key_value_pairs": {
+      "de": "Park Perales <parkper@ppmex.com>",
+      "enviado_el": "lunes, 24 de marzo de 2025 10:43 a. m.",
+      "para": "Tapia, Brianda (HDI Seguros, MX) <Brianda.Tapia@hdi.com.mx>; Ángel Atilano L. < jaal@ppmex.com>; Ignacio Perales <ignacioperales@ppmex.com>",
+      "cc": "@Cabina Daños <CabinaDanos@hdi.com.mx>; @Siniestros Danos Centro",
+      "atención": "Tradicional",
+      "ubicación": "TLALNEPANTLA DE BAZ ESTADO DE MEXICO",
+      "reporte": "4734127",
+      "siniestro": "20250000002494",
+      "asegurado": "MODA YKT, S.A. DE",
+      "evento": "TRANSPORTES",
+      "analista": "Araceli Godoy",
+      "ver_póliza\nenviar_a_cristaleras\nsiniestro_relevante\nsalir": ":selected:",
+      "siniestro\nramo": "20250000002494 DAÑOS",
+      "póliza_facultada": "NO",
+      "producto": "TRANSPORTES",
+      "vigencia_inicial": "26/07/2024",
+      "agencia": "141 SOLUCIÓN ACTIVA ET S.C.",
+      "vigencia_final": "26/07/2025 2 74115498",
+      "póliza": "EMITIDA",
+      "fecha_emisión": "31/07/2024",
+      "fecha_alta_cotización": "31/07/2024",
+      "cotización": "12977",
+      "moneda": "PESOS",
+      "cis": "EMITIDA",
+      "forma_de_pago": "TRIMESTRAL",
+      "cliente": "MODA YKT, S.A. DE C.V",
+      "agente": "065881",
+      "seguridad_arieva,_agente_de_segu\ndocumento": "EMITIDA",
+      "nivel_cobro": "CIS",
+      "multianual": "NO Origen : Web 1",
+      "modalidad": "PÓLIZA ANUAL DE PRONÓSTICO DE EMBARQU",
+      "pagado": "26/07/2024",
+      "recibos_pagados": "194660.2507",
+      "recibos_no_pagados": "64538.75",
+      "prima_acumulada": "$15,125.46 U",
+      "nacional": ":selected:",
+      "turista": ":unselected:",
+      "*rfc": "MYK1612126U8",
+      "*razón_social": "MODA YKT, S.A. DE C.V",
+      "*fecha_creación": "12/12/2016",
+      "en_cumplimiento": ":unselected:",
+      "documentación_completa\nactivo": ":unselected:",
+      "estructura_rfc_valida_en_sat": ":unselected:",
+      "estatus_ante_el_sat": "VALIDO",
+      "nip_agrp": "06911312",
+      "nip": "60611865",
+      "ent.gubernamental": ":unselected:",
+      "folio_mercantil": "N-201718881",
+      "apoderado_1": "MOISES LEVY NAHMAD"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "nombre_asegurado": "MODA YKT, S.A. DE"
+  },
+  "validation_results": {
+    "has_policy_number": false,
+    "has_insured_name": true,
+    "has_validity": false
+  },
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.27099999999999996
+}

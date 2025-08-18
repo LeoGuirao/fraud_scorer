@@ -1,6 +1,6 @@
 """
 Sistema de Llenado Automático de Plantillas para Informes de Siniestros
-(versión unificada y compatible con run_report.py / replay_case.py)
+Actualizado para trabajar con IntelligentFieldExtractor
 """
 from __future__ import annotations
 
@@ -147,9 +147,7 @@ class InformeSiniestro:
 class TemplateProcessor:
     """
     Procesador de plantillas del informe.
-    Diseñado para trabajar con la estructura que produce `build_docs_for_template_*`:
-    - Cada documento es un dict con:
-      document_type, raw_text, entities (lista), key_value_pairs, specific_fields, ocr_metadata
+    🔄 ACTUALIZADO para trabajar mejor con IntelligentFieldExtractor
     """
 
     def __init__(self, template_dir: Optional[str] = None):
@@ -194,27 +192,42 @@ class TemplateProcessor:
     # ------------------------
     def extract_from_documents(self, documents: List[Dict[str, Any]], ai_analysis: Dict[str, Any]) -> InformeSiniestro:
         """
-        Extrae campos del caso a partir de la lista normalizada de documentos + análisis IA.
-        `documents`: items con [document_type, raw_text, entities(list), key_value_pairs, specific_fields, ocr_metadata]
+        🔄 ACTUALIZADO: Extrae campos con prioridad de IntelligentFieldExtractor
+        Los campos ahora vienen en specific_fields gracias al nuevo extractor
         """
-        logger.info("Extrayendo información desde documentos normalizados + AI")
+        logger.info("Extrayendo información desde documentos con IntelligentFieldExtractor")
 
-        # ⚠️ Pedido explícito: usar un número fijo por ahora
-        numero_siniestro_fijo = "1"
+        # Usar el case_id si está disponible, si no usar "1"
+        numero_siniestro = ai_analysis.get('case_id', '1')
+        if numero_siniestro == '1':
+            # Intentar extraer de otro lugar
+            for doc in documents:
+                sf = doc.get('specific_fields', {})
+                if sf.get('numero_siniestro'):
+                    numero_siniestro = str(sf['numero_siniestro'])
+                    break
 
         informe = InformeSiniestro(
-            numero_siniestro=numero_siniestro_fijo,
-            nombre_asegurado=self._extract_nombre_asegurado(documents, ai_analysis),
-            numero_poliza=self._extract_numero_poliza(documents, ai_analysis),
-            vigencia_desde=self._extract_vigencia(documents, ai_analysis, which="inicio"),
-            vigencia_hasta=self._extract_vigencia(documents, ai_analysis, which="fin"),
-            domicilio_poliza=self._extract_address(documents, ai_analysis),
-            bien_reclamado=self._extract_bien_reclamado(documents, ai_analysis),
-            monto_reclamacion=self._extract_amount(documents, ai_analysis),
-            tipo_siniestro=self._extract_claim_type(documents, ai_analysis),
-            fecha_ocurrencia=self._extract_date_field(documents, "fecha_siniestro", ai_analysis),
-            fecha_reclamacion=self._extract_date_field(documents, "fecha_reclamacion", ai_analysis),
-            lugar_hechos=self._extract_location(documents, ai_analysis),
+            numero_siniestro=numero_siniestro,
+            nombre_asegurado=self._extract_field_intelligent(documents, 'nombre_asegurado', ai_analysis),
+            numero_poliza=self._extract_field_intelligent(documents, 'numero_poliza', ai_analysis),
+            vigencia_desde=self._extract_field_intelligent(documents, 'vigencia_inicio', ai_analysis),
+            vigencia_hasta=self._extract_field_intelligent(documents, 'vigencia_fin', ai_analysis),
+            domicilio_poliza=self._extract_field_intelligent(documents, 'domicilio_poliza', ai_analysis),
+            bien_reclamado=self._extract_field_intelligent(documents, 'bien_reclamado', ai_analysis),
+            monto_reclamacion=self._format_amount(
+                self._extract_field_intelligent(documents, 'monto_reclamacion', ai_analysis) or
+                self._extract_field_intelligent(documents, 'total', ai_analysis)
+            ),
+            tipo_siniestro=self._extract_field_intelligent(documents, 'tipo_siniestro', ai_analysis),
+            fecha_ocurrencia=self._format_date(
+                self._extract_field_intelligent(documents, 'fecha_siniestro', ai_analysis) or
+                self._extract_field_intelligent(documents, 'fecha_ocurrencia', ai_analysis)
+            ),
+            fecha_reclamacion=self._format_date(
+                self._extract_field_intelligent(documents, 'fecha_reclamacion', ai_analysis)
+            ),
+            lugar_hechos=self._extract_field_intelligent(documents, 'lugar_hechos', ai_analysis),
         )
 
         # Texto general
@@ -301,7 +314,157 @@ class TemplateProcessor:
             logger.warning(f"Error generando PDF: {e}")
 
     # =========================
-    # Helpers privados
+    # 🔄 NUEVOS Helpers para IntelligentFieldExtractor
+    # =========================
+    
+    def _extract_field_intelligent(self, documents: List[Dict[str, Any]], field_name: str, ai_analysis: Dict[str, Any]) -> str:
+        """
+        🔄 NUEVO: Extrae campo con prioridad de specific_fields (IntelligentFieldExtractor)
+        
+        Orden de prioridad:
+        1. specific_fields (campos extraídos por IntelligentFieldExtractor)
+        2. key_value_pairs (si existe)
+        3. AI analysis (como fallback)
+        4. Valor por defecto
+        """
+        # 1. Buscar en specific_fields (IntelligentFieldExtractor)
+        for doc in documents:
+            sf = doc.get('specific_fields', {})
+            if field_name in sf and sf[field_name]:
+                value = str(sf[field_name])
+                if value and value not in ['None', 'null', '']:
+                    logger.debug(f"Campo '{field_name}' encontrado en specific_fields: {value}")
+                    return value
+        
+        # 2. Buscar en key_value_pairs
+        for doc in documents:
+            kv = doc.get('key_value_pairs', {})
+            if field_name in kv and kv[field_name]:
+                value = str(kv[field_name])
+                if value and value not in ['None', 'null', '']:
+                    logger.debug(f"Campo '{field_name}' encontrado en key_value_pairs: {value}")
+                    return value
+        
+        # 3. Buscar con sinónimos en specific_fields
+        synonyms = {
+            'nombre_asegurado': ['asegurado', 'contratante', 'cliente', 'titular'],
+            'numero_poliza': ['poliza', 'no_poliza', 'policy'],
+            'vigencia_inicio': ['vigencia_desde', 'desde', 'inicio_vigencia'],
+            'vigencia_fin': ['vigencia_hasta', 'hasta', 'fin_vigencia'],
+            'monto_reclamacion': ['monto', 'total', 'importe', 'cantidad'],
+            'fecha_siniestro': ['fecha_ocurrencia', 'fecha_evento'],
+            'lugar_hechos': ['ubicacion', 'lugar', 'direccion_siniestro'],
+        }
+        
+        if field_name in synonyms:
+            for synonym in synonyms[field_name]:
+                for doc in documents:
+                    sf = doc.get('specific_fields', {})
+                    if synonym in sf and sf[synonym]:
+                        value = str(sf[synonym])
+                        if value and value not in ['None', 'null', '']:
+                            logger.debug(f"Campo '{field_name}' encontrado como '{synonym}': {value}")
+                            return value
+        
+        # 4. Fallback a AI analysis
+        if field_name in ai_analysis:
+            value = str(ai_analysis[field_name])
+            if value and value not in ['None', 'null', '']:
+                logger.debug(f"Campo '{field_name}' tomado de AI analysis: {value}")
+                return value
+        
+        # 5. Valores por defecto según el campo
+        defaults = {
+            'nombre_asegurado': 'NO IDENTIFICADO',
+            'numero_poliza': 'SIN_POLIZA',
+            'vigencia_inicio': '',
+            'vigencia_fin': '',
+            'domicilio_poliza': 'NO ESPECIFICADO',
+            'bien_reclamado': 'MERCANCÍA DIVERSA',
+            'monto_reclamacion': '0.00',
+            'tipo_siniestro': 'NO ESPECIFICADO',
+            'fecha_siniestro': '',
+            'fecha_reclamacion': '',
+            'lugar_hechos': 'NO ESPECIFICADO',
+        }
+        
+        return defaults.get(field_name, 'NO ESPECIFICADO')
+    
+    def _format_amount(self, amount_str: str) -> str:
+        """
+        🔄 MEJORADO: Formatea montos con mejor manejo
+        """
+        if not amount_str or amount_str in ['NO ESPECIFICADO', '0.00', '']:
+            return '0.00'
+        
+        # Si ya está formateado correctamente
+        if re.match(r'^\d{1,3}(,\d{3})*(\.\d{2})?$', amount_str):
+            return amount_str
+        
+        # Limpiar y convertir
+        try:
+            # Quitar símbolos de moneda y espacios
+            clean = amount_str.replace('$', '').replace('MXN', '').replace('MN', '').strip()
+            # Si tiene comas como separador de miles, quitarlas
+            if ',' in clean and '.' in clean:
+                clean = clean.replace(',', '')
+            elif ',' in clean and clean.count(',') == 1:
+                # Podría ser decimal con coma
+                clean = clean.replace(',', '.')
+            else:
+                clean = clean.replace(',', '')
+            
+            # Convertir a float
+            amount = float(clean)
+            # Formatear con comas de miles y 2 decimales
+            return f"{amount:,.2f}"
+        except:
+            return '0.00'
+    
+    def _format_date(self, date_str: str) -> str:
+        """
+        🔄 MEJORADO: Formatea fechas con mejor manejo
+        """
+        if not date_str or date_str in ['NO ESPECIFICADO', '']:
+            return ''
+        
+        # Si ya está en formato ISO
+        if re.match(r'^\d{4}-\d{2}-\d{2}$', date_str):
+            return date_str
+        
+        # Intentar parsear diferentes formatos
+        s = date_str.strip()
+        
+        # Mapeo de meses en español
+        month_map = {
+            'enero': '01', 'febrero': '02', 'marzo': '03', 'abril': '04',
+            'mayo': '05', 'junio': '06', 'julio': '07', 'agosto': '08',
+            'septiembre': '09', 'octubre': '10', 'noviembre': '11', 'diciembre': '12',
+            'ene': '01', 'feb': '02', 'mar': '03', 'abr': '04',
+            'may': '05', 'jun': '06', 'jul': '07', 'ago': '08',
+            'sep': '09', 'oct': '10', 'nov': '11', 'dic': '12',
+        }
+        
+        # Reemplazar nombres de meses
+        for month_name, month_num in month_map.items():
+            s = s.lower().replace(month_name, month_num)
+        
+        # Formatos comunes
+        for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d/%m/%y", "%d-%m-%y", "%Y/%m/%d"):
+            try:
+                return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
+            except:
+                pass
+        
+        # Si no se pudo parsear, buscar cualquier fecha
+        m = re.findall(r'\d{1,2}[/-]\d{1,2}[/-]\d{2,4}', s)
+        if m:
+            return self._format_date(m[0])  # Recursivo con la primera fecha encontrada
+        
+        return s  # Retornar como está si no se puede formatear
+
+    # =========================
+    # Helpers privados existentes (sin cambios)
     # =========================
     def _dataclass_to_dict(self, obj):
         if hasattr(obj, "__dataclass_fields__"):
@@ -327,307 +490,6 @@ class TemplateProcessor:
         """
         return f"<!doctype html><html><head><meta charset='utf-8'><title>Informe</title></head><body>{header}{meta}<pre>{esc(json.dumps(ctx, ensure_ascii=False, indent=2))}</pre></body></html>"
 
-    # --------- Normalización / utilidades de regex ---------
-    def _norm(self, s: str) -> str:
-        s = (s or "").strip().lower()
-        s = "".join(c for c in unicodedata.normalize("NFD", s) if unicodedata.category(c) != "Mn")
-        s = re.sub(r"[^a-z0-9]+", " ", s)
-        return s
-
-    def _all_text(self, documents: List[Dict]) -> str:
-        parts: List[str] = []
-        for d in documents:
-            t = d.get("raw_text") or ""
-            if t:
-                parts.append(str(t))
-        return "\n".join(parts)
-
-    def _search_in_text(self, documents: List[Dict], patterns: List[re.Pattern]) -> Optional[str]:
-        txt = self._all_text(documents)
-        if not txt:
-            return None
-        txt_norm = "".join(c for c in unicodedata.normalize("NFD", txt) if unicodedata.category(c) != "Mn")
-        for pat in patterns:
-            m = pat.search(txt)
-            if m:
-                return (m.group(1) or "").strip()
-            m2 = pat.search(txt_norm)
-            if m2:
-                return (m2.group(1) or "").strip()
-        return None
-
-    def _line_search(self, documents: List[Dict], pattern: re.Pattern) -> Optional[str]:
-        txt = self._all_text(documents)
-        if not txt:
-            return None
-        for line in txt.splitlines():
-            m = pattern.search(line)
-            if m:
-                return (m.group(1) or "").strip()
-        # prueba con versión sin acentos
-        txt_norm = "".join(c for c in unicodedata.normalize("NFD", txt) if unicodedata.category(c) != "Mn")
-        for line in txt_norm.splitlines():
-            m = pattern.search(line)
-            if m:
-                return (m.group(1) or "").strip()
-        return None
-
-    def _kv_lookup(self, documents: List[Dict], targets: List[str]) -> Optional[str]:
-        norm_targets = [self._norm(t) for t in targets]
-        for d in documents:
-            kv = d.get("key_value_pairs") or {}
-            for k, v in kv.items():
-                nk = self._norm(k)
-                if any(t in nk for t in norm_targets):
-                    if isinstance(v, (list, tuple)) and v:
-                        return str(v[0])
-                    if isinstance(v, dict) and v:
-                        return str(v.get("value") or next(iter(v.values()), ""))
-                    if v not in (None, ""):
-                        return str(v)
-        return None
-
-    # --------- Extractores de alto nivel ---------
-    def _extract_nombre_asegurado(self, documents: List[Dict], ai: Dict) -> str:
-        # SF
-        for d in documents:
-            sf = d.get("specific_fields") or {}
-            v = sf.get("nombre_asegurado")
-            if v:
-                return str(v)
-        # KV
-        hit = self._kv_lookup(documents, ["asegurado", "insured", "insured name", "nombre del asegurado"])
-        if hit:
-            return hit
-        # Texto (regex)
-        pats = [
-            re.compile(r"(?:asegurado|insured(?:\s+name)?)\s*[:#]?\s*([A-ZÁÉÍÓÚÑ0-9][^\n\r]{3,80})", re.IGNORECASE),
-        ]
-        hit = self._line_search(documents, pats[0])
-        if hit:
-            return hit
-        # IA
-        return str(ai.get("insured_name") or ai.get("nombre_asegurado") or "NO IDENTIFICADO")
-
-    def _extract_numero_poliza(self, documents: List[Dict], ai: Dict) -> str:
-        # SF
-        for d in documents:
-            sf = d.get("specific_fields") or {}
-            v = sf.get("numero_poliza")
-            if v:
-                return str(v)
-        # KV
-        hit = self._kv_lookup(documents, ["numero de poliza", "no de poliza", "poliza", "policy number", "num poliza", "no. póliza"])
-        if hit:
-            return hit
-        # Texto (regex)
-        pats = [
-            re.compile(r"(?:n[uú]mero\s*de\s*p[óo]liza|no\.?\s*p[óo]liza|p[óo]liza|policy\s*number)\s*[:#]?\s*([A-Z0-9\-\/]{6,})", re.IGNORECASE),
-        ]
-        hit = self._search_in_text(documents, pats)
-        if hit:
-            return hit
-        return str(ai.get("numero_poliza") or "SIN_POLIZA")
-
-    def _extract_bien_reclamado(self, documents: List[Dict], ai: Dict) -> str:
-        # SF
-        for d in documents:
-            sf = d.get("specific_fields") or {}
-            v = sf.get("bien_reclamado")
-            if v:
-                return str(v)
-        # KV
-        hit = self._kv_lookup(documents, ["bien reclamado", "mercancia", "mercancía", "description of goods", "goods", "descripcion de mercancia"])
-        if hit:
-            return hit
-        # Texto (regex)
-        pat = re.compile(r"(?:bien\s*reclamado|mercanc[ií]a|description\s*of\s*goods)\s*[:#]?\s*([^\n\r]{3,120})", re.IGNORECASE)
-        hit = self._line_search(documents, pat)
-        if hit:
-            return hit
-        return str(ai.get("bien_reclamado") or "MERCANCÍA DIVERSA")
-
-    def _extract_amount(self, documents: List[Dict], ai: Dict) -> str:
-        amounts: List[float] = []
-
-        # entities
-        for d in documents:
-            ents = d.get("entities") or []
-            for e in ents:
-                t = (e.get("type") or "").lower()
-                if t in {"moneda", "currency", "amount", "monto"}:
-                    raw = str(e.get("value") or e.get("text") or "").strip()
-                    val = self._try_parse_amount(raw)
-                    if val is not None:
-                        amounts.append(val)
-
-        # kv
-        for d in documents:
-            kv = d.get("key_value_pairs") or {}
-            for k, v in kv.items():
-                if any(w in k.lower() for w in ("monto", "importe", "total", "claim_amount")):
-                    val = self._try_parse_amount(str(v))
-                    if val is not None:
-                        amounts.append(val)
-
-        # texto (regex robusta)
-        txt = self._all_text(documents)
-        if txt:
-            for m in re.findall(r"(?:monto|importe|total)\s*(?:reclamad[oa]|reclamaci[óo]n)?\s*[:$]?\s*\$?\s*([\d\.,]{3,})", txt, flags=re.IGNORECASE):
-                val = self._try_parse_amount(m)
-                if val is not None:
-                    amounts.append(val)
-
-        if amounts:
-            return f"{max(amounts):,.2f}"
-
-        ai_val = ai.get("claim_amount")
-        if isinstance(ai_val, (int, float)):
-            return f"{float(ai_val):,.2f}"
-        if isinstance(ai_val, str):
-            val = self._try_parse_amount(ai_val)
-            if val is not None:
-                return f"{val:,.2f}"
-        return "0.00"
-
-    def _try_parse_amount(self, s: str) -> Optional[float]:
-        s = s.replace(",", "").replace("$", "").replace("MXN", "").replace("mxn", "").replace("usd", "").strip()
-        m = re.findall(r"[-+]?\d*\.?\d+", s)
-        if not m:
-            return None
-        try:
-            return float(m[0])
-        except Exception:
-            return None
-
-    def _extract_claim_type(self, documents: List[Dict], ai: Dict) -> str:
-        mapping = {
-            "robo": "ROBO",
-            "colision": "COLISIÓN",
-            "colisión": "COLISIÓN",
-            "incendio": "INCENDIO",
-            "daño": "DAÑOS",
-            "daños": "DAÑOS",
-            "bulto": "ROBO DE BULTO POR ENTERO",
-            "mercancia": "ROBO DE MERCANCÍA",
-            "mercancía": "ROBO DE MERCANCÍA",
-        }
-        # keywords en raw_text
-        for d in documents:
-            text = (d.get("raw_text") or "").lower()
-            for k, v in mapping.items():
-                if k in text:
-                    return v
-        return str(ai.get("claim_type") or "NO ESPECIFICADO")
-
-    def _extract_vigencia(self, documents: List[Dict], ai: Dict, which: str) -> str:
-        """
-        Extrae vigencia inicio/fin buscando:
-        - specific_fields (vigencia_inicio/vigencia_fin)
-        - KV con sinónimos típicos
-        - Texto: "Vigencia ... del DD/MM/AAAA al DD/MM/AAAA"
-        """
-        field = "vigencia_inicio" if which == "inicio" else "vigencia_fin"
-
-        # 1) specific_fields
-        for d in documents:
-            sf = d.get("specific_fields") or {}
-            if field in sf and sf[field]:
-                return self._format_date(str(sf[field]))
-
-        # 2) KV con sinónimos
-        synonyms = {
-            "vigencia_inicio": ["vigencia desde", "inicio de vigencia", "del", "desde"],
-            "vigencia_fin": ["vigencia hasta", "fin de vigencia", "al", "hasta"],
-        }
-        hit = self._kv_lookup(documents, synonyms[field])
-        if hit:
-            return self._format_date(hit)
-
-        # 3) Texto: buscar rango del ... al ...
-        txt = self._all_text(documents)
-        if txt:
-            m = re.search(
-                r"vigencia[^:\n\r]*?(?:del|desde)\s*([0-3]?\d[\/\-][01]?\d[\/\-]\d{2,4}).{0,40}?(?:al|hasta)\s*([0-3]?\d[\/\-][01]?\d[\/\-]\d{2,4})",
-                txt,
-                flags=re.IGNORECASE | re.DOTALL,
-            )
-            if m:
-                start, end = m.group(1), m.group(2)
-                return self._format_date(start if which == "inicio" else end)
-
-        # 4) IA
-        v = ai.get(field, "")
-        return self._format_date(str(v)) if v else ""
-
-    def _extract_date_field(self, documents, field, ai) -> str:
-        date_synonyms = {
-            "fecha_siniestro": ["fecha del siniestro", "fecha de ocurrencia", "occurrence date"],
-            "fecha_reclamacion": ["fecha de reclamacion", "fecha de reclamo", "claim date"],
-        }
-        # 1) SF
-        for d in documents:
-            sf = d.get("specific_fields") or {}
-            if field in sf and sf[field]:
-                return self._format_date(str(sf[field]))
-        # 2) KV
-        if field in date_synonyms:
-            hit = self._kv_lookup(documents, date_synonyms[field])
-            if hit:
-                return self._format_date(hit)
-        # 3) Texto
-        label_map = {
-            "fecha_siniestro": r"(?:fecha\s*(?:del\s*)?siniestro|fecha\s*de\s*ocurrencia)\s*[:#]?\s*([0-3]?\d[\/\-][01]?\d[\/\-]\d{2,4})",
-            "fecha_reclamacion": r"(?:fecha\s*de\s*reclamaci[óo]n|claim\s*date)\s*[:#]?\s*([0-3]?\d[\/\-][01]?\d[\/\-]\d{2,4})",
-        }
-        pat = re.compile(label_map.get(field, r""), re.IGNORECASE)
-        hit = self._line_search(documents, pat) if label_map.get(field) else None
-        if hit:
-            return self._format_date(hit)
-        # 4) IA
-        v = ai.get(field, "")
-        return self._format_date(str(v)) if v else ""
-
-    def _extract_address(self, documents: List[Dict], ai: Dict) -> str:
-        # entities
-        for d in documents:
-            ents = d.get("entities") or []
-            for e in ents:
-                if str(e.get("type", "")).lower() in {"address", "domicilio"}:
-                    return str(e.get("value") or e.get("text") or "")
-        # KV/texto
-        pat = re.compile(r"(?:domicilio(?:\s+de\s+la\s+p[óo]liza)?)\s*[:#]?\s*([^\n\r]{6,140})", re.IGNORECASE)
-        hit = self._line_search(documents, pat)
-        if hit:
-            return hit
-        return str(ai.get("insured_address") or "NO ESPECIFICADO")
-
-    def _extract_location(self, documents: List[Dict], ai: Dict) -> str:
-        # entities
-        for d in documents:
-            ents = d.get("entities") or []
-            for e in ents:
-                if str(e.get("type", "")).lower() in {"location", "lugar"}:
-                    return str(e.get("value") or e.get("text") or "")
-        # texto
-        pat = re.compile(r"(?:lugar\s*(?:de\s*)?los?\s*hechos|ubicaci[óo]n\s*del\s*incidente)\s*[:#]?\s*([^\n\r]{3,120})", re.IGNORECASE)
-        hit = self._line_search(documents, pat)
-        if hit:
-            return hit
-        return str(ai.get("incident_location") or "NO ESPECIFICADO")
-
-    def _format_date(self, date_str: str) -> str:
-        s = (date_str or "").strip()
-        if not s:
-            return ""
-        for fmt in ("%d/%m/%Y", "%d-%m-%Y", "%Y-%m-%d", "%d/%m/%y", "%d-%m-%y"):
-            try:
-                return datetime.strptime(s, fmt).strftime("%Y-%m-%d")
-            except Exception:
-                pass
-        m = re.findall(r"\d{2,4}[-/]\d{1,2}[-/]\d{2,4}", s)
-        return m[0] if m else s
-
     def _select_metodos(self, ai_analysis: Dict) -> List[Dict[str, str]]:
         methods = list(self.metodos_base)
         s = json.dumps(ai_analysis, ensure_ascii=False).lower()
@@ -638,49 +500,65 @@ class TemplateProcessor:
         return methods
 
     def _process_documents_enhanced(self, documents: List[Dict[str, Any]], ai_analysis: Dict[str, Any]) -> List[DocumentoAnalizado]:
+        """
+        🔄 MEJORADO: Procesa documentos mostrando campos extraídos por IntelligentFieldExtractor
+        """
         out: List[DocumentoAnalizado] = []
-        for d in documents:
-            tipo = d.get("document_type", "otro")
-            meta = d.get("ocr_metadata", {}) or {}
+        
+        for doc in documents:
+            tipo = doc.get("document_type", "otro")
+            meta = doc.get("ocr_metadata", {}) or {}
             fname = meta.get("source_name") or meta.get("source_path") or f"{tipo}.pdf"
+            
+            # Contar campos extraídos
+            sf = doc.get("specific_fields", {})
+            kv = doc.get("key_value_pairs", {})
+            total_fields = len(sf) + len(kv)
+            
             desc = f"{fname}"
-
-            # Mini-resumen por tipo (si hay datos)
-            kv = d.get("key_value_pairs") or {}
-            sf = d.get("specific_fields") or {}
+            if total_fields > 0:
+                desc += f" ({total_fields} campos extraídos)"
+            
+            # Mostrar campos clave extraídos
             highlights: List[str] = []
+            
             if tipo in {"factura", "factura_compra"}:
-                for k in ("rfc", "total", "fecha", "subtotal"):
-                    val = sf.get(k) or kv.get(k)
-                    if val:
-                        highlights.append(f"{k.upper()}: {val}")
+                for field in ["rfc", "total", "fecha", "numero_factura"]:
+                    if field in sf and sf[field]:
+                        highlights.append(f"{field.upper()}: {sf[field]}")
+            
             elif tipo in {"poliza", "poliza_seguro"}:
-                for k in ("numero_poliza", "vigencia_inicio", "vigencia_fin"):
-                    val = sf.get(k) or kv.get(k)
-                    if val:
-                        highlights.append(f"{k.replace('_',' ').title()}: {val}")
-
+                for field in ["numero_poliza", "nombre_asegurado", "vigencia_inicio"]:
+                    if field in sf and sf[field]:
+                        label = field.replace('_', ' ').title()
+                        highlights.append(f"{label}: {sf[field]}")
+            
+            elif tipo == "denuncia":
+                for field in ["fecha_siniestro", "lugar_hechos", "numero_denuncia"]:
+                    if field in sf and sf[field]:
+                        label = field.replace('_', ' ').title()
+                        highlights.append(f"{label}: {sf[field]}")
+            
             if highlights:
-                desc += " · " + " | ".join(highlights[:3])
-
-            doc = DocumentoAnalizado(
+                desc += "\n• " + "\n• ".join(highlights[:3])
+            
+            doc_analizado = DocumentoAnalizado(
                 tipo_documento=self._format_document_type(tipo),
                 descripcion=desc,
                 hallazgos=[],
-                nivel_alerta=NivelAlerta.INFO.value,
+                nivel_alerta=NivelAlerta.SUCCESS.value if total_fields > 3 else NivelAlerta.INFO.value,
                 imagen=None,
                 metadata=meta,
             )
-            out.append(doc)
+            out.append(doc_analizado)
+        
         return out
 
-    def _build_inconsistencies(self, ai_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+    def _build_inconsistencies(self, ai_data: Dict[str, Any]) -> List[Inconsistencia]:
         """
-        CORREGIDO: Extrae correctamente los detalles de cada inconsistencia
-        del análisis de la IA para pasarlos a la plantilla.
+        Extrae inconsistencias del análisis de IA
         """
         inconsistencias_list = []
-        # ai_data aquí es el diccionario que ya corregimos (ej: ai['fraud_analysis'])
         raw_inconsistencies = ai_data.get("inconsistencies", [])
         
         if not isinstance(raw_inconsistencies, list):
@@ -688,70 +566,75 @@ class TemplateProcessor:
 
         for inconsistency in raw_inconsistencies:
             if isinstance(inconsistency, dict):
-                inconsistencias_list.append({
-                    "field": inconsistency.get("field", "N/A"),
-                    "value_a": inconsistency.get("value_a", "N/A"),
-                    "value_b": inconsistency.get("value_b", "N/A"),
-                    "severity": str(inconsistency.get("severity", "baja")).upper(),
-                    "affected_docs": ", ".join(map(str, inconsistency.get("affected_docs", [])))
-                })
+                inconsistencias_list.append(Inconsistencia(
+                    dato=inconsistency.get("field", "N/A"),
+                    valor_a=str(inconsistency.get("value_a", "N/A")),
+                    valor_b=str(inconsistency.get("value_b", "N/A")),
+                    severidad=str(inconsistency.get("severity", "baja")).upper(),
+                    documentos_afectados=inconsistency.get("affected_docs", [])
+                ))
+        
         return inconsistencias_list
 
     def _generate_analisis_turno(self, ai: Dict[str, Any]) -> str:
         return (
-            "Se realizó un análisis documental y validación técnica basada en criterios "
-            "forenses, jurídicos y de telemetría para recomendar una postura sustentada."
+            "Se realizó un análisis documental exhaustivo utilizando extracción inteligente de campos "
+            "y validación cruzada de información para determinar la procedencia del siniestro."
         )
 
     def _generate_planteamiento(self, ai: Dict[str, Any]) -> str:
         if ai.get("fraud_indicators"):
             return (
-                "La reclamación presenta documentación con inconsistencias relevantes. "
-                f"Se identifican {len(ai['fraud_indicators'])} indicadores potenciales."
+                f"La reclamación presenta {len(ai['fraud_indicators'])} indicadores de alerta. "
+                "Se requiere análisis detallado de la documentación y verificación de hechos."
             )
         return (
-            "Se requiere validación exhaustiva de la documentación presentada y verificación "
-            "de los hechos para determinar la procedencia del reclamo."
+            "Se procede con la validación estándar de la documentación presentada "
+            "para determinar la procedencia del reclamo según los términos de la póliza."
         )
 
     def _generate_conclusion_enhanced(self, fraud_score: float, informe: InformeSiniestro, ai: Dict[str, Any]) -> Tuple[str, str, str]:
-        has_fake_docs = any("APÓCRIFO" in " ".join(d.hallazgos) for d in informe.documentos_analizados)
-        critical = [i for i in informe.inconsistencias if i.severidad.lower() in {"critica", "critical"}]
+        has_critical = len([i for i in informe.inconsistencias if i.severidad.lower() in {"critica", "critical"}]) > 0
 
-        if has_fake_docs or fraud_score > 0.8:
+        if fraud_score > 0.8 or has_critical:
             return (
-                "La reclamación está viciada por la presentación de documentación apócrifa o indicios graves.",
-                "CON TENTATIVA DE FRAUDE",
+                "Existen elementos suficientes para considerar que la reclamación presenta irregularidades graves.",
+                "RECLAMACIÓN CON INDICIOS DE FRAUDE",
                 TipoConclusion.TENTATIVA.value,
             )
-        if fraud_score > 0.5 or critical:
+        if fraud_score > 0.5:
             return (
-                "Se identifican inconsistencias significativas que requieren investigación adicional.",
+                "Se identifican inconsistencias que requieren investigación adicional antes de determinar procedencia.",
                 "REQUIERE INVESTIGACIÓN ADICIONAL",
                 TipoConclusion.INVESTIGACION.value,
             )
         return (
-            "No se observan irregularidades significativas tras el análisis efectuado.",
+            "La documentación presentada cumple con los requisitos básicos para proceder con la reclamación.",
             "PROCEDENTE SALVO MEJOR OPINIÓN",
             TipoConclusion.PROCEDENTE.value,
         )
 
     def _generate_considerations_enhanced(self, informe: InformeSiniestro, ai: Dict[str, Any]) -> List[Dict[str, Any]]:
         out: List[Dict[str, Any]] = []
-        apocrifos = [d for d in informe.documentos_analizados if "APÓCRIFO" in " ".join(d.hallazgos)]
-        if apocrifos:
+        
+        # Si hay muchos campos extraídos exitosamente
+        docs_with_fields = [d for d in informe.documentos_analizados if "campos extraídos" in d.descripcion]
+        if len(docs_with_fields) > 5:
             out.append({
-                "titulo": "Falsificación Comprobada",
-                "descripcion": "Se confirmó documentación apócrifa mediante verificación directa.",
-                "evidencias": [f"{d.tipo_documento}" for d in apocrifos],
+                "titulo": "Documentación Completa",
+                "descripcion": f"Se logró extraer información de {len(docs_with_fields)} documentos exitosamente.",
+                "evidencias": [d.tipo_documento for d in docs_with_fields[:5]],
             })
+        
+        # Si hay inconsistencias críticas
         crit = [i for i in informe.inconsistencias if i.severidad.lower() in {"critica", "critical"}]
         if crit:
             out.append({
-                "titulo": "Inconsistencias Críticas",
-                "descripcion": "Contradicciones fundamentales que afectan la credibilidad del reclamo.",
-                "evidencias": [f"{i.dato}: {i.valor_a} vs {i.valor_b}" for i in crit],
+                "titulo": "Inconsistencias Detectadas",
+                "descripcion": "Se encontraron discrepancias entre los documentos presentados.",
+                "evidencias": [f"{i.dato}: {i.valor_a} vs {i.valor_b}" for i in crit[:3]],
             })
+        
         return out
 
     def _extract_route_analysis(self, ai: Dict[str, Any]) -> Optional[AnalisisRuta]:
@@ -776,9 +659,13 @@ class TemplateProcessor:
             "carpeta_investigacion": "CARPETA DE INVESTIGACIÓN",
             "tarjeta_circulacion": "TARJETA DE CIRCULACIÓN",
             "factura_compra": "FACTURA DE COMPRA",
+            "factura": "FACTURA",
             "bitacora_viaje": "BITÁCORA DE VIAJE",
             "reporte_gps": "REPORTE GPS",
+            "bitacora_gps": "BITÁCORA GPS",
             "denuncia": "DENUNCIA",
             "carta_porte": "CARTA PORTE",
+            "poliza": "PÓLIZA DE SEGURO",
+            "poliza_seguro": "PÓLIZA DE SEGURO",
         }
         return mappings.get(tipo, tipo.upper().replace("_", " "))

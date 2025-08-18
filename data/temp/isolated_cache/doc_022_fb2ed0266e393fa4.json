@@ -1,0 +1,58 @@
+{
+  "document_id": "doc_022",
+  "document_hash": "fb2ed0266e393fa4",
+  "document_type": "bitacora_gps",
+  "source_file": "1h Tarjetas de circulación.pdf",
+  "processing_timestamp": "2025-08-18 01:04:07.778599",
+  "raw_data": {
+    "text": "SECRETARIA DE INFRAESTRUCTURA, COMUNICACIONES Y TRANSPORTES\nREG. FED\nDIRECCIÓN GENERAL DE AUTOTRANSPORTE FEDERAL\nTECG851011710\nTARJETA DE CIRCULACION\nPLACAS\nNOMBRE O RAZÓN SOCIAL\n1\nSERVICIO DE AUTOTRANSPORTE FEDERAL\n63UW1A\nGUILLERMO CESAR TELLEZ CORREA\nCALLE\nMANUEL PATI-O\nNUMERO\n10\nCOLONIA\nLOS GIGANTES\nCÓDIGO POSTAL\n61134\nDOMICILIO FISCAL\nHIDALGO MICHOACAN\nPROPIETARIO DEL VEHÍCULO\nGUILLERMO CESAR TELLEZ CORREA\nMODALIDAD\nGENERAL*\n*:\n*****\nNIV\nMARCA\nMODELO\n3S9SP4021XA014065\nALBERTO\n1999\nMOTOR\nCLASE\nr\nCOMBUSTIBLE\nS/N\nS 2\nSIN COMBUSTIBLE\nTIPO\nPESO VEHICULAR\nNo. DE EJES\nPLATAFORMA\n6.0 Ton\n2\nNo. DE LLANTAS\n8\nCAPACIDAD\nLITROS\nTONELADAS\nANCHO\n*****\n12.0\nPERSONAS\nALTO\n*****\n1.5\n2.5\nLARGO\n9.2\nFOL. 11655070\nTIPO DE SUSPENSIÓN\nEJE DIRECCIONAL\nEJE AUTOMOTRIZ\nEJE CARGA\n- NO APLICA -\n- NO APLICA\n-\nNEUMATICA\nPERMISO DE RUTA\nFECHA LÍMITE DE SUSTITUCIÓN DEL VEHÍCULO\n0919TECG16042024021001000\n*****************\nTRAMITE\nEXPEDICION DE PERMISO (CG)\nLUGAR Y FECHA DE EXPEDICION\nCentro Metropolitano\n18-ABRIL-20...",
+    "entities": [
+      {
+        "type": "rfc",
+        "value": "TECG851011710"
+      },
+      {
+        "type": "rfc",
+        "value": "TECG160420240"
+      },
+      {
+        "type": "moneda",
+        "value": "014065"
+      },
+      {
+        "type": "moneda",
+        "value": "4021"
+      },
+      {
+        "type": "moneda",
+        "value": "2016"
+      },
+      {
+        "type": "moneda",
+        "value": "851011710"
+      },
+      {
+        "type": "moneda",
+        "value": "1999"
+      },
+      {
+        "type": "moneda",
+        "value": "2006"
+      },
+      {
+        "type": "moneda",
+        "value": "10"
+      },
+      {
+        "type": "moneda",
+        "value": "63"
+      }
+    ],
+    "key_value_pairs": {},
+    "specific_fields": {}
+  },
+  "extracted_fields": {},
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.13699999999999998
+}

@@ -1,0 +1,64 @@
+{
+  "document_id": "doc_019",
+  "document_hash": "f0ad0e10d5b65099",
+  "document_type": "peritaje",
+  "source_file": "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf",
+  "processing_timestamp": "2025-08-18 01:04:07.511509",
+  "raw_data": {
+    "text": "LOGISTICS\nServicios logísticos\nNombre: Jesús Manuel Quintero Marin RFC:QUMJ000507QD0\nProtocolo de Actuación para un GPS en un Camión en Caso de Robo:\n1.\nDetección del Robo\n•\nEl sistema GPS debe generar una alerta automática ante anomalías.\n•\nVerificar con el conductor la situación y recopilar detalles.\n2.\nNotificación a las Autoridades\n•\nInformar de inmediato a la policía con los datos del camión y su ubicación.\n•\nBrindar acceso al rastreo GPS para facilitar la localización.\n3.\nAcciones de Seguridad\n•\nMantener el monitoreo constante del camión.\n•\nActivar alertas de geovallas ante movimientos sospechosos.\n4.\nToma de Decisiones en Caso de Desviación\n•\nEvaluar si continuar el rastreo es seguro.\n•\nCoordinar con expertos en seguridad si es necesario.\n5.\nSeguimiento y Recuperación del Vehículo\n•\nProporcionar información en tiempo real a las autoridades.\n•\nColaborar en la recuperación del camión y la carga.\n6.\nVerificación y Documentación\n•\nRevisar el estado del GPS tras la recuperación.\n•\nEl...",
+    "entities": [
+      {
+        "type": "rfc",
+        "value": "QUMJ000507QD0"
+      },
+      {
+        "type": "moneda",
+        "value": "000507"
+      },
+      {
+        "type": "moneda",
+        "value": "1."
+      },
+      {
+        "type": "moneda",
+        "value": "3."
+      },
+      {
+        "type": "moneda",
+        "value": "5."
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      },
+      {
+        "type": "moneda",
+        "value": "6."
+      },
+      {
+        "type": "moneda",
+        "value": "4."
+      },
+      {
+        "type": "moneda",
+        "value": "8."
+      },
+      {
+        "type": "moneda",
+        "value": "0"
+      }
+    ],
+    "key_value_pairs": {
+      "nombre": "Jesús Manuel Quintero Marin"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "raw_fields": {
+      "nombre": "Jesús Manuel Quintero Marin"
+    }
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.06999999999999999
+}

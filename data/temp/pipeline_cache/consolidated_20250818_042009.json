@@ -1,0 +1,304 @@
+{
+  "case_info": {},
+  "documents_summary": [
+    {
+      "document_id": "doc_000",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_001",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_002",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_003",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_004",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_005",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_006",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_007",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_008",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_009",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_010",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_011",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_012",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_013",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_014",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_015",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_016",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_017",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_018",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_019",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_020",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_021",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_022",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_023",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_024",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_025",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    },
+    {
+      "document_id": "doc_026",
+      "type": "error",
+      "source": "unknown",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "memory_mb": 0.0,
+      "processing_ms": 0.0
+    }
+  ],
+  "aggregated_data": {
+    "error": {
+      "count": 27,
+      "documents": [
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown",
+        "unknown"
+      ],
+      "common_fields": {}
+    }
+  },
+  "validation_summary": {
+    "total": 0,
+    "passed": 0,
+    "success_rate": 0.0,
+    "failures_by_type": {}
+  },
+  "processing_stats": {
+    "total_documents": 27,
+    "total_memory_mb": 0.0,
+    "avg_memory_mb": 0.0,
+    "max_memory_mb": 0.0,
+    "total_time_ms": 0.0,
+    "avg_time_ms": 0.0,
+    "max_time_ms": 0.0
+  },
+  "pipeline_metrics": {
+    "documents_processed": 27,
+    "batches_completed": 9,
+    "errors": [],
+    "warnings": []
+  }
+}

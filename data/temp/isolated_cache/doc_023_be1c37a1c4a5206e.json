@@ -1,0 +1,58 @@
+{
+  "document_id": "doc_023",
+  "document_hash": "be1c37a1c4a5206e",
+  "document_type": "bitacora_gps",
+  "source_file": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+  "processing_timestamp": "2025-08-18 01:04:07.842772",
+  "raw_data": {
+    "text": "61134\nVIIVILIV. MANUEL PATI O NO. 10 COL. LOS GIGANTES HIDALGO MICHOACAN C.P.\nSICT\nCOMUNICACIONES\nQue ampara la(s) unidad(es) para operar y explotar el servicio de autotransporte federal de carga\nSICTI\nCOMUNICACIONES\nSİCT\ngeneral por caminos y puentes de jurisdicción federal, de la(s) siguiente(s)\nCOMUNICACIONES\nNO.\nMARCA\n1\nMODELO\nALBERTO\nNIV\nNO. MOTOR\n1999\n3S9SP4021XA014065\nPLACA\nTIPO\n63UW1A\nPLATAFORMA\n2\nPETERBILT :\n2006\n1XP7DB9X86D893212\n1\nCOMUNICACIONES\nMXS24811\n07BE4W\nTRACTOR\n1\nCOMUNICACIONES\nLa presente alta la expide y firma\nDIRECTOR DE TRAMITES DE SERVICIOS DEL AUTOTRANSPORTE FEDERAL\nCRETARÍA DE INFRAESTRUCTURA, COMUNICACIONES Y TRANSPORTES\nSECRETARÍA DE INFRAESTRUCTURA, COMUNICACIONES Y TRAN\nDIRECCIÓN GENERAL DE AUTOTRANSPORTE FEDERAL\nTARJETA DE CIRCULACIÓN\nDIRECCIÓN GENERAL DE AUTOTRANSPORTE FEDERAL\nEG. FED\nPLACAS\nREG. FED.\nTECG851011710\nSERVICIO DE AUTOTRANSPORTE FEDERAL\nTARJETA DE CIRCULACIÓN\n07BE4W\nTECG851011710\nNOMBRE O RAZÓN SOCIAL\nNOMBRE O RAZÓN SOCIAL\nSERVICIO DE AUTOTR...",
+    "entities": [
+      {
+        "type": "rfc",
+        "value": "TECG851011710"
+      },
+      {
+        "type": "rfc",
+        "value": "TECG160420240"
+      },
+      {
+        "type": "moneda",
+        "value": "014065"
+      },
+      {
+        "type": "moneda",
+        "value": "4021"
+      },
+      {
+        "type": "moneda",
+        "value": "851011710"
+      },
+      {
+        "type": "moneda",
+        "value": "1999"
+      },
+      {
+        "type": "moneda",
+        "value": "2006"
+      },
+      {
+        "type": "moneda",
+        "value": "10"
+      },
+      {
+        "type": "moneda",
+        "value": "63"
+      },
+      {
+        "type": "moneda",
+        "value": "2"
+      }
+    ],
+    "key_value_pairs": {},
+    "specific_fields": {}
+  },
+  "extracted_fields": {},
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.14400000000000002
+}

@@ -1,0 +1,109 @@
+{
+  "document_id": "doc_010",
+  "document_hash": "9ebf7bc44b22212b",
+  "document_type": "identificacion",
+  "source_file": "ACREDITACION Y RATIFICACION DENUNCIA_compressed.pdf",
+  "processing_timestamp": "2025-08-18 00:40:24.572730",
+  "raw_data": {
+    "text": "FGJ\nESTADO DE MÉXICO\nENTREVISTA\nNIC: FTR/RGT/00/MPI/625/00319/25/02 NUC: TLA/FTR/RGT/013/058310/25/02\nFECHA DE ENTREVISTA: 11 de marzo de 2025\nHORA DE ENTREVISTA: 12:08 horas\nNOMBRE DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA: Lic. Daniel Rodríguez Mendoza\nA.M.P de Investigación\nLUGAR DONDE SE REALIZA LA ENTREVISTA: Fiscalía Especializada de Delitos cometidos contra el Transporte\n1. DATOS DEL ENTREVISTADO\nNOMBRE DEL ENTREVISTADO: ANGEL DE JESUS RODRIGUEZ MARTINEZ\nSEXO: HOMBRE\nFECHA DE NACIMIENTO: 18-09-2002 EDAD: 22 NACIONALIDAD: Mexicana ORIGINARIO DE: MÉXICO - México - Tlalnepantla de Baz ESTADO MIGRATORIO (EN SU CASO):\nJUSTICIA DEL S\nEs CALIDAD: Ofendido\nIDENTIFICACIÓN: CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2505378800\nG\nCURP: Sin valor R.C: Sin valor\nLEALTAD Y ¿SABE LEER Y ESCRIBIR? Sin valor\nGRADO DE ESCOLARIDAD: SECUNDARIA\n190-104-2019 EN DEUTOOCUPACIÓN: EMPLEADO\nLUGAR DE TRABAJO O NEGOCIOS: SIATA DI SHMAYA S.A DE C.V. ESTADO CIVIL: ...",
+    "entities": [
+      {
+        "type": "rfc",
+        "value": "DMEX250537880"
+      },
+      {
+        "type": "fecha",
+        "value": "10/25/02"
+      },
+      {
+        "type": "fecha",
+        "value": "06/02/2025"
+      },
+      {
+        "type": "fecha",
+        "value": "18-09-2002"
+      },
+      {
+        "type": "fecha",
+        "value": "19/25/02"
+      },
+      {
+        "type": "moneda",
+        "value": "11"
+      },
+      {
+        "type": "moneda",
+        "value": "53,690"
+      },
+      {
+        "type": "moneda",
+        "value": "2025"
+      },
+      {
+        "type": "moneda",
+        "value": "2023,"
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      }
+    ],
+    "key_value_pairs": {
+      "entrevista\nnic": "FTR/RGT/00/MPI/625/00319/25/02",
+      "nuc": "TLA/FTR/RGT/013/058310/25/02",
+      "fecha_de_entrevista": "11 de marzo de 2025",
+      "de_entrevista": "12:08 horas",
+      "nombre_de_la_autoridad_que_realiza_la_entrevista": "Lic. Daniel Rodríguez Mendoza A.M.P de Investigación",
+      "lugar_donde_se_realiza_la_entrevista": "Fiscalía Especializada de Delitos cometidos contra el Transporte",
+      "nombre_del_entrevistado": "ANGEL DE JESUS RODRIGUEZ MARTINEZ",
+      "sexo": "HOMBRE",
+      "fecha_de_nacimiento": "18-09-2002",
+      "edad": "22",
+      "nacionalidad": "Mexicana",
+      "originario_de": "MÉXICO - México - Tlalnepantla de Baz",
+      "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL IDMEX2505378800",
+      "curp": "Sin valor",
+      "r.c": "Sin valor",
+      "¿sabe_leer_y_escribir?": "Sin valor",
+      "grado_de_escolaridad": "SECUNDARIA",
+      "deutoocupación": "EMPLEADO",
+      "lugar_de_trabajo_o_negocios": "SIATA DI SHMAYA S.A DE C.V.",
+      "estado_civil": "UNION LIBRE",
+      "ingresos_mensuales": "Sin valor",
+      "domicilio": "Chabacano, 22-b, Sin valor, El Olivo 1, 54110, Tlalnepantla de Baz, México",
+      "teléfono": "FGJ",
+      "teléfono_celular": "5576048153",
+      "correo_electrónico": "angel.fat.fit@hotmail.com",
+      "¿cuenta_con_representante_legal?": "No",
+      "en_su_caso_que_medio_técnico_utilizado": "SIGI"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "raw_fields": {
+      "entrevista\nnic": "FTR/RGT/00/MPI/625/00319/25/02",
+      "nuc": "TLA/FTR/RGT/013/058310/25/02",
+      "fecha_de_entrevista": "11 de marzo de 2025",
+      "de_entrevista": "12:08 horas",
+      "nombre_de_la_autoridad_que_realiza_la_entrevista": "Lic. Daniel Rodríguez Mendoza A.M.P de Investigación",
+      "lugar_donde_se_realiza_la_entrevista": "Fiscalía Especializada de Delitos cometidos contra el Transporte",
+      "nombre_del_entrevistado": "ANGEL DE JESUS RODRIGUEZ MARTINEZ",
+      "sexo": "HOMBRE",
+      "fecha_de_nacimiento": "18-09-2002",
+      "edad": "22",
+      "nacionalidad": "Mexicana",
+      "originario_de": "MÉXICO - México - Tlalnepantla de Baz",
+      "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL IDMEX2505378800",
+      "curp": "Sin valor",
+      "r.c": "Sin valor",
+      "¿sabe_leer_y_escribir?": "Sin valor",
+      "grado_de_escolaridad": "SECUNDARIA",
+      "deutoocupación": "EMPLEADO",
+      "lugar_de_trabajo_o_negocios": "SIATA DI SHMAYA S.A DE C.V.",
+      "estado_civil": "UNION LIBRE"
+    }
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.13699999999999998
+}

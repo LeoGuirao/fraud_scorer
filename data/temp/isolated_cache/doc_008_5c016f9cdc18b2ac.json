@@ -1,0 +1,106 @@
+{
+  "document_id": "doc_008",
+  "document_hash": "5c016f9cdc18b2ac",
+  "document_type": "identificacion",
+  "source_file": "1C DENUNCIA INICIAL compressed.pdf",
+  "processing_timestamp": "2025-08-18 00:40:24.369965",
+  "raw_data": {
+    "text": "1\nFGJ\nESTADO DE MÉXICO\nCARÁTULA\nNIC FTR/RGT/00/MPI/625/00319/25/02\nNUC TLA/FTR/RGT/013/058310/25/02\nFECHA 26 de febrero de 2025\nDELITO ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA\nVÍCTIMA JUSTO CASTRO MARTINEZ\nIMPUTADO QUIÉN RESULTE RESPONSABLE\nLUGAR CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO\nAUTORIDAD VICTORIA JAQUELINE VEGA TORRES AGENTE DEL MINISTERIO PUBLICO ADSCRITO A ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE ATIZAPAN DE ZARAGOZA\nCALLE FGJ CC\nFGU\nESTADO DE MÉXICO\nENTREVISTA\nFECHA DE ENTREVISTA: 27 de febrero de 2025\n2\nFGJ\nNIC: FTR/RGT/00/MPI/625/00319/25/02 NUC: TLA/FTR/RGT/013/058310/25/02\nHORA DE ENTREVISTA: 00:01 hofas\nNOMBRE DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA: LIC. VICTORIA JAQUELINE VEGA\nTORRES\nLUGAR DONDE SE REALIZA LA ENTREVISTA: FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN\n1. DATOS DEL ENTREVISTADO\n...",
+    "entities": [
+      {
+        "type": "rfc",
+        "value": "DMEX209208316"
+      },
+      {
+        "type": "rfc",
+        "value": "CAMJ840429HDF"
+      },
+      {
+        "type": "curp",
+        "value": "CAMJ840429HDFSRS07"
+      },
+      {
+        "type": "fecha",
+        "value": "10/25/02"
+      },
+      {
+        "type": "fecha",
+        "value": "29-04-1984"
+      },
+      {
+        "type": "fecha",
+        "value": "19/25/02"
+      },
+      {
+        "type": "moneda",
+        "value": "2025"
+      },
+      {
+        "type": "moneda",
+        "value": "04"
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      },
+      {
+        "type": "moneda",
+        "value": "40"
+      }
+    ],
+    "key_value_pairs": {
+      "nuc": "TLA/FTR/RGT/013/058310/25/02",
+      "agente_del_ministerio_publico": "VICTORIA JAQUELINE VEGA TORRES",
+      "fecha_de_entrevista": "27 de febrero de 2025",
+      "nic": "FTR/RGT/00/MPI/625/00319/25/02",
+      "de_entrevista": "00:01 hofas",
+      "nombre_de_la_autoridad_que_realiza_la_entrevista": "LIC. VICTORIA JAQUELINE VEGA TORRES",
+      "lugar_donde_se_realiza_la_entrevista": "FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN",
+      "nombre_del_entrevistado": "JUSTO CASTRO MARTINEZ",
+      "sexo": "HOMBRE",
+      "fecha_de_nacimiento": "29-04-1984",
+      "edad": "40",
+      "nacionalidad": "Mexicana",
+      "originario_de": "MÉXICO - Ciudad de México - Cuauhtémoc",
+      "calidad": "Víctima",
+      "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2092083165",
+      "curp": "CAMJ840429HDFSRS07",
+      "r.f.c": "Sin valor",
+      "¿sabe_leer_y_escribir?": "SABE LEER Y ESCRIBIR",
+      "grado_de_escolaridad": "PRIMARIA",
+      "ocupación": "EMPLEADO",
+      "lugar_de_trabajo_o_negócios": "VARIABLE",
+      "estado_civil": "CASADO(A)",
+      "ingresos_mensuales": "12000",
+      "domicilio": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "raw_fields": {
+      "nuc": "TLA/FTR/RGT/013/058310/25/02",
+      "agente_del_ministerio_publico": "VICTORIA JAQUELINE VEGA TORRES",
+      "fecha_de_entrevista": "27 de febrero de 2025",
+      "nic": "FTR/RGT/00/MPI/625/00319/25/02",
+      "de_entrevista": "00:01 hofas",
+      "nombre_de_la_autoridad_que_realiza_la_entrevista": "LIC. VICTORIA JAQUELINE VEGA TORRES",
+      "lugar_donde_se_realiza_la_entrevista": "FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN",
+      "nombre_del_entrevistado": "JUSTO CASTRO MARTINEZ",
+      "sexo": "HOMBRE",
+      "fecha_de_nacimiento": "29-04-1984",
+      "edad": "40",
+      "nacionalidad": "Mexicana",
+      "originario_de": "MÉXICO - Ciudad de México - Cuauhtémoc",
+      "calidad": "Víctima",
+      "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2092083165",
+      "curp": "CAMJ840429HDFSRS07",
+      "r.f.c": "Sin valor",
+      "¿sabe_leer_y_escribir?": "SABE LEER Y ESCRIBIR",
+      "grado_de_escolaridad": "PRIMARIA",
+      "ocupación": "EMPLEADO"
+    }
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.13699999999999998
+}

@@ -1,0 +1,76 @@
+{
+  "document_id": "doc_017",
+  "document_hash": "641f6ddeb87d2ff4",
+  "document_type": "carta_porte",
+  "source_file": "22741 CEDULA.pdf",
+  "processing_timestamp": "2025-08-18 00:40:25.246638",
+  "raw_data": {
+    "text": "Asegurado: Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.\nAseguradora: HDI Seguros, S.A. de C.V.\nPoliza:\n141 - 2346\nSiniestro:\n20250000002494\nRef. P&P:\nPP22741\nPark Perales\nSiniestro:\nRobo total del embarque por asalto al vehículo transportista\nRuta:\nOrigen: Lázaro Cárdenas, Michoacán Destino: Tlanepantla, Estado de México.\nOcurrido en: Carretera México - Queretaro, San Miguel Jagueyes, Huehuetoca, Estado de México\nTransportista:Guillermo Cesar Tellez Correa (Transportes Medina - nombre comercial),\nEl día:\n26 de febrero del 2025\nProveedor: Porfirio Hernández Alonso Factura FPH - 91\nNo.\nCantidad\nDescripción\nCosto de adquisición MXN$\nImporte Total MXN$\n1\n167\nBLUSAS\n44.25\n7,389.75\n2\n5180\nCAMISAS\n44.24\n229,163.20\n3\n510\nCHALECOS\n44.25\n22,567.50\n4\n1129\nCHAMARRAS\n44.25\n49,958.25\n5\n465\nFALDAS\n44.25\n20,576.25\n6\n1244\nJEANS\n44.24\n55,034.56\n7\n1\nJUMPSUIT\n44.25\n44.25\n8\n16\nLEGGING\n44.25\n708.00\n9\n3048\nPANTALON\n44.25\n134,874.00\n10\n190\nPLAYERA\n44.25\n8,407.50\n11\n1705\nSACO\n44.24\n75,429.20\n12\n2297\nS...",
+    "entities": [
+      {
+        "type": "moneda",
+        "value": "11"
+      },
+      {
+        "type": "moneda",
+        "value": "2025"
+      },
+      {
+        "type": "moneda",
+        "value": "4"
+      },
+      {
+        "type": "moneda",
+        "value": "510"
+      },
+      {
+        "type": "moneda",
+        "value": ","
+      },
+      {
+        "type": "moneda",
+        "value": "$\n1"
+      },
+      {
+        "type": "moneda",
+        "value": "8,407.50"
+      },
+      {
+        "type": "moneda",
+        "value": "22,792.00"
+      },
+      {
+        "type": "moneda",
+        "value": "134,874.00"
+      },
+      {
+        "type": "moneda",
+        "value": "7"
+      }
+    ],
+    "key_value_pairs": {
+      "asegurado": "Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.",
+      "aseguradora": "HDI Seguros, S.A. de C.V.",
+      "poliza": "141 - 2346",
+      "siniestro": "Robo total del embarque por asalto al vehículo transportista",
+      "ref._p&p": "PP22741",
+      "ruta": "Origen: Lázaro Cárdenas, Michoacán",
+      "destino": "Tlanepantla, Estado de México.",
+      "ocurrido_en": "Carretera México - Queretaro, San Miguel Jagueyes, Huehuetoca, Estado de México",
+      "transportistaguillermo": "Cesar Tellez Correa (Transportes Medina - nombre comercial),",
+      "el_día": "26 de febrero del 2025",
+      "proveedor": "Porfirio Hernández Alonso Factura FPH - 91",
+      "valor_del_embarque_-_venta": "1,008,399.46",
+      "(_-_)_deducible": "252,099.87",
+      "total_a_indemnizar": "756,299.60"
+    },
+    "specific_fields": {}
+  },
+  "extracted_fields": {
+    "origen": "",
+    "destino": "Tlanepantla, Estado de México."
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.187
+}
