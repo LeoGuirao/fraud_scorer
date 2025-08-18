@@ -36,14 +36,14 @@
       font-size: 14px;
     }
 
-    /* --- MEJORA: Layout principal con Grid --- */
+    /* --- Layout principal con Grid --- */
     .report-wrapper {
       display: grid;
       grid-template-columns: 350px 1fr;
       min-height: 100vh;
     }
 
-    /* --- MEJORA: Sidebar para información destacada --- */
+    /* --- Sidebar --- */
     .sidebar {
       background-color: var(--sidebar-color);
       padding: 40px;
@@ -52,27 +52,18 @@
       gap: 30px;
       border-right: 1px solid var(--border-color);
     }
-    .sidebar-header {
-      text-align: center;
-    }
-    .sidebar-header h1 {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-    .sidebar-header .subtitle {
-      color: var(--primary-accent);
-      font-weight: 600;
-    }
+    .sidebar-header { text-align: center; }
+    .sidebar-header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+    .sidebar-header .subtitle { color: var(--primary-accent); font-weight: 600; }
     .primary-info {
-        background: linear-gradient(145deg, #2a2e3b, var(--card-color));
-        padding: 25px;
-        border-radius: 12px;
-        border: 1px solid var(--border-color);
-        box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      background: linear-gradient(145deg, #2a2e3b, var(--card-color));
+      padding: 25px;
+      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
 
-    /* --- MEJORA: Contenido principal con tarjetas --- */
+    /* --- Contenido principal --- */
     .main-content {
       padding: 40px;
       display: flex;
@@ -86,59 +77,60 @@
       border: 1px solid var(--border-color);
     }
     .card-title {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 25px;
-        padding-bottom: 10px;
-        border-bottom: 1px solid var(--border-color);
-        display: flex;
-        align-items: center;
-    }
-    .card-title i {
-        margin-right: 12px;
-        font-size: 20px;
-        color: var(--primary-accent);
-    }
-    .card-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 25px;
-    }
-
-    /* --- MEJORA: Estilo unificado para cada dato --- */
-    .info-item {
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-    .info-label {
-      font-size: 13px;
-      color: var(--text-secondary);
-      font-weight: 400;
+      font-size: 18px;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-bottom: 25px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border-color);
       display: flex;
       align-items: center;
     }
-    .info-label i {
-        margin-right: 8px;
-        font-size: 16px;
-    }
-    .info-value {
-      font-size: 16px;
-      font-weight: 600;
-      color: var(--text-primary);
-      padding-left: 24px; /* Alineado con el texto de la etiqueta */
-    }
-    .info-value.highlight {
-        font-size: 24px;
-        color: var(--primary-accent);
-        font-weight: 700;
-    }
-    .full-width {
-        grid-column: 1 / -1;
+    .card-title i { margin-right: 12px; font-size: 20px; color: var(--primary-accent); }
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 25px;
     }
 
-    /* --- Estilos para impresión --- */
+    /* --- Ítems --- */
+    .info-item { display: flex; flex-direction: column; gap: 5px; }
+    .info-label { font-size: 13px; color: var(--text-secondary); font-weight: 400; display: flex; align-items: center; }
+    .info-label i { margin-right: 8px; font-size: 16px; }
+    .info-value { font-size: 16px; font-weight: 600; color: var(--text-primary); padding-left: 24px; }
+    .info-value.highlight { font-size: 24px; color: var(--primary-accent); font-weight: 700; }
+    .full-width { grid-column: 1 / -1; }
+
+    /* --- Tabla de inconsistencias --- */
+    .table-wrap { width: 100%; overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border-color);
+    }
+    thead th {
+      text-align: left;
+      font-weight: 600;
+      color: var(--text-secondary);
+      border-bottom: 1px solid var(--border-color);
+      padding: 12px;
+      background: rgba(255,255,255,0.02);
+    }
+    tbody td {
+      padding: 12px;
+      border-bottom: 1px solid var(--border-color);
+      vertical-align: top;
+    }
+    .badge {
+      padding: 4px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      border: 1px solid var(--border-color);
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* --- Impresión --- */
     @media print {
       :root {
         --bg-color: #ffffff;
@@ -149,16 +141,11 @@
         --text-secondary: #555555;
         --border-color: #dee2e6;
       }
-      .report-wrapper {
-        display: block;
-      }
-      .sidebar, .info-card {
-        box-shadow: none;
-        border: 1px solid var(--border-color);
-      }
-      body {
-        font-size: 12px;
-      }
+      .report-wrapper { display: block; }
+      .sidebar, .info-card { box-shadow: none; border: 1px solid var(--border-color); }
+      body { font-size: 12px; }
+      .table-wrap { overflow: visible; }
+      thead th, tbody td { border-color: var(--border-color); }
     }
   </style>
 </head>
@@ -211,7 +198,7 @@
           </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-calendar-check-line"></i>Vigencia</div>
-            <div class="info-value">{{ vigencia|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">{{ vigencia_desde|default('N/A') }} - {{ vigencia_hasta|default('N/A') }}</div>
           </div>
           <div class="info-item full-width">
             <div class="info-label"><i class="ri-map-pin-line"></i>Domicilio de la póliza</div>
@@ -235,12 +222,48 @@
             <div class="info-label"><i class="ri-map-2-line"></i>Lugar de los hechos</div>
             <div class="info-value">{{ lugar_hechos|default('NO ESPECIFICADO') }}</div>
           </div>
-           <div class="info-item full-width">
+          <div class="info-item full-width">
             <div class="info-label"><i class="ri-archive-line"></i>Bien reclamado</div>
             <div class="info-value">{{ bien_reclamado|default('NO ESPECIFICADO') }}</div>
           </div>
         </div>
       </div>
+
+      <!-- NUEVA SECCIÓN: Inconsistencias -->
+      <div class="info-card">
+        <h2 class="card-title"><i class="ri-scales-2-line"></i>Inconsistencias detectadas</h2>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Campo</th>
+                <th>Valor A</th>
+                <th>Valor B</th>
+                <th>Severidad</th>
+                <th>Documentos afectados</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in inconsistencias %}
+                <tr>
+                  <td>{{ item.field }}</td>
+                  <td>{{ item.value_a }}</td>
+                  <td>{{ item.value_b }}</td>
+                  <td>
+                    <!-- Usamos un badge simple; puedes reemplazar el style inline si lo deseas -->
+                    <span class="badge">{{ item.severity }}</span>
+                  </td>
+                  <td>
+                    {{ item.affected_docs }}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <!-- FIN NUEVA SECCIÓN -->
+
     </main>
   </div>
 </body>

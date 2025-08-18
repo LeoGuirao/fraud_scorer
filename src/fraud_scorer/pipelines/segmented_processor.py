@@ -702,6 +702,12 @@ class SegmentedTemplateProcessor(TemplateProcessor):
     def _build_informe_from_consolidated(self, consolidated: Dict[str, Any], ai: Dict[str, Any]) -> InformeSiniestro:
         case_info = consolidated.get("case_info", {})
 
+        # --- INICIO DE LA CORRECCIÓN ---
+        # La IA devuelve resultados bajo "fraud_analysis" o "ai_analysis_raw".
+        # Buscamos de forma robusta en ambos.
+        fraud_analysis_data = ai.get("fraud_analysis") or ai.get("ai_analysis_raw") or {}
+        # --- FIN DE LA CORRECCIÓN ---
+
         # Normalización del nombre del asegurado
         nombre_asegurado = case_info.get("nombre_asegurado", "") or ""
         if nombre_asegurado and "S.A. DE" in nombre_asegurado and "C.V." not in nombre_asegurado:
@@ -717,14 +723,15 @@ class SegmentedTemplateProcessor(TemplateProcessor):
             bien_reclamado=self._extract_bien_from_aggregated(consolidated.get("aggregated_data", {})),
             monto_reclamacion=self._calculate_total_from_aggregated(consolidated.get("aggregated_data", {})),
             tipo_siniestro=self._determine_claim_type_from_aggregated(
-                consolidated.get("aggregated_data", {}), ai
+                consolidated.get("aggregated_data", {}),  # usa aggregated_data
+                ai  # si tu _determine_claim_type_from_aggregated requiere hints de IA, se conserva
             ),
             fecha_ocurrencia=self._format_date(case_info.get("fecha_siniestro", "")),
             fecha_reclamacion=self._format_date(case_info.get("fecha_reclamacion", "")),
             lugar_hechos=case_info.get("lugar_hechos") or "NO ESPECIFICADO",
         )
 
-        # Secciones analíticas
+        # Secciones analíticas (si estas funciones consumen IA cruda, puedes adaptar internamente)
         informe.analisis_turno = self._generate_analisis_turno(ai)
         informe.planteamiento_problema = self._generate_planteamiento(ai)
 
@@ -743,14 +750,14 @@ class SegmentedTemplateProcessor(TemplateProcessor):
                 )
             )
 
-        # Inconsistencias (si las trae la IA)
-        informe.inconsistencias = self._build_inconsistencies(ai)
+        # Inconsistencias (ahora leyendo desde la estructura correcta)
+        informe.inconsistencias = self._build_inconsistencies(fraud_analysis_data)
 
-        # Conclusiones
-        fraud_score = float(ai.get("fraud_score", 0.0))
-        informe.consideraciones = self._generate_considerations_enhanced(informe, ai)
+        # Conclusiones (también desde la estructura correcta)
+        fraud_score = float(fraud_analysis_data.get("fraud_score", 0.0))
+        informe.consideraciones = self._generate_considerations_enhanced(informe, fraud_analysis_data)
         informe.conclusion_texto, informe.conclusion_veredicto, informe.conclusion_tipo = \
-            self._generate_conclusion_enhanced(fraud_score, informe, ai)
+            self._generate_conclusion_enhanced(fraud_score, informe, fraud_analysis_data)
 
         if informe.conclusion_tipo == "tentativa":
             informe.soporte_legal = self.articulos_legales

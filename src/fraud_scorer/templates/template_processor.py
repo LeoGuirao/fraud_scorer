@@ -674,25 +674,28 @@ class TemplateProcessor:
             out.append(doc)
         return out
 
-    def _build_inconsistencies(self, ai: Dict[str, Any]) -> List[Inconsistencia]:
-        res: List[Inconsistencia] = []
-        for inc in ai.get("inconsistencies") or []:
-            values = inc.get("values")
-            a = b = ""
-            if isinstance(values, (list, tuple)) and values:
-                a = str(values[0] or "")
-                b = str(values[1] or "") if len(values) > 1 else ""
-            a = a or str(inc.get("value_a", ""))
-            b = b or str(inc.get("value_b", ""))
+    def _build_inconsistencies(self, ai_data: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        CORREGIDO: Extrae correctamente los detalles de cada inconsistencia
+        del análisis de la IA para pasarlos a la plantilla.
+        """
+        inconsistencias_list = []
+        # ai_data aquí es el diccionario que ya corregimos (ej: ai['fraud_analysis'])
+        raw_inconsistencies = ai_data.get("inconsistencies", [])
+        
+        if not isinstance(raw_inconsistencies, list):
+            return []
 
-            res.append(Inconsistencia(
-                dato=str(inc.get("field", "Campo")),
-                valor_a=a,
-                valor_b=b,
-                severidad=str(inc.get("severity", "media")),
-                documentos_afectados=list(inc.get("affected_documents") or inc.get("docs") or []),
-            ))
-        return res
+        for inconsistency in raw_inconsistencies:
+            if isinstance(inconsistency, dict):
+                inconsistencias_list.append({
+                    "field": inconsistency.get("field", "N/A"),
+                    "value_a": inconsistency.get("value_a", "N/A"),
+                    "value_b": inconsistency.get("value_b", "N/A"),
+                    "severity": str(inconsistency.get("severity", "baja")).upper(),
+                    "affected_docs": ", ".join(map(str, inconsistency.get("affected_docs", [])))
+                })
+        return inconsistencias_list
 
     def _generate_analisis_turno(self, ai: Dict[str, Any]) -> str:
         return (
