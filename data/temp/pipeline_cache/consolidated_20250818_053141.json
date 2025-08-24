@@ -1,0 +1,314 @@
+{
+  "case_info": {
+    "nombre_asegurado": "ra, así como la documentación necesaria para acreditar el evento",
+    "domicilio_poliza": "del incidente.",
+    "rfc": "HEAP5602278N7",
+    "monto_reclamacion": "167.00",
+    "numero_poliza": "141- 2346",
+    "vigencia_inicio": "2024-07-26",
+    "vigencia_fin": "2020-02-26",
+    "fecha_siniestro": "2025-02-26"
+  },
+  "aggregated_data": {
+    "nombre_asegurado": {
+      "poliza": [
+        "ra, así como la documentación necesaria para acreditar el evento",
+        "ra, así como la documentación necesaria para acreditar el evento",
+        "ra. TRANSPORTES MEDINA",
+        "MODA YKT, S.A. DE",
+        "DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA",
+        "DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA",
+        "SIATA DI SHMAYA, S.A. de C.V.",
+        "1) Documentos del Asegurado (Mercancía)",
+        "MODA YKT, S.A. de C.V.",
+        "Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.",
+        "Jesús Manuel Quintero Marin",
+        "ra. Entendemos que están gestionando un proceso relacionado con un incidente ocurrido con esta mercancía, y reconocemos la importancia de contar con información precisa y debidamente respaldada para facilitar dicho trámite. Por tal motivo, emitimos esta carta con el objetivo de confirmar de manera clara y sin lugar a dudas el origen nacional del producto, a fin de que pueda ser incorporada al expediente correspondiente ante la aseguradora o cualquier otra instancia competente. Agradecemos su comunicación y quedamos a sus órdenes para proporcionar cualquier información adicional que sea requerida. Sin más por el momento, reciban un cordial saludo. Atentamente, Porfirio Hernández Alonso",
+        "MODA YKT, S.A. DE C.V"
+      ]
+    },
+    "domicilio_poliza": {
+      "poliza": [
+        "del incidente.",
+        "del incidente.",
+        "TLALNEPANTLA DE BAZ ESTADO DE MEXICO ||",
+        "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo",
+        "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo",
+        "Blvd. Abraham Lincoln #7, Los reyes Ixtacala Ira, Sección, Tlalnepantla de Baz. C.P. 54090",
+        "Av. Constituyentes 41 - Piso 6, San Miguel Chapultepec, CDMX. 55 55598077",
+        "EMILIANO ZAPATA 19 PISO No. Ext. 2 LOC. B Y No. Int: PISO 3, SAN JERÓNIMO TEPETLACAL CO. C.P 54090. TLALNEPANTLA DE BAZ. ESTADO DE MEXICO"
+      ]
+    },
+    "rfc": {
+      "factura": [
+        "HEAP5602278N7",
+        "HEAP5602278N7",
+        "DMEX250537880",
+        "HEAP5602278N7",
+        "DMEX250537880"
+      ],
+      "poliza": [
+        "MYK1612126U8",
+        "DMEX209208316",
+        "DMEX209208316",
+        "QUMJ000507QD0",
+        "MYK1612126U8"
+      ]
+    },
+    "monto_reclamacion": {
+      "factura": [
+        "167.00",
+        "4,228.00",
+        "4,142.86",
+        "1.00",
+        "1,169,743.37"
+      ]
+    },
+    "numero_poliza": {
+      "poliza": [
+        "141- 2346",
+        "2346",
+        "141 - 2346",
+        "141 - 2346",
+        "141 - 2346",
+        "141 - 2346"
+      ]
+    },
+    "vigencia_inicio": {
+      "poliza": [
+        "2024-07-26",
+        "1984-04-29",
+        "1984-04-29",
+        "2025-04-07",
+        "2024-07-26"
+      ]
+    },
+    "vigencia_fin": {
+      "poliza": [
+        "2020-02-26",
+        "1984-04-29",
+        "1984-04-29",
+        "2025-04-07",
+        "2024-07-26"
+      ]
+    },
+    "fecha_siniestro": {
+      "factura": [
+        "2025-02-26",
+        "2025-02-26"
+      ]
+    }
+  },
+  "documents_summary": [
+    {
+      "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+      "type": "poliza",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "FACTURA MERCANCIA _compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "2b CANDADOS DE SEGURIDAD.PDF",
+      "type": "poliza",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1h Tarjetas de circulaciOn.PDF",
+      "type": "poliza",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "C&C.pdf",
+      "type": "poliza",
+      "fields_extracted": 6,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "DENUNCIA INICIAL_compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 5,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "CARTA PORTE MERCANCIA _compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1C DENUNCIA INICIAL compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 5,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+      "type": "poliza",
+      "fields_extracted": 5,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "ACREDITACION Y RATIFICACION DENUNCIA_compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1j CI 30 compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "document_12.pdf",
+      "type": "otro",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "22741 CSD MODA YKT.pdf",
+      "type": "poliza",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "2a BITACORA DE RUTA compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+      "type": "factura",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "22741 CEDULA.pdf",
+      "type": "poliza",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf",
+      "type": "factura",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 2,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+      "type": "factura",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1f CARTA PROVEEDOR compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1h Tarjetas de circulación.pdf",
+      "type": "carta_porte",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+      "type": "carta_porte",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+      "type": "factura",
+      "fields_extracted": 1,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "REPUVE-Tracto.pdf",
+      "type": "factura",
+      "fields_extracted": 0,
+      "validations_passed": 0,
+      "validations_total": 0
+    },
+    {
+      "source": "Poliza2346-1.pdf",
+      "type": "poliza",
+      "fields_extracted": 6,
+      "validations_passed": 0,
+      "validations_total": 0
+    }
+  ],
+  "validation_summary": {
+    "total": 0,
+    "passed": 0,
+    "success_rate": 0.0,
+    "failures_by_type": {}
+  },
+  "processing_stats": {
+    "total_documents": 27,
+    "total_memory_mb": 0.109375,
+    "avg_memory_mb": 0.004050925925925926,
+    "max_memory_mb": 0.109375,
+    "total_time_ms": 17.684,
+    "avg_time_ms": 0.654962962962963,
+    "max_time_ms": 1.424
+  },
+  "pipeline_metrics": {
+    "documents_processed": 27,
+    "batches_completed": 9,
+    "errors": [],
+    "warnings": []
+  }
+}

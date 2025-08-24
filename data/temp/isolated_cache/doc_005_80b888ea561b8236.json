@@ -1,0 +1,43 @@
+{
+  "document_id": "doc_005",
+  "document_hash": "80b888ea561b8236",
+  "document_type": "poliza",
+  "source_file": "C&C.pdf",
+  "processing_timestamp": "2025-08-18 05:31:39.248930",
+  "raw_data": {
+    "text": "Godoy, Araceli (HDI Seguros, MX)\nDe:\nGodoy, Araceli (HDI Seguros, MX)\nEnviado el:\nmiércoles, 26 de marzo de 2025 11:17 a. m.\nPara:\nPark Perales\nCC:\nRamirez, Miriam (HDI Seguros, MX)\nAsunto:\nRE: Atención: Tradicional | Ubicación: TLALNEPANTLA DE BAZ ESTADO DE MEXICO ||\nReporte: 4734127 | Siniestro: 20250000002494 || Asegurado: MODA YKT, S.A. DE\nC.V | Evento: TRANSPORTES || Analista: Araceli Godoy\nComparto cobranza y cumplimiento\nReporte de Cabina\nReporte de Cabina\nGuardar :selected:\nVer Póliza\nEnviar a Cristaleras :selected:\nSiniestro Relevante\nSalir\nINFORMACIÓN GENERAL\nReporte 4734127\nSiniestro 20250000002494\nRamo\nDAÑOS\nFecha Ocurrencia\n26/02/2025 06:45:58 p. n\nInicio de Atención\n24/03/2025 10:24:57 a. n\nEvento\nTRANSPORTES\nFecha Creación 24/03/2025 10:25:58 a. n\nPagos\nmen General\nDATOS GENERALES DE LA PÓLIZA\nPóliza Facultada:\nNO\nProducto :\nTRANSPORTES\nVigencia Inicial :\n26/07/2024\nAgencia :\n141 SOLUCIÓN ACTIVA ET S.C.\nVigencia Final :\n26/07/2025\nPóliza :\n2346\nFecha Emisión :\n31/07/2024...",
+    "entities": [],
+    "key_value_pairs": {
+      "numero_poliza": "2346",
+      "nombre_asegurado": "MODA YKT, S.A. DE",
+      "rfc": "MYK1612126U8",
+      "vigencia_inicio": "2024-07-26",
+      "vigencia_fin": "2020-02-26",
+      "domicilio_poliza": "TLALNEPANTLA DE BAZ ESTADO DE MEXICO ||",
+      "tipo_siniestro": "20250000002494",
+      "monto_reclamacion": "1.00"
+    },
+    "specific_fields": {
+      "numero_poliza": "2346",
+      "nombre_asegurado": "MODA YKT, S.A. DE",
+      "rfc": "MYK1612126U8",
+      "vigencia_inicio": "2024-07-26",
+      "vigencia_fin": "2020-02-26",
+      "domicilio_poliza": "TLALNEPANTLA DE BAZ ESTADO DE MEXICO ||",
+      "tipo_siniestro": "20250000002494",
+      "monto_reclamacion": "1.00"
+    },
+    "tables": []
+  },
+  "extracted_fields": {
+    "numero_poliza": "2346",
+    "nombre_asegurado": "MODA YKT, S.A. DE",
+    "rfc": "MYK1612126U8",
+    "vigencia_inicio": "2024-07-26",
+    "vigencia_fin": "2020-02-26",
+    "domicilio_poliza": "TLALNEPANTLA DE BAZ ESTADO DE MEXICO ||"
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.32
+}

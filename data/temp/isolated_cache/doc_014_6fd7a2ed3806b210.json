@@ -1,0 +1,24 @@
+{
+  "document_id": "doc_014",
+  "document_hash": "6fd7a2ed3806b210",
+  "document_type": "factura",
+  "source_file": "2a BITACORA DE RUTA compressed.pdf",
+  "processing_timestamp": "2025-08-18 05:31:40.111286",
+  "raw_data": {
+    "text": "BITACORA DE VIAJE\nTIPO DE VEHICULO: Tractor\nNUMERO DE PLACA: 07BE4W\nMARCA Y MODELO: Peterbilt- 2006\nNOMBRE DE CONDUCTOR: Justo Castro Martinez\nHORA DE SALIDA: 05:47 AM\nFECHA DE SALIDA: 26 de Febrero 2025\nPUNTO DE ORIGEN: Francisco I. Madero #146, Col. Lazaro Cardenas .\nMichoacan. C.P. 60950\nDESTINO FINAL: Siata Di Shmaya, Tlalnepantla de Baz, Estado de Mexico\nDESCRIPCION DEL RECORRIDO\nEl trayecto fue diseñado con prioridad en la rapidez y seguridad, utilizando exclusivamente carreteras de cuota. No se programaron paradas intermedias ni desvios.\nINICIO\nOBSERVACIONES\n1\nLázaro Cárdenas, Michoacán\nIncorporación a la Autopista Siglo XXI (37D) con dirección a Pátzcuaro.\n2\nConexión hacia Morelia\nEnlace con la Autopista Morelia - Salamanca (15D), continuando hacia Salamanca, Gto.\n3\nTramo Salamanca - Querétaro (45D)\nCirculación fluida por tramo de alta demanda para transporte pesado.\n4\nTramo final: Mexico-Querétaro (57D)\nIncorporación desde Querétaro hasta llegar al Estado de México.\nCONDICIONE...",
+    "entities": [],
+    "key_value_pairs": {
+      "monto_reclamacion": "1.00"
+    },
+    "specific_fields": {
+      "monto_reclamacion": "1.00"
+    },
+    "tables": []
+  },
+  "extracted_fields": {
+    "monto_reclamacion": "1.00"
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.632
+}

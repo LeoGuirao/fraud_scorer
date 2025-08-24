@@ -1,0 +1,36 @@
+{
+  "document_id": "doc_008",
+  "document_hash": "98e839d33f77f388",
+  "document_type": "poliza",
+  "source_file": "1C DENUNCIA INICIAL compressed.pdf",
+  "processing_timestamp": "2025-08-18 05:31:39.463122",
+  "raw_data": {
+    "text": "1\nFGJ\nESTADO DE MÉXICO\nCARÁTULA\nNIC FTR/RGT/00/MPI/625/00319/25/02\nNUC TLA/FTR/RGT/013/058310/25/02\nFECHA 26 de febrero de 2025\nDELITO ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA\nVÍCTIMA JUSTO CASTRO MARTINEZ\nIMPUTADO QUIÉN RESULTE RESPONSABLE\nLUGAR CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO\nAUTORIDAD VICTORIA JAQUELINE VEGA TORRES AGENTE DEL MINISTERIO PUBLICO ADSCRITO A ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE ATIZAPAN DE ZARAGOZA\nCALLE FGJ CC\nFGU\nESTADO DE MÉXICO\nENTREVISTA\nFECHA DE ENTREVISTA: 27 de febrero de 2025\n2\nFGJ\nNIC: FTR/RGT/00/MPI/625/00319/25/02 NUC: TLA/FTR/RGT/013/058310/25/02\nHORA DE ENTREVISTA: 00:01 hofas\nNOMBRE DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA: LIC. VICTORIA JAQUELINE VEGA\nTORRES\nLUGAR DONDE SE REALIZA LA ENTREVISTA: FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN\n1. DATOS DEL ENTREVISTADO\n...",
+    "entities": [],
+    "key_value_pairs": {
+      "nombre_asegurado": "DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA",
+      "rfc": "DMEX209208316",
+      "vigencia_inicio": "1984-04-29",
+      "domicilio_poliza": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo",
+      "tipo_siniestro": "DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA"
+    },
+    "specific_fields": {
+      "nombre_asegurado": "DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA",
+      "rfc": "DMEX209208316",
+      "vigencia_inicio": "1984-04-29",
+      "domicilio_poliza": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo",
+      "tipo_siniestro": "DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA"
+    },
+    "tables": []
+  },
+  "extracted_fields": {
+    "nombre_asegurado": "DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA",
+    "rfc": "DMEX209208316",
+    "vigencia_inicio": "1984-04-29",
+    "vigencia_fin": "1984-04-29",
+    "domicilio_poliza": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo"
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.565
+}

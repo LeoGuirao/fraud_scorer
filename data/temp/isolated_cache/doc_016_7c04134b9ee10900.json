@@ -1,0 +1,24 @@
+{
+  "document_id": "doc_016",
+  "document_hash": "7c04134b9ee10900",
+  "document_type": "factura",
+  "source_file": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+  "processing_timestamp": "2025-08-18 05:31:40.277414",
+  "raw_data": {
+    "text": "QAE LOGISTICS\nServicios logísticos\nPLAN DE CONTINGENCIA - DÍA DEL SINIESTRO\nFecha del evento: 26/02/2025\nUnidad:\nTractor: Marca: Peterbilt, Modelo: 2006, Número de serie (VIN): 1XP7DB9X86D893212, No. de motor: MXS24811 Caja / Plataforma: Marca: Alberto, Modelo: 1999, Número de serie (VIN): 3S9SP4021XA014065\nPlacas: TRACTOR (07BE4W) PLATAFORMA (63UW1A)\nConductor: JUSTO CASTRO MARTINEZ\nRuta asignada: FRANCISCO I. MADERO 146, LAZARO CARDENAS, C.P. 60950 - SIATA DI SHMAYA, TLALNEPANTLA DE BAZ, ESTADO DE MEXICO\nHora de inicio de ruta: 05:47 hrs\nPor medio del presente documento se hace constar que el día del siniestro, la unidad fue monitoreada continuamente por nuestra central, conforme a los protocolos establecidos, bajo las siguientes acciones:\n1. Monitoreo Activo: La unidad contaba con sistema de rastreo satelital activo y en funcionamiento desde el inicio hasta la pérdida de contacto.\n2. Supervisión Constante: Se realizaron seguimientos periódicos cada 1-5minutos.\n3. Detección de Anomal...",
+    "entities": [],
+    "key_value_pairs": {
+      "fecha_siniestro": "2025-02-26"
+    },
+    "specific_fields": {
+      "fecha_siniestro": "2025-02-26"
+    },
+    "tables": []
+  },
+  "extracted_fields": {
+    "fecha_siniestro": "2025-02-26"
+  },
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.632
+}

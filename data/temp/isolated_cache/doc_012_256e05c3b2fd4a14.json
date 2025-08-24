@@ -1,0 +1,18 @@
+{
+  "document_id": "doc_012",
+  "document_hash": "256e05c3b2fd4a14",
+  "document_type": "otro",
+  "source_file": "document_12.pdf",
+  "processing_timestamp": "2025-08-18 05:31:39.958210",
+  "raw_data": {
+    "text": "...",
+    "entities": [],
+    "key_value_pairs": {},
+    "specific_fields": {},
+    "tables": []
+  },
+  "extracted_fields": {},
+  "validation_results": {},
+  "memory_usage_mb": 0.0,
+  "processing_time_ms": 0.11
+}
