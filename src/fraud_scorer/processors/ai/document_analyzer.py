@@ -1,3 +1,5 @@
+# src/fraud_scorer/processors/ai/document_analyzer.py
+
 from typing import Dict, Any, List, Optional
 from openai import AsyncOpenAI
 import base64
@@ -17,8 +19,38 @@ class AIDocumentAnalyzer:
     4. Análisis global del caso (todos los docs) -> analyze_claim_documents
     """
     
-    def __init__(self):
-        self.client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    def __init__(
+        self,
+        api_key: Optional[str] = None,
+        model: Optional[str] = None,
+        temperature: float = 0.1,
+        vision_model: Optional[str] = None
+    ):
+        """
+        - api_key: permite inyectar la clave desde la UI o usar OPENAI_API_KEY del entorno.
+        - model: modelo base para análisis de texto/JSON (por defecto: env OPENAI_MODEL o 'gpt-4o-mini').
+        - temperature: control de creatividad del modelo.
+        - vision_model: modelo para análisis de imagen (por defecto: env OPENAI_VISION_MODEL o 'gpt-4o'
+                        si el modelo principal no es 4o/4o-mini).
+        """
+        key = api_key or os.getenv("OPENAI_API_KEY")
+        if not key:
+            raise RuntimeError(
+                "OPENAI_API_KEY no está definido. Pásalo como parámetro (api_key) o configúralo en el entorno/.env."
+            )
+        self.client = AsyncOpenAI(api_key=key)
+
+        self.model = model or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        self.temperature = float(temperature)
+
+        # Si el modelo principal no es de la familia 4o, usar 4o para visión por defecto.
+        default_vision = self.model if "gpt-4o" in self.model else "gpt-4o"
+        self.vision_model = vision_model or os.getenv("OPENAI_VISION_MODEL", default_vision)
+
+        logger.info(
+            f"AIDocumentAnalyzer inicializado | model={self.model} | "
+            f"vision_model={self.vision_model} | temperature={self.temperature}"
+        )
         
     async def analyze_document(
         self, 
@@ -103,14 +135,14 @@ class AIDocumentAnalyzer:
         )
 
         response = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model=self.model,
             messages=[
                 {"role": "system", "content": "Eres un analista experto en fraude de seguros."},
                 {"role": "user", "content": prompt},
                 {"role": "user", "content": json.dumps({"documents": compact_docs}, ensure_ascii=False)}
             ],
             response_format={"type": "json_object"},
-            temperature=0.2,
+            temperature=self.temperature,
             max_tokens=1200,
         )
 
@@ -150,7 +182,7 @@ class AIDocumentAnalyzer:
         )
         
         response = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model=self.model,
             messages=[
                 {
                     "role": "system", 
@@ -159,7 +191,7 @@ class AIDocumentAnalyzer:
                 {"role": "user", "content": prompt}
             ],
             response_format={"type": "json_object"},
-            temperature=0.3
+            temperature=self.temperature
         )
 
         try:
@@ -180,8 +212,15 @@ class AIDocumentAnalyzer:
         doc_type: str
     ) -> Dict[str, Any]:
         """Analiza la imagen para detectar alteraciones o anomalías visuales"""
-        with open(image_path, "rb") as image_file:
-            base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        try:
+            with open(image_path, "rb") as image_file:
+                base64_image = base64.b64encode(image_file.read()).decode('utf-8')
+        except Exception as e:
+            logger.exception(f"No se pudo leer la imagen para análisis visual: {e}")
+            return {
+                "visual_inspection": "No se pudo leer la imagen para análisis.",
+                "timestamp": datetime.now().isoformat()
+            }
         
         prompt = (
             f"Analiza esta imagen de un documento tipo '{doc_type}' y busca:\n"
@@ -194,21 +233,29 @@ class AIDocumentAnalyzer:
             "Sé específico sobre cualquier anomalía visual detectada."
         )
         
-        response = await self.client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "user",
-                    "content": [
-                        {"type": "text", "text": prompt},
-                        {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
-                    ]
-                }
-            ],
-            max_tokens=1000
-        )
+        try:
+            response = await self.client.chat.completions.create(
+                model=self.vision_model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{base64_image}"}}
+                        ]
+                    }
+                ],
+                temperature=self.temperature,
+                max_tokens=1000
+            )
+            analysis_text = response.choices[0].message.content if response.choices else ""
+        except Exception as e:
+            logger.exception(f"Fallo en análisis visual con modelo '{self.vision_model}': {e}")
+            analysis_text = (
+                "No fue posible realizar análisis visual con el modelo configurado. "
+                "Verifique que el modelo soporte entrada de imagen (recomendado: gpt-4o)."
+            )
         
-        analysis_text = response.choices[0].message.content if response.choices else ""
         return {
             "visual_inspection": analysis_text,
             "timestamp": datetime.now().isoformat()
@@ -246,7 +293,7 @@ class AIDocumentAnalyzer:
         """
         
         response = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model=self.model,
             messages=[
                 {
                     "role": "system",
@@ -254,7 +301,7 @@ class AIDocumentAnalyzer:
                 },
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.3
+            temperature=self.temperature
         )
         
         return {
@@ -278,12 +325,12 @@ class AIDocumentAnalyzer:
         )
         
         response = await self.client.chat.completions.create(
-            model="gpt-4-turbo-preview",
+            model=self.model,
             messages=[
                 {"role": "system", "content": "Genera resúmenes ejecutivos claros y concisos."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.5,
+            temperature=min(max(self.temperature, 0.0), 1.0),
             max_tokens=500
         )
         

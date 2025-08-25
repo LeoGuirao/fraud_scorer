@@ -1,3 +1,5 @@
+# src/fraud_scorer/replay/replay_ui.py
+
 """
 Interfaz interactiva para el sistema de replay
 """
@@ -16,8 +18,11 @@ from rich.layout import Layout
 from rich.text import Text
 from rich import box
 import asyncio
+import logging
+from getpass import getpass  # <-- Captura oculta de API key
 
 console = Console()
+logger = logging.getLogger(__name__)
 
 class ReplayUI:
     """
@@ -166,14 +171,16 @@ class ReplayUI:
         console.print(Panel(info_text, box=box.DOUBLE))
         console.print()
         
-        # Opciones de procesamiento
+        # Opciones de procesamiento con mejor guía
         console.print("[bold]Opciones de Re-procesamiento:[/bold]")
+        console.print("[dim]Presione Enter para usar valores por defecto[/dim]")
         console.print()
         
-        options = {}
+        options: Dict[str, Any] = {}
         
         # Modo de procesamiento
         console.print("[cyan]1. Modo de procesamiento:[/cyan]")
+        console.print("   [dim]IA usa GPT-4 para extracción inteligente[/dim]")
         use_ai = Confirm.ask("   ¿Usar sistema de IA?", default=True)
         options['use_ai'] = use_ai
         console.print()
@@ -181,12 +188,15 @@ class ReplayUI:
         # Análisis por documento
         if use_ai:
             console.print("[cyan]2. Análisis detallado:[/cyan]")
+            console.print("   [dim]Analiza cada documento individualmente (más lento)[/dim]")
             per_doc = Confirm.ask("   ¿Realizar análisis por documento?", default=False)
             options['per_doc'] = per_doc
             console.print()
             
             # Modelo de IA
             console.print("[cyan]3. Configuración de IA:[/cyan]")
+            console.print("   [dim]gpt-4o-mini es más rápido y económico[/dim]")
+            console.print("   [dim]gpt-4o es más preciso pero más costoso[/dim]")
             model = Prompt.ask(
                 "   Modelo a usar",
                 default="gpt-4o-mini",
@@ -194,21 +204,37 @@ class ReplayUI:
             )
             options['model'] = model
             
+            console.print("   [dim]0.1 = preciso, 0.7 = creativo[/dim]")
             temperature = Prompt.ask(
                 "   Temperatura (0.0-1.0)",
                 default="0.1"
             )
-            options['temperature'] = float(temperature)
+            try:
+                options['temperature'] = float(temperature)
+            except ValueError:
+                options['temperature'] = 0.1
+            console.print()
+
+            # --- NUEVO: Captura opcional de API key ---
+            console.print("[cyan]3.b Credenciales de OpenAI:[/cyan]")
+            console.print("   [dim]Si la variable de entorno OPENAI_API_KEY no está configurada,[/dim]")
+            console.print("   [dim]puede introducir la clave ahora (no se mostrará en pantalla).[/dim]")
+            if Confirm.ask("   ¿Introducir OPENAI_API_KEY ahora?", default=False):
+                api_key = getpass("   OPENAI_API_KEY: ")
+                if api_key.strip():
+                    options['api_key'] = api_key.strip()
             console.print()
         
         # Salida
         console.print("[cyan]4. Configuración de salida:[/cyan]")
+        console.print("   [dim]Carpeta donde se guardarán los reportes[/dim]")
         output_dir = Prompt.ask(
             "   Directorio de salida",
             default="data/reports"
         )
         options['output_dir'] = output_dir
         
+        console.print("   [dim]Genera HTML y PDF del informe[/dim]")
         regenerate_report = Confirm.ask(
             "   ¿Regenerar reporte HTML/PDF?",
             default=True
@@ -253,20 +279,46 @@ class ReplayUI:
             
             task2 = progress.add_task("[cyan]Procesando con IA...", total=100)
             
-            # Ejecutar el replay real
+            # ✅ Ejecutar el replay REAL
             try:
-                # Aquí llamarías a tu sistema de replay
-                # Por ahora simulamos
-                await asyncio.sleep(2)
+                results = await self.system.replay_case(case_id, options)
                 progress.update(task2, completed=100)
                 
                 console.print()
                 console.print("[bold green]✅ Replay completado exitosamente[/bold green]")
-                console.print(f"[white]Reporte generado en: {options['output_dir']}/INF-{case_id}.html[/white]")
                 
+                # Mostrar información real de los resultados
+                if results and results.get('output_path'):
+                    output_path = Path(results['output_path'])
+                    html_file = output_path / f"INF-{case_id}.html"
+                    pdf_file = output_path / f"INF-{case_id}.pdf"
+                    
+                    console.print(f"\n[bold]Archivos generados:[/bold]")
+                    if html_file.exists():
+                        console.print(f"  ✓ HTML: [green]{html_file}[/green]")
+                    else:
+                        console.print(f"  ✗ HTML: [red]No generado[/red]")
+                        
+                    if pdf_file.exists():
+                        console.print(f"  ✓ PDF: [green]{pdf_file}[/green]")
+                    else:
+                        console.print(f"  ✗ PDF: [yellow]No generado (WeasyPrint no instalado)[/yellow]")
+                
+                # Mostrar métricas del procesamiento
+                if results:
+                    if 'fraud_analysis' in results:
+                        fraud_score = results['fraud_analysis'].get('fraud_score', 0)
+                        console.print(f"\n[bold]Análisis de Fraude:[/bold]")
+                        console.print(f"  • Score: [{'red' if fraud_score > 0.7 else 'yellow' if fraud_score > 0.3 else 'green'}]{fraud_score:.2%}[/]")
+                    
+                    if 'extraction_results' in results:
+                        console.print(f"  • Documentos procesados: {len(results['extraction_results'])}")
+            
             except Exception as e:
+                progress.update(task2, completed=100)
                 console.print()
                 console.print(f"[bold red]❌ Error durante el replay: {e}[/bold red]")
+                logger.error(f"Error en replay: {e}", exc_info=True)
         
         console.print()
         Prompt.ask("Presione Enter para continuar")
@@ -344,4 +396,72 @@ class ReplayUI:
         
         console.print()
         Prompt.ask("Presione Enter para continuar")
+
+    # ============================
+    #   NUEVO: Menú de limpieza
+    # ============================
+    def clean_cache_menu(self):
+        """Menú para limpiar cache de casos"""
+        self.show_header()
         
+        cases = self.cache_manager.list_cached_cases()
+        
+        if not cases:
+            console.print("[yellow]⚠️ No hay casos en cache[/yellow]")
+            Prompt.ask("Presione Enter para continuar")
+            return
+        
+        console.print("[bold]Casos disponibles para limpiar:[/bold]")
+        for idx, case in enumerate(cases, 1):
+            console.print(f"  [{idx}] {case['case_id']}: {case['case_title'][:40]}")
+        
+        console.print("\n  [a] Limpiar TODO el cache")
+        console.print("  [v] Volver")
+        
+        choice = Prompt.ask("[bold yellow]Seleccione[/bold yellow]")
+        
+        if choice.lower() == 'v':
+            return
+        elif choice.lower() == 'a':
+            if Confirm.ask("[red]¿Está seguro de limpiar TODO el cache?[/red]", default=False):
+                # Implementar limpieza total
+                try:
+                    base_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
+                    if base_dir.exists():
+                        import shutil
+                        shutil.rmtree(base_dir)
+                    base_dir.mkdir(parents=True, exist_ok=True)
+                    console.print("[green]✓ Cache limpiado completamente[/green]")
+                except Exception as e:
+                    console.print(f"[red]❌ Error limpiando cache: {e}[/red]")
+        else:
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(cases):
+                    case_id = cases[idx]['case_id']
+                    if Confirm.ask(f"[yellow]¿Limpiar cache de {case_id}?[/yellow]", default=False):
+                        # Implementar limpieza específica
+                        try:
+                            cleared = False
+                            if hasattr(self.cache_manager, "clear_case_cache"):
+                                self.cache_manager.clear_case_cache(case_id)
+                                cleared = True
+                            else:
+                                base_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
+                                case_dir = base_dir / case_id
+                                if case_dir.exists():
+                                    import shutil
+                                    shutil.rmtree(case_dir)
+                                    cleared = True
+                            if cleared:
+                                console.print(f"[green]✓ Cache de {case_id} limpiado[/green]")
+                            else:
+                                console.print(f"[yellow]⚠️ No se encontró cache para {case_id}[/yellow]")
+                        except Exception as e:
+                            console.print(f"[red]❌ Error limpiando cache de {case_id}: {e}[/red]")
+                else:
+                    console.print("[red]Opción inválida[/red]")
+            except ValueError:
+                console.print("[red]Opción inválida[/red]")
+        
+        Prompt.ask("Presione Enter para continuar")

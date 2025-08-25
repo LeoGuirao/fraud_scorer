@@ -17,6 +17,36 @@ from ..templates.template_processor import InformeSiniestro
 
 logger = logging.getLogger(__name__)
 
+# -----------------------------------------------------------------------------
+# Helper de normalización (nuevo)
+# -----------------------------------------------------------------------------
+def _to_dict(obj: Any) -> Dict[str, Any]:
+    """
+    Convierte Pydantic v1/v2 o cualquier objeto simple en dict seguro.
+    Evita errores tipo "'ConsolidatedFields' object has no attribute 'get'".
+    """
+    if obj is None:
+        return {}
+    if isinstance(obj, dict):
+        return obj
+    # Pydantic v2
+    if hasattr(obj, "model_dump") and callable(getattr(obj, "model_dump")):
+        try:
+            return obj.model_dump()  # type: ignore[return-value]
+        except Exception:
+            pass
+    # Pydantic v1
+    if hasattr(obj, "dict") and callable(getattr(obj, "dict")):
+        try:
+            return obj.dict()  # type: ignore[return-value]
+        except Exception:
+            pass
+    # Fallback genérico
+    try:
+        return json.loads(json.dumps(obj, default=lambda o: getattr(o, "__dict__", str(o))))
+    except Exception:
+        return {}
+
 class AIReportGenerator:
     """
     Generador de reportes que toma los datos consolidados
@@ -55,8 +85,12 @@ class AIReportGenerator:
         Returns:
             HTML generado como string
         """
-        logger.info(f"Generando reporte para caso {consolidated_data.case_id}")
-        
+        # case_id robusto incluso si consolidated_data es Pydantic v1/v2
+        try:
+            logger.info(f"Generando reporte para caso {getattr(consolidated_data, 'case_id', 'SIN_CASE_ID')}")
+        except Exception:
+            logger.info("Generando reporte para caso (case_id no disponible)")
+
         # Preparar datos para la plantilla
         template_data = self._prepare_template_data(consolidated_data, ai_analysis)
         
@@ -132,17 +166,50 @@ class AIReportGenerator:
         ai_analysis: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
-        Prepara los datos para la plantilla
+        Prepara los datos para la plantilla.
+        Acepta tanto modelos Pydantic (ConsolidatedExtraction/ConsolidatedFields)
+        como dicts, normalizándolos a dicts seguros.
         """
-        fields = consolidated_data.consolidated_fields
-        
-        # Mapear campos consolidados a nombres de plantilla
+        # Normalizar el objeto principal (puede ser ConsolidatedExtraction o dict)
+        cd_dict = _to_dict(consolidated_data)
+
+        # case_id robusto
+        case_id = cd_dict.get("case_id")
+        if not case_id and hasattr(consolidated_data, "case_id"):
+            case_id = getattr(consolidated_data, "case_id", None)
+
+        # Normalizar consolidated_fields (puede ser ConsolidatedFields o dict)
+        fields_obj = cd_dict.get("consolidated_fields")
+        if fields_obj is None and hasattr(consolidated_data, "consolidated_fields"):
+            fields_obj = getattr(consolidated_data, "consolidated_fields", None)
+        fields = _to_dict(fields_obj)
+
+        # Compatibilidad con dos esquemas:
+        # - antiguo: vigencia_inicio / vigencia_fin
+        # - nuevo:   vigencia (string "YYYY-MM-DD a YYYY-MM-DD" o similar)
+        vig_desde = fields.get("vigencia_inicio")
+        vig_hasta = fields.get("vigencia_fin")
+        if (not vig_desde and not vig_hasta) and "vigencia" in fields and isinstance(fields["vigencia"], str):
+            vig_str = fields["vigencia"]
+            # split por ' a ' o ' - '
+            if " a " in vig_str:
+                partes = [p.strip() for p in vig_str.split(" a ", 1)]
+            elif " - " in vig_str:
+                partes = [p.strip() for p in vig_str.split(" - ", 1)]
+            else:
+                partes = [vig_str]
+            if len(partes) == 2:
+                vig_desde, vig_hasta = partes[0], partes[1]
+            elif len(partes) == 1:
+                vig_desde = partes[0]
+
+        # Mapear campos consolidados a nombres de plantilla (con los mismos keys que ya usabas)
         template_data = {
-            "numero_siniestro": fields.get("numero_siniestro", consolidated_data.case_id),
+            "numero_siniestro": fields.get("numero_siniestro", case_id),
             "nombre_asegurado": fields.get("nombre_asegurado", "NO ESPECIFICADO"),
             "numero_poliza": fields.get("numero_poliza", "NO ESPECIFICADO"),
-            "vigencia_desde": self._format_date(fields.get("vigencia_inicio")),
-            "vigencia_hasta": self._format_date(fields.get("vigencia_fin")),
+            "vigencia_desde": self._format_date(vig_desde),
+            "vigencia_hasta": self._format_date(vig_hasta),
             "domicilio_poliza": fields.get("domicilio_poliza", "NO ESPECIFICADO"),
             "bien_reclamado": fields.get("bien_reclamado", "NO ESPECIFICADO"),
             "monto_reclamacion": self._format_amount(fields.get("monto_reclamacion")),
@@ -154,23 +221,25 @@ class AIReportGenerator:
             
             # Metadata
             "fecha_generacion": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "confidence_scores": consolidated_data.confidence_scores,
-            "consolidation_sources": consolidated_data.consolidation_sources,
+            "confidence_scores": cd_dict.get("confidence_scores", getattr(consolidated_data, "confidence_scores", {})),
+            "consolidation_sources": cd_dict.get("consolidation_sources", getattr(consolidated_data, "consolidation_sources", {})),
         }
         
-        # Agregar análisis de IA si existe
-        if ai_analysis:
+        # Agregar análisis de IA si existe (normalizado por si acaso)
+        ai_analysis_dict = _to_dict(ai_analysis)
+        if ai_analysis_dict:
             template_data.update({
-                "fraud_score": ai_analysis.get("fraud_score", 0),
-                "risk_level": self._calculate_risk_level(ai_analysis.get("fraud_score", 0)),
-                "inconsistencias": ai_analysis.get("inconsistencies", []),
-                "fraud_indicators": ai_analysis.get("fraud_indicators", []),
-                "validaciones_externas": ai_analysis.get("external_validations", [])
+                "fraud_score": ai_analysis_dict.get("fraud_score", 0),
+                "risk_level": self._calculate_risk_level(ai_analysis_dict.get("fraud_score", 0) or 0),
+                "inconsistencias": ai_analysis_dict.get("inconsistencies", []),
+                "fraud_indicators": ai_analysis_dict.get("fraud_indicators", []),
+                "validaciones_externas": ai_analysis_dict.get("external_validations", [])
             })
         
-        # Agregar información de conflictos resueltos
-        if consolidated_data.conflicts_resolved:
-            template_data["conflicts_resolved"] = consolidated_data.conflicts_resolved
+        # Agregar información de conflictos resueltos si viene
+        conflicts = cd_dict.get("conflicts_resolved", getattr(consolidated_data, "conflicts_resolved", []))
+        if conflicts:
+            template_data["conflicts_resolved"] = conflicts
         
         return template_data
     
@@ -183,27 +252,33 @@ class AIReportGenerator:
             # Si ya está en formato YYYY-MM-DD, convertir a DD/MM/YYYY
             if len(date_value) == 10 and date_value[4] == '-':
                 parts = date_value.split('-')
-                return f"{parts[2]}/{parts[1]}/{parts[0]}"
+                if len(parts) == 3:
+                    return f"{parts[2]}/{parts[1]}/{parts[0]}"
         
         return str(date_value)
     
     def _format_amount(self, amount: Any) -> str:
         """Formatea un monto para display"""
-        if not amount:
+        if amount in (None, "", 0, 0.0):
             return "0.00"
         
         try:
             if isinstance(amount, (int, float)):
                 return f"${amount:,.2f}"
+            # Si viene como string (p. ej., ya formateado), lo devolvemos tal cual
             return str(amount)
-        except:
+        except Exception:
             return "0.00"
     
     def _calculate_risk_level(self, fraud_score: float) -> str:
         """Calcula el nivel de riesgo basado en el score"""
-        if fraud_score < 0.3:
+        try:
+            score = float(fraud_score)
+        except Exception:
+            score = 0.0
+        if score < 0.3:
             return "BAJO"
-        elif fraud_score < 0.6:
+        elif score < 0.6:
             return "MEDIO"
         else:
             return "ALTO"

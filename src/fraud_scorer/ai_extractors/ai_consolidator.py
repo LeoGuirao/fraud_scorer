@@ -1,31 +1,38 @@
 # src/fraud_scorer/ai_extractors/ai_consolidator.py
 
 """
-AIConsolidator: Consolida extracciones múltiples usando razonamiento de IA
+AIConsolidator: Consolida extracciones múltiples usando razonamiento de IA,
+evita validación cuando no hay datos (cortocircuito) y nunca inventa valores.
 """
-import os  # ← Agregar este import
+
+import os
 import json
 import logging
-from typing import Dict, Any, List, Optional, Tuple
+from typing import Dict, Any, List, Optional
 from datetime import datetime
-import asyncio
 
 from openai import AsyncOpenAI
 import instructor
 from pydantic import BaseModel, Field
 
-from .config import ExtractionConfig, FieldPriority
+from .config import ExtractionConfig, FieldPriority  # FieldPriority puede usarse en reglas
 from .models.extraction_models import (
-    DocumentExtraction, 
+    DocumentExtraction,
     ConsolidatedExtraction,
+    ConsolidatedFields,   # << importante: usar el modelo pydantic para los campos
     ExtractionBatch
 )
 from .prompts.consolidation_prompts import ConsolidationPromptBuilder
 
 logger = logging.getLogger(__name__)
 
+
+# =========================
+#   Modelos de respuesta
+# =========================
+
 class ConsolidationDecision(BaseModel):
-    """Modelo para las decisiones de consolidación"""
+    """Decisión de consolidación para un campo con trazabilidad."""
     field_name: str
     selected_value: Any
     source_document: str
@@ -33,27 +40,38 @@ class ConsolidationDecision(BaseModel):
     reasoning: str
     alternatives_considered: List[Dict[str, Any]] = Field(default_factory=list)
 
+
+class ValidationResponse(BaseModel):
+    """
+    Respuesta estructurada de validación.
+    - adjustments: dict con únicamente los campos a modificar (si aplica).
+    - notes: comentarios opcionales.
+    """
+    adjustments: Dict[str, Any] = Field(default_factory=dict)
+    notes: Optional[str] = None
+
+
+# =========================
+#      Consolidador
+# =========================
+
 class AIConsolidator:
     """
-    Consolidador inteligente que usa IA para resolver conflictos
-    y generar el conjunto final de datos
+    Consolida extractos de varios documentos, resuelve conflictos y
+    valida de forma conservadora (sin inventar).
     """
-    
+
     def __init__(self, api_key: Optional[str] = None):
-        """
-        Inicializa el consolidador
-        """
         self.client = instructor.patch(
             AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
         )
         self.config = ExtractionConfig()
         self.prompt_builder = ConsolidationPromptBuilder()
-        
-        # Cargar ejemplos de consolidación exitosa
         self.golden_examples = self._load_golden_examples()
-        
         logger.info("AIConsolidator inicializado")
-    
+
+    # ---------- API principal ----------
+
     async def consolidate_extractions(
         self,
         extractions: List[DocumentExtraction],
@@ -61,91 +79,113 @@ class AIConsolidator:
         use_advanced_reasoning: bool = True
     ) -> ConsolidatedExtraction:
         """
-        Consolida múltiples extracciones en un resultado final
-        
-        Args:
-            extractions: Lista de extracciones individuales
-            case_id: ID del caso
-            use_advanced_reasoning: Si usar el modelo avanzado de razonamiento
-            
-        Returns:
-            ConsolidatedExtraction con los datos finales
+        Consolida múltiples extracciones en un resultado final.
+
+        - Cortocircuita si `extractions` está vacío (evita alucinaciones).
+        - Solo valida con IA si existe al menos un valor no-nulo.
         """
         logger.info(f"Consolidando {len(extractions)} extracciones para caso {case_id}")
-        
-        # Agrupar extracciones por campo
+
+        # --- Cortocircuito si no hay extracciones ---
+        if not extractions:
+            logger.warning(
+                "No se recibieron extracciones para consolidar. Devolviendo resultado vacío sin validar."
+            )
+            empty_fields = ConsolidatedFields()  # todos los campos None según el modelo
+            return ConsolidatedExtraction(
+                case_id=case_id,
+                consolidated_fields=empty_fields,
+                consolidation_sources={},
+                conflicts_resolved=[],
+                confidence_scores={
+                    field: 0.0 for field in self._required_fields()
+                }
+            )
+
+        # Agrupar por campo (solo valores no nulos)
         field_groups = self._group_by_field(extractions)
-        
-        # Resolver cada campo
-        consolidated_fields = {}
-        consolidation_sources = {}
-        conflicts_resolved = []
-        confidence_scores = {}
-        
-        for field_name in self.config.REQUIRED_FIELDS:
-            if field_name not in field_groups:
-                consolidated_fields[field_name] = None
+
+        consolidated_fields_dict: Dict[str, Any] = {}
+        consolidation_sources: Dict[str, str] = {}
+        conflicts_resolved: List[Dict[str, Any]] = []
+        confidence_scores: Dict[str, float] = {}
+
+        # Iterar por los campos del modelo (fuente de verdad)
+        for field_name in self._required_fields():
+            options = field_groups.get(field_name, [])
+
+            if not options:
+                # Sin datos para este campo
+                consolidated_fields_dict[field_name] = None
                 confidence_scores[field_name] = 0.0
                 continue
-            
-            # Obtener todas las opciones para este campo
-            options = field_groups[field_name]
-            
-            if len(options) == 0:
-                consolidated_fields[field_name] = None
-                confidence_scores[field_name] = 0.0
-            elif len(options) == 1:
-                # Sin conflicto
-                consolidated_fields[field_name] = options[0]['value']
+
+            if len(options) == 1:
+                # Única opción
+                consolidated_fields_dict[field_name] = options[0]["value"]
                 consolidation_sources[field_name] = f"Único valor de {options[0]['source']}"
                 confidence_scores[field_name] = 1.0
+                continue
+
+            # Conflicto: múltiples opciones
+            if use_advanced_reasoning:
+                decision = await self._resolve_conflict_with_ai(
+                    field_name=field_name,
+                    options=options,
+                    all_extractions=extractions
+                )
             else:
-                # Hay conflicto - usar IA para resolver
-                if use_advanced_reasoning:
-                    decision = await self._resolve_conflict_with_ai(
-                        field_name=field_name,
-                        options=options,
-                        all_extractions=extractions
-                    )
-                else:
-                    decision = self._resolve_conflict_with_rules(
-                        field_name=field_name,
-                        options=options
-                    )
-                
-                consolidated_fields[field_name] = decision.selected_value
-                consolidation_sources[field_name] = decision.reasoning
-                confidence_scores[field_name] = decision.confidence
-                
-                if len(options) > 1:
-                    conflicts_resolved.append({
-                        "field": field_name,
-                        "options": options,
-                        "selected": decision.selected_value,
-                        "reasoning": decision.reasoning
-                    })
-        
-        # Validación final con IA
-        if use_advanced_reasoning:
-            consolidated_fields = await self._validate_with_ai(
-                consolidated_fields, 
+                decision = self._resolve_conflict_with_rules(
+                    field_name=field_name,
+                    options=options
+                )
+
+            consolidated_fields_dict[field_name] = decision.selected_value
+            consolidation_sources[field_name] = decision.reasoning
+            confidence_scores[field_name] = decision.confidence
+
+            conflicts_resolved.append({
+                "field": field_name,
+                "options": options,
+                "selected": decision.selected_value,
+                "reasoning": decision.reasoning
+            })
+
+        # ¿Hay al menos un valor real? si no, no tiene sentido validar con IA
+        has_any_value = any(v is not None for v in consolidated_fields_dict.values())
+
+        if use_advanced_reasoning and has_any_value:
+            consolidated_fields_dict = await self._validate_with_ai_safe(
+                consolidated_fields_dict,
                 extractions
             )
-        
-        # Crear resultado consolidado
+        elif use_advanced_reasoning and not has_any_value:
+            logger.info(
+                "Todos los campos están vacíos; se omite validación con IA para evitar invenciones."
+            )
+
+        # Instanciar el modelo pydantic final (valida tipos/formato)
+        try:
+            final_fields = ConsolidatedFields(**consolidated_fields_dict)
+        except Exception as e:
+            logger.error(f"Error creando ConsolidatedFields: {e}. "
+                         f"Se devuelven campos como dict sin validar.")
+            # Último recurso: devolver vacío seguro
+            final_fields = ConsolidatedFields()
+
         result = ConsolidatedExtraction(
             case_id=case_id,
-            consolidated_fields=consolidated_fields,
+            consolidated_fields=final_fields,
             consolidation_sources=consolidation_sources,
             conflicts_resolved=conflicts_resolved,
             confidence_scores=confidence_scores
         )
-        
-        # Log de métricas
+
         self._log_consolidation_metrics(result)
-        
         return result
-    
+
+    # ---------- Resolución de conflictos ----------
+
     async def _resolve_conflict_with_ai(
         self,
         field_name: str,
@@ -153,9 +193,8 @@ class AIConsolidator:
         all_extractions: List[DocumentExtraction]
     ) -> ConsolidationDecision:
         """
-        Usa IA para resolver conflictos entre valores
+        Usa IA (estructura) para resolver conflictos de un campo.
         """
-        # Construir prompt para resolución
         prompt = self.prompt_builder.build_conflict_resolution_prompt(
             field_name=field_name,
             options=options,
@@ -163,224 +202,244 @@ class AIConsolidator:
             golden_examples=self._get_relevant_examples(field_name),
             context=self._build_context(all_extractions)
         )
-        
+
         try:
-            # Llamar a la IA para decisión
-            response = await self.client.chat.completions.create(
+            response: ConsolidationDecision = await self.client.chat.completions.create(
                 model=self.config.get_model_for_task("consolidation"),
                 messages=[
                     {
-                        "role": "system", 
-                        "content": "Eres un experto ajustador de seguros con 20 años de experiencia."
+                        "role": "system",
+                        "content": (
+                            "Eres un experto ajustador de seguros con 20 años de experiencia. "
+                            "Selecciona el mejor valor entre opciones dadas. Explica brevemente."
+                        ),
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": prompt},
                 ],
                 response_model=ConsolidationDecision,
-                temperature=0.1,  # Muy baja para consistencia
-                max_tokens=1000
+                temperature=0.1,
+                max_tokens=1000,
             )
-            
             return response
-            
+
         except Exception as e:
-            logger.error(f"Error en resolución con IA para {field_name}: {e}")
-            # Fallback a reglas
+            logger.error(f"Error en resolución con IA para {field_name}: {e}. "
+                         "Aplicando reglas de respaldo.")
             return self._resolve_conflict_with_rules(field_name, options)
-    
+
     def _resolve_conflict_with_rules(
         self,
         field_name: str,
         options: List[Dict[str, Any]]
     ) -> ConsolidationDecision:
         """
-        Resuelve conflictos usando reglas predefinidas (fallback)
+        Reglas determinísticas como respaldo (prioridades por fuente -> valor más común).
         """
-        # Obtener reglas de prioridad para este campo
         priority_sources = self.config.FIELD_SOURCE_RULES.get(field_name, [])
-        
-        # Si hay reglas, aplicarlas
         if priority_sources:
             for priority_source in priority_sources:
                 for option in options:
-                    if priority_source in option['source'].lower():
+                    if priority_source in option["source"].lower():
                         return ConsolidationDecision(
                             field_name=field_name,
-                            selected_value=option['value'],
-                            source_document=option['source'],
+                            selected_value=option["value"],
+                            source_document=option["source"],
                             confidence=0.8,
                             reasoning=f"Seleccionado de {option['source']} por regla de prioridad",
-                            alternatives_considered=options
+                            alternatives_considered=options,
                         )
-        
-        # Si no hay reglas o no aplican, tomar el más común
+
         from collections import Counter
-        value_counts = Counter(opt['value'] for opt in options)
+        value_counts = Counter(opt["value"] for opt in options)
         most_common_value = value_counts.most_common(1)[0][0]
-        
-        source = next(opt['source'] for opt in options if opt['value'] == most_common_value)
-        
+        source = next(opt["source"] for opt in options if opt["value"] == most_common_value)
+
         return ConsolidationDecision(
             field_name=field_name,
             selected_value=most_common_value,
             source_document=source,
             confidence=0.6,
             reasoning=f"Valor más común entre {len(options)} documentos",
-            alternatives_considered=options
+            alternatives_considered=options,
         )
-    
-    async def _validate_with_ai(
+
+    # ---------- Validación “segura” ----------
+
+    async def _validate_with_ai_safe(
         self,
         consolidated_fields: Dict[str, Any],
         original_extractions: List[DocumentExtraction]
     ) -> Dict[str, Any]:
         """
-        Validación final y ajustes con IA
+        Validación final con IA **sin inventar**:
+        - Solo puede normalizar/ajustar campos que YA tienen valor.
+        - No debe crear valores nuevos para campos vacíos.
+        - Si no hay ajustes, devuelve tal cual.
         """
+        # Build prompt con reglas de NO invención
         prompt = self.prompt_builder.build_validation_prompt(
             consolidated_fields=consolidated_fields,
-            original_extractions=[e.dict() for e in original_extractions]
+            original_extractions=[self._to_dict(e) for e in original_extractions]
         )
-        
+        guardrails = (
+            "INSTRUCCIONES ESTRICTAS:\n"
+            "- NO inventes valores para campos vacíos (None/null/\"\").\n"
+            "- SOLO propone ajustes mínimos (normalización de formato, corrección obvia de OCR) "
+            "para campos QUE YA TIENEN VALOR.\n"
+            "- Responde en JSON válido con la clave 'adjustments' que contenga únicamente los "
+            "campos a modificar. Si no hay cambios, usa 'adjustments': {}.\n"
+        )
+        full_prompt = f"{guardrails}\n\n{prompt}"
+
         try:
-            # Pedir a la IA que valide y ajuste si es necesario
-            response = await self.client.chat.completions.create(
+            response: ValidationResponse = await self.client.chat.completions.create(
                 model=self.config.get_model_for_task("consolidation"),
                 messages=[
                     {
                         "role": "system",
-                        "content": "Valida que los datos consolidados sean coherentes y correctos."
+                        "content": (
+                            "Valida coherencia y formato. No inventes datos faltantes. "
+                            "Responde SOLO con JSON para ser parseado."
+                        ),
                     },
-                    {"role": "user", "content": prompt}
+                    {"role": "user", "content": full_prompt},
                 ],
-                temperature=0.1,
-                max_tokens=2000
+                response_model=ValidationResponse,
+                temperature=0.0,
+                max_tokens=1200,
             )
-            
-            # Parsear respuesta
-            content = response.choices[0].message.content
-            if "VALIDADO_OK" in content:
+
+            adjustments = response.adjustments or {}
+            if not adjustments:
+                logger.info("Validación IA: sin ajustes.")
                 return consolidated_fields
-            
-            # Si hay ajustes sugeridos, aplicarlos
-            if "AJUSTES:" in content:
-                adjustments = self._parse_adjustments(content)
-                for field, new_value in adjustments.items():
-                    logger.info(f"Ajustando {field}: {consolidated_fields.get(field)} -> {new_value}")
+
+            # Aplicar únicamente a claves existentes con valor (doble protección)
+            applied = 0
+            for field, new_value in adjustments.items():
+                if field in consolidated_fields and consolidated_fields[field] is not None:
+                    logger.info(f"Ajuste IA -> {field}: '{consolidated_fields[field]}' → '{new_value}'")
                     consolidated_fields[field] = new_value
-            
+                    applied += 1
+
+            if applied == 0:
+                logger.info("Validación IA: ajustes ignorados (no aplicables).")
             return consolidated_fields
-            
+
         except Exception as e:
-            logger.error(f"Error en validación con IA: {e}")
+            logger.error(f"Error en validación con IA: {e}. Se mantiene consolidado original.")
             return consolidated_fields
-    
-    def _group_by_field(self, extractions: List[DocumentExtraction]) -> Dict[str, List[Dict]]:
+
+    # ---------- Utilitarios internos ----------
+
+    def _group_by_field(self, extractions: List[DocumentExtraction]) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Agrupa los valores extraídos por campo
+        Agrupa los valores extraídos por campo (solo valores no nulos).
+        Devuelve: { field_name: [ {value, source, document_type}, ... ] }
         """
-        field_groups = {}
-        
+        field_groups: Dict[str, List[Dict[str, Any]]] = {}
         for extraction in extractions:
-            for field_name, value in extraction.extracted_fields.items():
-                if value is not None:  # Ignorar valores nulos
-                    if field_name not in field_groups:
-                        field_groups[field_name] = []
-                    
-                    field_groups[field_name].append({
-                        'value': value,
-                        'source': extraction.source_document,
-                        'document_type': extraction.document_type
-                    })
-        
+            # Se asume que extraction.extracted_fields es un dict
+            for field_name, value in getattr(extraction, "extracted_fields", {}).items():
+                if value is None:
+                    continue
+                field_groups.setdefault(field_name, []).append({
+                    "value": value,
+                    "source": getattr(extraction, "source_document", "desconocido"),
+                    "document_type": getattr(extraction, "document_type", "desconocido"),
+                })
         return field_groups
-    
+
     def _build_context(self, extractions: List[DocumentExtraction]) -> str:
         """
-        Construye contexto adicional para la IA
+        Construye un breve contexto para prompts (tipos de doc y conteo de campos con datos).
         """
-        context_parts = []
-        
-        # Resumen de documentos procesados
-        doc_types = [e.document_type for e in extractions]
-        context_parts.append(f"Documentos analizados: {', '.join(set(doc_types))}")
-        
-        # Contar campos encontrados
-        field_counts = {}
+        doc_types = [getattr(e, "document_type", "desconocido") for e in extractions]
+        context_parts = [f"Documentos analizados: {', '.join(sorted(set(doc_types)))}"]
+
+        field_counts: Dict[str, int] = {}
         for e in extractions:
-            for field, value in e.extracted_fields.items():
+            for field, value in getattr(e, "extracted_fields", {}).items():
                 if value is not None:
                     field_counts[field] = field_counts.get(field, 0) + 1
-        
-        context_parts.append(f"Campos con datos: {field_counts}")
-        
+
+        context_parts.append(f"Campos con datos: {json.dumps(field_counts, ensure_ascii=False)}")
         return "\n".join(context_parts)
-    
-    def _get_relevant_examples(self, field_name: str) -> List[Dict]:
+
+    def _get_relevant_examples(self, field_name: str) -> List[Dict[str, Any]]:
+        """Devuelve hasta 3 ejemplos dorados relevantes, si existen."""
+        examples = self.golden_examples.get(field_name) or []
+        return examples[:3]
+
+    def _load_golden_examples(self) -> Dict[str, List[Dict[str, Any]]]:
         """
-        Obtiene ejemplos relevantes para un campo específico
+        Carga ejemplos de consolidaciones exitosas anteriores (puedes reemplazar con tu storage).
         """
-        if field_name in self.golden_examples:
-            return self.golden_examples[field_name][:3]  # Máximo 3 ejemplos
-        return []
-    
-    def _load_golden_examples(self) -> Dict[str, List[Dict]]:
-        """
-        Carga ejemplos de consolidaciones exitosas anteriores
-        """
-        # Aquí cargarías desde data/training_examples/consolidation_examples.json
         return {
             "numero_poliza": [
                 {
                     "options": [
                         {"value": "AX-123-B", "source": "poliza.pdf"},
-                        {"value": "AX123B", "source": "factura.pdf"}
+                        {"value": "AX123B", "source": "factura.pdf"},
                     ],
                     "correct_choice": "AX-123-B",
-                    "reasoning": "Formato de póliza.pdf es el estándar"
+                    "reasoning": "El formato de póliza de 'poliza.pdf' es el estándar.",
                 }
             ]
         }
-    
-    def _parse_adjustments(self, ai_response: str) -> Dict[str, Any]:
+
+    def _log_consolidation_metrics(self, result: ConsolidatedExtraction) -> None:
         """
-        Parsea ajustes sugeridos por la IA
+        Registra métricas de la consolidación (soporta ConsolidatedFields o dict).
         """
-        adjustments = {}
-        
-        # Buscar patrón de ajustes en la respuesta
-        lines = ai_response.split('\n')
-        in_adjustments = False
-        
-        for line in lines:
-            if "AJUSTES:" in line:
-                in_adjustments = True
-                continue
-            
-            if in_adjustments and ':' in line:
-                parts = line.split(':', 1)
-                if len(parts) == 2:
-                    field = parts[0].strip()
-                    value = parts[1].strip()
-                    adjustments[field] = value
-        
-        return adjustments
-    
-    def _log_consolidation_metrics(self, result: ConsolidatedExtraction):
-        """
-        Registra métricas de la consolidación
-        """
-        fields_filled = sum(
-            1 for v in result.consolidated_fields.values() 
-            if v is not None
+        cf = result.consolidated_fields
+        if isinstance(cf, ConsolidatedFields):
+            values = cf.model_dump()
+        elif isinstance(cf, dict):
+            values = cf
+        else:
+            try:
+                values = dict(cf)  # último recurso
+            except Exception:
+                values = {}
+
+        fields_filled = sum(1 for v in values.values() if v is not None)
+        total_fields = len(values)
+        conflicts = len(result.conflicts_resolved or [])
+        avg_confidence = (
+            sum((result.confidence_scores or {}).values()) / max(len(result.confidence_scores or {}), 1)
         )
-        total_fields = len(result.consolidated_fields)
-        conflicts = len(result.conflicts_resolved)
-        avg_confidence = sum(result.confidence_scores.values()) / len(result.confidence_scores) if result.confidence_scores else 0
-        
+
         logger.info(
-            f"Consolidación completada | "
-            f"Caso: {result.case_id} | "
-            f"Campos: {fields_filled}/{total_fields} | "
-            f"Conflictos resueltos: {conflicts} | "
-            f"Confianza promedio: {avg_confidence:.2%}"
+            "Consolidación completada | Caso: %s | Campos: %s/%s | Conflictos: %s | Confianza prom.: %.2f%%",
+            result.case_id, fields_filled, total_fields, conflicts, avg_confidence * 100.0
         )
+
+    def _required_fields(self) -> List[str]:
+        """
+        Fuente de verdad para los nombres de campos requeridos.
+        Prioriza el modelo Pydantic, con fallback a la config.
+        """
+        try:
+            # Pydantic v2
+            return list(ConsolidatedFields.model_fields.keys())
+        except Exception:
+            # Fallback si fuese Pydantic v1 o estructura legacy
+            return getattr(self.config, "REQUIRED_FIELDS", [])
+
+    @staticmethod
+    def _to_dict(obj: Any) -> Dict[str, Any]:
+        """
+        Convierte modelos pydantic u objetos dataclass a dict sin romper si no implementan .model_dump().
+        """
+        for attr in ("model_dump", "dict"):
+            if hasattr(obj, attr):
+                try:
+                    return getattr(obj, attr)()
+                except Exception:
+                    pass
+        # Fall back naive
+        try:
+            return obj.__dict__
+        except Exception:
+            return {}
