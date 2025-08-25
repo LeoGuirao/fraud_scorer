@@ -1,0 +1,282 @@
+{
+  "case_id": "CASE-2025-0011",
+  "folder_name": "20250000002494 - MODA YKT, S.A. DE C.V",
+  "processing_date": "2025-08-24T02:18:43.307000",
+  "documents_processed": 27,
+  "documents_summary": [
+    {
+      "file_name": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "FACTURA MERCANCIA _compressed.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 2
+    },
+    {
+      "file_name": "2b CANDADOS DE SEGURIDAD.PDF",
+      "document_type": "poliza",
+      "extracted_fields_count": 1
+    },
+    {
+      "file_name": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 1
+    },
+    {
+      "file_name": "1h Tarjetas de circulaciOn.PDF",
+      "document_type": "poliza",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "C&C.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 3
+    },
+    {
+      "file_name": "DENUNCIA INICIAL_compressed.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "CARTA PORTE MERCANCIA _compressed.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 2
+    },
+    {
+      "file_name": "1C DENUNCIA INICIAL compressed.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+      "document_type": "poliza",
+      "extracted_fields_count": 2
+    },
+    {
+      "file_name": "ACREDITACION Y RATIFICACION DENUNCIA_compressed.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "1j CI 30 compressed.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 2
+    },
+    {
+      "file_name": "1E FACTURA MERCANCIA.pdf",
+      "document_type": "otro",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "22741 CSD MODA YKT.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 1
+    },
+    {
+      "file_name": "2a BITACORA DE RUTA compressed.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "MODA YKT S.A. DE C.V._compressed.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 3
+    },
+    {
+      "file_name": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 1
+    },
+    {
+      "file_name": "22741 CEDULA.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 3
+    },
+    {
+      "file_name": "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 2
+    },
+    {
+      "file_name": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 1
+    },
+    {
+      "file_name": "1f CARTA PROVEEDOR compressed.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "1h Tarjetas de circulación.pdf",
+      "document_type": "carta_porte",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+      "document_type": "carta_porte",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+      "document_type": "factura",
+      "extracted_fields_count": 1
+    },
+    {
+      "file_name": "REPUVE-Tracto.pdf",
+      "document_type": "factura",
+      "extracted_fields_count": 0
+    },
+    {
+      "file_name": "Poliza2346-1.pdf",
+      "document_type": "poliza",
+      "extracted_fields_count": 3
+    }
+  ],
+  "consolidated_summary": {
+    "case_info": {
+      "rfc": "HEAP5602278N7",
+      "monto_reclamacion": "1,169,743.37",
+      "numero_poliza": "No .: 141 - 2346 Inciso: 1",
+      "nombre_asegurado": "Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.",
+      "fecha_siniestro": "2025-02-26"
+    },
+    "validation_summary": {},
+    "processing_stats": {
+      "total_documents": 27,
+      "total_memory_mb": 0.03125,
+      "avg_memory_mb": 0.0011574074074074073,
+      "total_time_ms": 11.17,
+      "avg_time_ms": 0.4137037037037037
+    }
+  },
+  "extraction_stats": {
+    "total_documents": 27,
+    "documents_with_extraction": 15,
+    "total_fields_extracted": 28,
+    "fields_by_type": {
+      "factura": 9,
+      "poliza": 19
+    },
+    "extraction_times": [
+      5.943328,
+      10.974023,
+      5.487489,
+      7.746433,
+      3.530163,
+      37.473662,
+      8.740379,
+      11.40193,
+      8.628792,
+      5.594342,
+      16.140826,
+      9.707487,
+      0.876846,
+      11.677563,
+      5.404206,
+      11.962644,
+      6.550221,
+      14.500803,
+      8.678798,
+      8.736301,
+      9.639596,
+      5.517056,
+      10.206989,
+      17.926265,
+      8.49526,
+      8.692707,
+      10.966424
+    ]
+  },
+  "errors": [],
+  "fraud_analysis": {
+    "fraud_score": 70.0,
+    "risk_level": "alto",
+    "indicators": [
+      {
+        "description": "Fecha de siniestro futura",
+        "weight": 0.9,
+        "doc_refs": [
+          0
+        ]
+      },
+      {
+        "description": "Monto de reclamación elevado",
+        "weight": 0.6,
+        "doc_refs": [
+          0
+        ]
+      }
+    ],
+    "inconsistencies": [
+      {
+        "field": "fecha_siniestro",
+        "value_a": "2025-02-26",
+        "value_b": "Fecha actual",
+        "severity": "critica",
+        "affected_docs": [
+          0
+        ]
+      }
+    ],
+    "external_validations": [],
+    "route_analysis": {
+      "declared_origin": "",
+      "gps_origin_verification": "",
+      "declared_incident_location": "",
+      "gps_incident_verification": "",
+      "event_analysis": "",
+      "declared_destination": "",
+      "trajectory_verification": "",
+      "route_inconsistencies": []
+    }
+  },
+  "ai_analysis_raw": {
+    "fraud_score": 0.7,
+    "fraud_indicators": [
+      {
+        "description": "Fecha de siniestro futura",
+        "weight": 0.9,
+        "doc_refs": [
+          0
+        ]
+      },
+      {
+        "description": "Monto de reclamación elevado",
+        "weight": 0.6,
+        "doc_refs": [
+          0
+        ]
+      }
+    ],
+    "inconsistencies": [
+      {
+        "field": "fecha_siniestro",
+        "value_a": "2025-02-26",
+        "value_b": "Fecha actual",
+        "severity": "critica",
+        "affected_docs": [
+          0
+        ]
+      }
+    ],
+    "external_validations": [],
+    "route_analysis": {
+      "declared_origin": "",
+      "gps_origin_verification": "",
+      "declared_incident_location": "",
+      "gps_incident_verification": "",
+      "event_analysis": "",
+      "declared_destination": "",
+      "trajectory_verification": "",
+      "route_inconsistencies": []
+    }
+  }
+}

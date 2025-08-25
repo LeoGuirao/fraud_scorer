@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+"""
+Sistema de Replay Interactivo con Cache OCR
+"""
 import sys
 import asyncio
 import argparse
@@ -8,359 +11,314 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime
 import json
 
+# Configurar logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
-logger = logging.getLogger("fraud_scorer.replay_case")
+logger = logging.getLogger("fraud_scorer.replay")
 
-# ----------------------------
-# Imports con fallback a src/
-# ----------------------------
-try:
-    from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-    # 👇 forzamos el procesador segmentado y traemos el loader de config
-    from fraud_scorer.pipelines.segmented_processor import (
-        SegmentedTemplateProcessor,
-        load_pipeline_config,  # solo lo importamos; el TP leerá el YAML si se lo pasas
-    )
-    from fraud_scorer.storage.db import (
-        get_conn,
-        create_run,
-        save_ai_analysis,
-    )
-    from fraud_scorer.pipelines.utils import (
-        load_case_header,
-        build_docs_for_template_from_db,
-        save_json_snapshot,
-    )
-except ImportError:
-    from pathlib import Path as _Path
-    _REPO_ROOT = _Path(__file__).resolve().parents[1]
-    _SRC_PATH = _REPO_ROOT / "src"
-    if _SRC_PATH.exists():
-        sys.path.insert(0, str(_SRC_PATH))
-    from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-    from fraud_scorer.pipelines.segmented_processor import (
-        SegmentedTemplateProcessor,
-        load_pipeline_config,
-    )
-    from fraud_scorer.storage.db import (
-        get_conn,
-        create_run,
-        save_ai_analysis,
-    )
-    from fraud_scorer.pipelines.utils import (
-        load_case_header,
-        build_docs_for_template_from_db,
-        save_json_snapshot,
-    )
-
-
-# ----------------------------
-# Helpers (resumenes ligeros)
-# ----------------------------
-def _summarize_docs_for_results(processed_docs: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Crea un resumen compacto por documento para el JSON final (evita guardar OCR completo).
-    """
-    summary = []
-    for d in processed_docs:
-        ex = d.get("extracted_data") or {}
-        kv_sf = ex.get("specific_fields") or {}
-        doc_type = (
-            d.get("document_type")
-            or ex.get("document_type")
-            or ((d.get("ocr_data") or {}).get("metadata") or {}).get("document_type")
-            or "unknown"
-        )
-        file_name = d.get("file_name") or ((d.get("ocr_data") or {}).get("metadata") or {}).get("source_name")
-        summary.append(
-            {
-                "file_name": file_name,
-                "document_type": doc_type,
-                "extracted_fields_count": len(kv_sf),
-            }
-        )
-    return summary
-
-
-def _consolidated_summary(consolidated: Dict[str, Any]) -> Dict[str, Any]:
-    """
-    Reduce el tamaño del consolidado a lo útil para auditoría.
-    """
-    return {
-        "case_info": consolidated.get("case_info", {}),
-        "validation_summary": consolidated.get("validation_summary", {}),
-        "processing_stats": consolidated.get("processing_stats", {}),
-    }
-
+# Imports del sistema
+from fraud_scorer.cache.ocr_cache_manager import OCRCacheManager
+from fraud_scorer.ui.replay_ui import ReplayUI
+from fraud_scorer.ai_extractors.ai_field_extractor import AIFieldExtractor
+from fraud_scorer.ai_extractors.ai_consolidator import AIConsolidator
+from fraud_scorer.ai_extractors.ai_report_generator import AIReportGenerator
+from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
 
 class ReplaySystem:
-    def __init__(
-        self,
-        model: str = "gpt-4-turbo-preview",
-        temperature: float = 0.3,
-        config_path: Optional[str] = None,
-    ):
-        self.ai = AIDocumentAnalyzer()
-        # 👇 siempre segmentado; si pasas YAML se inyecta al orquestador
-        self.template = SegmentedTemplateProcessor(config_path=config_path)
-        self.model = model
-        self.temperature = float(temperature)
-        self.config_path = config_path
-
-        if config_path:
-            try:
-                cfg = load_pipeline_config(config_path)
-                logger.info(f"Config de pipeline cargada desde {config_path}: {list(cfg.keys())}")
-            except Exception as e:
-                logger.warning(f"No se pudo cargar config YAML ({config_path}): {e}")
-
-    async def _build_ai_case_from_consolidated(
-        self, consolidated: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        En lugar de pasar TODOS los docs a la IA, pasamos
-        un único 'documento' sintético con el resumen consolidado.
-        """
-        synthetic_doc = {
-            "document_type": "consolidated_summary",
-            "raw_text": json.dumps(
-                {
-                    "case_info": consolidated.get("case_info", {}),
-                    "validation_summary": consolidated.get("validation_summary", {}),
-                    "processing_stats": consolidated.get("processing_stats", {}),
-                },
-                ensure_ascii=False,
-            ),
-            "entities": [],
-            "key_value_pairs": consolidated.get("case_info", {}),
-            "specific_fields": consolidated.get("case_info", {}),
-            "ocr_metadata": {"source_name": "consolidated_summary.json"},
-        }
-        return await self.ai.analyze_claim_documents([synthetic_doc])
-
-    def _inject_document_ids(
-        self,
-        docs_for_template: List[Dict[str, Any]],
-        processed_docs: List[Dict[str, Any]],
-    ) -> None:
-        """
-        Intenta adjuntar `_document_id` a cada doc normalizado para que
-        `--per-doc` pueda guardar IA por documento. Empata por filename
-        (metadata.source_name) y, si falla, usa fallback por índice.
-        """
-        # Mapa por nombre de archivo
-        name_to_id: Dict[str, Any] = {}
-        for pd in processed_docs:
-            fname = (pd.get("file_name") or "").strip().lower()
-            if fname and pd.get("document_id"):
-                name_to_id[fname] = pd["document_id"]
-
-        # Inyección por filename
-        matched = 0
-        for d in docs_for_template:
-            meta = d.get("ocr_metadata", {}) or {}
-            source_name = (meta.get("source_name") or meta.get("file_name") or "").strip().lower()
-            if source_name and source_name in name_to_id:
-                d["_document_id"] = name_to_id[source_name]
-                matched += 1
-
-        # Fallback por índice si nada coincidió
-        if matched == 0 and len(docs_for_template) == len(processed_docs):
-            for i, d in enumerate(docs_for_template):
-                d["_document_id"] = processed_docs[i].get("document_id")
-
-    async def replay(
+    """
+    Sistema de replay con cache OCR
+    """
+    
+    def __init__(self):
+        self.cache_manager = OCRCacheManager()
+        self.ui = None  # Se inicializa después
+        
+    async def replay_case(
         self,
         case_id: str,
-        out_dir: Path,
-        no_save: bool = False,
-        per_doc: bool = False,
-        clobber: bool = False,
+        options: Dict[str, Any]
     ) -> Dict[str, Any]:
-        # 1) Cargar metadatos del caso
-        header = load_case_header(case_id)
-
-        # 2) Obtener documentos (normalizados) desde la DB
-        docs_for_template, processed_docs = build_docs_for_template_from_db(case_id)
-        if not docs_for_template:
-            raise RuntimeError("No hay documentos OCR/extraídos para este caso.")
-
-        # 2.1) Inyectar document_id a docs normalizados para IA por-doc
-        self._inject_document_ids(docs_for_template, processed_docs)
-
-        # 3) (Opcional) Limpiar salidas previas
-        if clobber:
-            out_dir.mkdir(parents=True, exist_ok=True)
-            targets = list(out_dir.glob("INF-*.html")) + list(out_dir.glob("INF-*.pdf"))
-            targets += list(out_dir.glob(f"resultados_{case_id}.json"))
-            removed = 0
-            for pth in targets:
-                try:
-                    pth.unlink()
-                    removed += 1
-                except FileNotFoundError:
-                    pass
-            if removed:
-                logger.info(f"--clobber: {removed} archivo(s) previos eliminados en {out_dir}")
-
-        # 4) Procesamiento segmentado (aislado) y consolidación
-        logger.info("Procesando documentos en modo segmentado/aislado…")
-        consolidated = await self.template.orchestrator.process_documents(docs_for_template)
-
-        # 5) Análisis IA liviano usando SOLO el consolidado
-        print("\n🤖 IA (resumen consolidado, sin OCR)…")
-        ai_case = await self._build_ai_case_from_consolidated(consolidated)
-
-        # 6) Guardar corrida IA en DB (opcional)
-        run_id: Optional[str] = None
-        if not no_save:
-            run_id = create_run(
+        """
+        Ejecuta el replay de un caso con las opciones especificadas
+        """
+        logger.info(f"Iniciando replay del caso {case_id}")
+        
+        # Obtener información del caso
+        case_index = self.cache_manager.get_case_index(case_id)
+        if not case_index:
+            raise RuntimeError(f"No se encontró información del caso {case_id}")
+        
+        # Cargar resultados OCR del cache
+        ocr_results = []
+        for doc_path in case_index['documents']:
+            doc_path = Path(doc_path)
+            if self.cache_manager.has_cache(doc_path):
+                ocr_result = self.cache_manager.get_cache(doc_path)
+                ocr_results.append({
+                    'filename': doc_path.name,
+                    'ocr_result': ocr_result,
+                    'document_type': None
+                })
+            else:
+                logger.warning(f"No hay cache para {doc_path.name}")
+        
+        if not ocr_results:
+            raise RuntimeError("No se encontraron resultados OCR en cache")
+        
+        # Procesar según las opciones
+        if options.get('use_ai'):
+            return await self._process_with_ai(
+                ocr_results=ocr_results,
                 case_id=case_id,
-                purpose="replay_case_segmented",
-                llm_model=self.model,
-                params={
-                    "temperature": self.temperature,
-                    "from": "replay_segmented",
-                    **({"config": self.config_path} if self.config_path else {}),
-                },
+                options=options
             )
-
-        # 7) (Opcional) IA por documento (con aislamiento ya cubierto por el pipeline)
-        if per_doc and not no_save:
-            print("🧪 Guardando análisis IA por-documento…")
-            for d in docs_for_template:
-                doc_struct = {
-                    "document_type": d.get("document_type"),
-                    "raw_text": d.get("raw_text", ""),
-                    "entities": d.get("entities", []),
-                    "key_value_pairs": d.get("key_value_pairs", {}),
-                    "specific_fields": d.get("specific_fields", {}),
-                    "ocr_metadata": d.get("ocr_metadata", {}),
-                }
-                try:
-                    ai_doc = await self.ai.analyze_document(doc_struct)
-                except Exception as e:
-                    logger.warning(f"IA por-doc falló: {e}")
-                    continue
-                doc_id = d.get("_document_id")
-                if doc_id:
-                    try:
-                        save_ai_analysis(
-                            document_id=doc_id,
-                            run_id=run_id,
-                            ai=ai_doc,
-                            model=self.model,
-                            temperature=self.temperature,
-                        )
-                    except Exception as e:
-                        logger.warning(f"No se pudo guardar análisis IA de documento {doc_id}: {e}")
-
-        # 8) Preparar resumen técnico (JSON ligero)
-        fraud_score = float(ai_case.get("fraud_score", 0.0))
-        risk_level = "bajo" if fraud_score < 0.3 else ("medio" if fraud_score < 0.6 else "alto")
+        else:
+            return await self._process_legacy(
+                ocr_results=ocr_results,
+                case_id=case_id,
+                options=options
+            )
+    
+    async def _process_with_ai(
+        self,
+        ocr_results: List[Dict],
+        case_id: str,
+        options: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Procesa con el sistema de IA usando los datos cacheados
+        """
+        output_path = Path(options.get('output_dir', 'data/reports'))
+        output_path.mkdir(parents=True, exist_ok=True)
+        
+        # Inicializar componentes de IA
+        extractor = AIFieldExtractor()
+        consolidator = AIConsolidator()
+        report_generator = AIReportGenerator()
+        
+        # Fase 1: Extracción (usando cache OCR)
+        logger.info("Extrayendo campos con IA...")
+        extractions = await extractor.extract_from_documents_batch(
+            documents=ocr_results,
+            parallel_limit=3
+        )
+        
+        # Fase 2: Consolidación
+        logger.info("Consolidando datos...")
+        consolidated = await consolidator.consolidate_extractions(
+            extractions=extractions,
+            case_id=case_id,
+            use_advanced_reasoning=True
+        )
+        
+        # Fase 3: Análisis de fraude
+        logger.info("Analizando fraude...")
+        analyzer = AIDocumentAnalyzer()
+        docs_for_analysis = []
+        for extraction in extractions:
+            docs_for_analysis.append({
+                "document_type": extraction.document_type,
+                "key_value_pairs": extraction.extracted_fields,
+                "specific_fields": extraction.extracted_fields,
+                "raw_text": "",
+                "entities": []
+            })
+        
+        ai_analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
+        
+        # Fase 4: Generar reporte si se solicita
+        if options.get('regenerate_report', True):
+            logger.info("Generando reporte...")
+            html_path = output_path / f"INF-{case_id}.html"
+            html_content = report_generator.generate_report(
+                consolidated_data=consolidated,
+                ai_analysis=ai_analysis,
+                output_path=html_path
+            )
+            
+            # Intentar generar PDF
+            pdf_path = output_path / f"INF-{case_id}.pdf"
+            report_generator.generate_pdf(html_content, pdf_path)
+        
+        # Preparar resultados
         results = {
             "case_id": case_id,
-            "case_name": header.get("name"),
-            "processing_date": datetime.now().isoformat(),
-            "documents_processed": len(processed_docs),
-            # 👇 Solo resumen, NO OCR completo
-            "documents_summary": _summarize_docs_for_results(processed_docs),
-            "consolidated_summary": _consolidated_summary(consolidated),
-            "fraud_analysis": {
-                "fraud_score": round(fraud_score * 100, 2),
-                "risk_level": risk_level,
-                "indicators": (ai_case.get("fraud_indicators", []) or [])[:5],
-                "inconsistencies": (ai_case.get("inconsistencies", []) or [])[:5],
-                "external_validations": ai_case.get("external_validations", []),
-                "route_analysis": ai_case.get("route_analysis", {}),
-            },
-            "ai_analysis_raw": ai_case,
+            "replay_date": datetime.now().isoformat(),
+            "options_used": options,
+            "extraction_results": [e.dict() for e in extractions],
+            "consolidated_data": consolidated.dict(),
+            "fraud_analysis": ai_analysis,
+            "output_path": str(output_path)
         }
-
-        # 9) Construir Informe (a partir del pipeline segmentado)
-        print("\n📝 Generando informe (segmentado)…")
-        informe = self.template._build_informe_from_consolidated(consolidated, ai_case)
-        # ✅ Número de siniestro estable: usa el case_id (o déjalo vacío si prefieres)
-        informe.numero_siniestro = case_id  # o: case_id.split('-')[-1]
-
-        # 10) Generar HTML/PDF directamente
-        out_dir.mkdir(parents=True, exist_ok=True)
-        html_path = out_dir / f"INF-{informe.numero_siniestro}.html"
-        self.template.generate_report(informe, str(html_path))
-
-        pdf_path = None
-        try:
-            from weasyprint import HTML  # opcional
-            pdf_path = html_path.with_suffix(".pdf")
-            HTML(filename=str(html_path)).write_pdf(str(pdf_path))
-        except ImportError:
-            logger.warning("WeasyPrint no instalado. PDF omitido.")
-        except Exception as e:
-            logger.warning(f"Error generando PDF: {e}")
-
-        logger.info(f"HTML: {html_path}" + (f" | PDF: {pdf_path}" if pdf_path else " | PDF omitido"))
-
-        # 11) Guardar snapshot JSON técnico (ligero)
-        out_json = out_dir / f"resultados_{case_id}.json"
-        save_json_snapshot(results, out_json)
-        print(f"✓ Resultados JSON guardados: {out_json}")
-
+        
+        # Guardar JSON de resultados
+        json_path = output_path / f"replay_{case_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(results, f, ensure_ascii=False, indent=2, default=str)
+        
+        logger.info(f"Replay completado. Resultados en: {output_path}")
         return results
-
+    
+    async def _process_legacy(
+        self,
+        ocr_results: List[Dict],
+        case_id: str,
+        options: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """
+        Procesa con el sistema legacy
+        """
+        # Implementar procesamiento legacy si es necesario
+        logger.info("Procesamiento legacy no implementado aún")
+        return {"status": "legacy_not_implemented"}
+    
+    async def run_interactive(self):
+        """
+        Ejecuta la interfaz interactiva
+        """
+        self.ui = ReplayUI(self.cache_manager, self)
+        await self.ui.run()
+    
+    async def run_cli(self, args):
+        """
+        Ejecuta desde línea de comandos
+        """
+        if args.list:
+            # Listar casos disponibles
+            cases = self.cache_manager.list_cached_cases()
+            if not cases:
+                print("No hay casos en cache")
+            else:
+                print(f"\n{'='*60}")
+                print(f"{'Case ID':<20} {'Título':<30} {'Docs':<10}")
+                print(f"{'='*60}")
+                for case in cases:
+                    print(f"{case['case_id']:<20} {case['case_title'][:30]:<30} {case['total_documents']:<10}")
+                print(f"{'='*60}")
+                print(f"Total: {len(cases)} casos\n")
+            return
+        
+        if args.stats:
+            # Mostrar estadísticas
+            stats = self.cache_manager.get_cache_stats()
+            print("\n📊 Estadísticas del Cache OCR:")
+            print(f"  • Casos en cache: {stats['total_cases']}")
+            print(f"  • Archivos cacheados: {stats['total_cached_files']}")
+            print(f"  • Tamaño total: {stats['cache_size_mb']} MB")
+            print(f"  • Directorio: {stats['cache_directory']}\n")
+            return
+        
+        if args.case_id:
+            # Replay de un caso específico
+            options = {
+                'use_ai': not args.use_legacy,
+                'output_dir': args.out,
+                'regenerate_report': not args.no_report,
+                'model': args.model,
+                'temperature': args.temperature,
+                'per_doc': args.per_doc
+            }
+            
+            results = await self.replay_case(args.case_id, options)
+            print(f"\n✅ Replay completado para caso {args.case_id}")
+            print(f"   Resultados en: {results['output_path']}\n")
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
+    """Parser de argumentos"""
     p = argparse.ArgumentParser(
-        description="Reanaliza un caso usando SOLO los datos en la DB (modo segmentado, sin OCR)."
+        description="Sistema de Replay con Cache OCR - Fraud Scorer v2.0",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Ejemplos de uso:
+  %(prog)s                    # Modo interactivo
+  %(prog)s --list            # Listar casos disponibles
+  %(prog)s --stats           # Ver estadísticas del cache
+  %(prog)s --case-id CASE-2025-0001  # Replay de un caso específico
+        """
     )
-    p.add_argument("--case-id", required=True, help="ID del caso (ej. CASE-2025-0001)")
-    p.add_argument("--out", default="data/reports", help="Carpeta de salida")
-    p.add_argument("--no-save", action="store_true", help="No guarda corridas/análisis en la DB")
-    p.add_argument("--per-doc", action="store_true", help="(Opcional) ejecutar y guardar análisis IA por documento")
-    p.add_argument("--model", default="gpt-4-turbo-preview", help="Modelo LLM para IA")
-    p.add_argument("--temperature", type=float, default=0.3, help="Temperatura del modelo")
+    
+    # Modos de operación
+    mode_group = p.add_mutually_exclusive_group()
+    mode_group.add_argument(
+        '--interactive', '-i',
+        action='store_true',
+        default=True,
+        help='Modo interactivo (por defecto)'
+    )
+    mode_group.add_argument(
+        '--case-id',
+        help='Replay de un caso específico'
+    )
+    mode_group.add_argument(
+        '--list', '-l',
+        action='store_true',
+        help='Listar casos disponibles'
+    )
+    mode_group.add_argument(
+        '--stats', '-s',
+        action='store_true',
+        help='Mostrar estadísticas del cache'
+    )
+    
+    # Opciones de procesamiento
     p.add_argument(
-        "--clobber",
-        action="store_true",
-        help="Borra INF-*.html/pdf previos en --out antes de generar nuevos",
+        '--out', '-o',
+        default='data/reports',
+        help='Directorio de salida (default: data/reports)'
     )
-    # 👇 NUEVO: config YAML opcional para el pipeline segmentado
-    p.add_argument("--config", dest="config", default=None, help="Ruta a pipeline_config.yaml")
+    p.add_argument(
+        '--use-legacy',
+        action='store_true',
+        help='Usar sistema legacy en lugar de IA'
+    )
+    p.add_argument(
+        '--no-report',
+        action='store_true',
+        help='No generar reporte HTML/PDF'
+    )
+    p.add_argument(
+        '--per-doc',
+        action='store_true',
+        help='Análisis por documento'
+    )
+    
+    # Configuración de IA
+    p.add_argument(
+        '--model',
+        default='gpt-4o-mini',
+        choices=['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'],
+        help='Modelo de IA a usar'
+    )
+    p.add_argument(
+        '--temperature',
+        type=float,
+        default=0.1,
+        help='Temperatura del modelo (0.0-1.0)'
+    )
+    
     return p.parse_args(argv)
 
-
 async def main(argv: List[str]) -> None:
+    """Función principal"""
     args = parse_args(argv)
-    system = ReplaySystem(
-        model=args.model,
-        temperature=args.temperature,
-        config_path=args.config,  # 👈 pasamos el YAML al TP
-    )
-    out_dir = Path(args.out or "data/reports")
-
-    # Limpieza temprana si se pide --clobber
-    if args.clobber:
-        out_dir.mkdir(parents=True, exist_ok=True)
-        targets = list(out_dir.glob("INF-*.html")) + list(out_dir.glob("INF-*.pdf"))
-        if args.case_id:
-            targets += list(out_dir.glob(f"resultados_{args.case_id}.json"))
-        for pth in targets:
-            try:
-                pth.unlink()
-            except FileNotFoundError:
-                pass
-
-    await system.replay(
-        case_id=args.case_id,
-        out_dir=out_dir,
-        no_save=args.no_save,
-        per_doc=args.per_doc,
-        clobber=False,  # ya limpiamos arriba si se solicitó
-    )
-    print("\n✅ Replay terminado")
-
+    system = ReplaySystem()
+    
+    # Determinar modo de operación
+    if args.list or args.stats or args.case_id:
+        # Modo CLI
+        await system.run_cli(args)
+    else:
+        # Modo interactivo
+        try:
+            # Verificar si tenemos rich instalado
+            import rich
+            await system.run_interactive()
+        except ImportError:
+            print("⚠️ Para usar el modo interactivo, instale: pip install rich")
+            print("Puede usar el modo CLI con --help para ver las opciones")
+            sys.exit(1)
 
 if __name__ == "__main__":
     asyncio.run(main(sys.argv[1:]))

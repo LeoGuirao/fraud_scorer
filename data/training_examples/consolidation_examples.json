@@ -1,0 +1,128 @@
+{
+  "numero_poliza": [
+    {
+      "scenario": "Formato inconsistente entre documentos",
+      "options": [
+        {"value": "141 - 2346 - 1", "source": "poliza_axa.pdf", "type": "poliza"},
+        {"value": "141-2346-1", "source": "factura.pdf", "type": "factura"},
+        {"value": "14123461", "source": "carta_porte.pdf", "type": "carta_porte"}
+      ],
+      "correct_choice": "141 - 2346 - 1",
+      "reasoning": "El formato de la póliza original emitida por la aseguradora tiene prioridad absoluta y mantiene el formato estándar con espacios y guiones"
+    },
+    {
+      "scenario": "Diferentes formatos de aseguradoras",
+      "options": [
+        {"value": "AX-2024-001234", "source": "poliza_axa.pdf", "type": "poliza"},
+        {"value": "GNP/2024/001234", "source": "endoso.pdf", "type": "endoso"}
+      ],
+      "correct_choice": "AX-2024-001234",
+      "reasoning": "La póliza original es la fuente primaria para el número de póliza"
+    }
+  ],
+  "nombre_asegurado": [
+    {
+      "scenario": "Variaciones en razón social",
+      "options": [
+        {"value": "MODA YKT, S.A. DE C.V.", "source": "poliza.pdf", "type": "poliza"},
+        {"value": "MODA YKT SA DE CV", "source": "factura.pdf", "type": "factura"},
+        {"value": "MODA YKT", "source": "carta_porte.pdf", "type": "carta_porte"}
+      ],
+      "correct_choice": "MODA YKT, S.A. DE C.V.",
+      "reasoning": "La razón social completa y con puntuación correcta según la póliza es la forma legal correcta"
+    }
+  ],
+  "monto_reclamacion": [
+    {
+      "scenario": "Montos diferentes por deducibles",
+      "options": [
+        {"value": 1169743.37, "source": "factura_original.pdf", "type": "factura"},
+        {"value": 1052769.03, "source": "peritaje.pdf", "type": "peritaje"},
+        {"value": 1200000.00, "source": "reclamacion_inicial.pdf", "type": "carta"}
+      ],
+      "correct_choice": 1169743.37,
+      "reasoning": "El monto de la factura representa el valor real de la pérdida antes de deducibles. El peritaje muestra el monto indemnizable después del deducible"
+    },
+    {
+      "scenario": "Múltiples facturas",
+      "options": [
+        {"value": 500000.00, "source": "factura_parcial_1.pdf", "type": "factura"},
+        {"value": 669743.37, "source": "factura_parcial_2.pdf", "type": "factura"},
+        {"value": 1169743.37, "source": "factura_consolidada.pdf", "type": "factura"}
+      ],
+      "correct_choice": 1169743.37,
+      "reasoning": "La factura consolidada o el total de facturas parciales representa el monto completo de la reclamación"
+    }
+  ],
+  "fecha_ocurrencia": [
+    {
+      "scenario": "Discrepancia en fechas",
+      "options": [
+        {"value": "2025-02-26", "source": "denuncia.pdf", "type": "denuncia"},
+        {"value": "2025-02-27", "source": "reporte_inicial.pdf", "type": "reporte"},
+        {"value": "2025-02-26", "source": "peritaje.pdf", "type": "peritaje"}
+      ],
+      "correct_choice": "2025-02-26",
+      "reasoning": "La denuncia ante autoridad y el peritaje coinciden, siendo documentos oficiales más confiables que un reporte inicial"
+    }
+  ],
+  "lugar_hechos": [
+    {
+      "scenario": "Diferentes niveles de detalle",
+      "options": [
+        {"value": "AUTOPISTA MÉXICO-QUERÉTARO", "source": "reporte_inicial.pdf", "type": "reporte"},
+        {"value": "AUTOPISTA MÉXICO-QUERÉTARO (CARRETERA FEDERAL 57D) KM 42+500, HUEHUETOCA, ESTADO DE MÉXICO", "source": "denuncia.pdf", "type": "denuncia"},
+        {"value": "Carretera 57D", "source": "carta_porte.pdf", "type": "carta_porte"}
+      ],
+      "correct_choice": "AUTOPISTA MÉXICO-QUERÉTARO (CARRETERA FEDERAL 57D) KM 42+500, HUEHUETOCA, ESTADO DE MÉXICO",
+      "reasoning": "La descripción más detallada y oficial de la denuncia proporciona la ubicación exacta necesaria para el expediente"
+    }
+  ],
+  "bien_reclamado": [
+    {
+      "scenario": "Diferentes descripciones del mismo bien",
+      "options": [
+        {"value": "ROPA VARIADA", "source": "reporte_inicial.pdf", "type": "reporte"},
+        {"value": "EMBARQUE COMPLETO DE ROPA VARIADA", "source": "carta_porte.pdf", "type": "carta_porte"},
+        {"value": "ROPA VARIADA (500 PIEZAS DAMA, 300 PIEZAS CABALLERO, 200 PIEZAS INFANTIL)", "source": "factura.pdf", "type": "factura"}
+      ],
+      "correct_choice": "ROPA VARIADA (500 PIEZAS DAMA, 300 PIEZAS CABALLERO, 200 PIEZAS INFANTIL)",
+      "reasoning": "La descripción de la factura es la más detallada y específica, necesaria para validar el monto reclamado"
+    }
+  ],
+  "tipo_siniestro": [
+    {
+      "scenario": "Diferentes términos para el mismo evento",
+      "options": [
+        {"value": "ROBO", "source": "reporte_inicial.pdf", "type": "reporte"},
+        {"value": "ROBO DE BULTO POR ENTERO", "source": "denuncia.pdf", "type": "denuncia"},
+        {"value": "ROBO TOTAL DE MERCANCÍA", "source": "peritaje.pdf", "type": "peritaje"}
+      ],
+      "correct_choice": "ROBO DE BULTO POR ENTERO",
+      "reasoning": "El término usado en la denuncia oficial es el más preciso legalmente y debe prevalecer"
+    }
+  ],
+  "vigencia": [
+    {
+      "scenario": "Formatos de fecha diferentes",
+      "options": [
+        {"value": {"inicio": "2024-07-26", "fin": "2025-07-26"}, "source": "poliza.pdf", "type": "poliza"},
+        {"value": {"inicio": "26/07/2024", "fin": "26/07/2025"}, "source": "certificado.pdf", "type": "certificado"}
+      ],
+      "correct_choice": {"inicio": "2024-07-26", "fin": "2025-07-26"},
+      "reasoning": "Usar formato ISO (YYYY-MM-DD) de la póliza para consistencia en el sistema"
+    }
+  ],
+  "ajustador": [
+    {
+      "scenario": "Diferentes referencias al mismo ajustador",
+      "options": [
+        {"value": "PARK PERALES", "source": "asignacion.pdf", "type": "carta"},
+        {"value": "PARK PERALES Y ASOCIADOS", "source": "peritaje.pdf", "type": "peritaje"},
+        {"value": "PP&A", "source": "reporte_preliminar.pdf", "type": "reporte"}
+      ],
+      "correct_choice": "PARK PERALES Y ASOCIADOS",
+      "reasoning": "El nombre completo de la firma según aparece en el dictamen pericial oficial es el correcto"
+    }
+  ]
+}

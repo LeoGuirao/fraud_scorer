@@ -1,0 +1,208 @@
+{
+  "case_info": {
+    "rfc": "HEAP5602278N7",
+    "monto_reclamacion": "1,169,743.37",
+    "numero_poliza": "No .: 141 - 2346 Inciso: 1",
+    "nombre_asegurado": "Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.",
+    "fecha_siniestro": "2025-02-26"
+  },
+  "aggregated_data": {
+    "rfc": {
+      "factura": [
+        "HEAP5602278N7",
+        "HEAP5602278N7",
+        "HEAP5602278N7"
+      ],
+      "poliza": [
+        "MYK1612126U8",
+        "QUMJ000507QD0",
+        "MYK1612126U8"
+      ]
+    },
+    "monto_reclamacion": {
+      "factura": [
+        "1,008,399.46",
+        "4,640.01",
+        "4,142.86",
+        "1,169,743.37"
+      ]
+    },
+    "numero_poliza": {
+      "poliza": [
+        "141- 2346 inciso 1",
+        "2346",
+        "141 - 2346 Inciso",
+        "No .: 141 - 2346 Inciso: 1",
+        "141 - 2346",
+        "141 - 2346 Inciso:1"
+      ]
+    },
+    "nombre_asegurado": {
+      "poliza": [
+        "MODA YKT",
+        "MODA YKT, S.A. DE",
+        "1) Documentos del Asegurado (Mercancía)",
+        "MODA YKT S.A. DE C.V.",
+        "Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.",
+        "Jesús Manuel Quintero Marin",
+        "MODA YKT, S.A. DE C.V"
+      ]
+    },
+    "fecha_siniestro": {
+      "factura": [
+        "2025-02-26",
+        "2025-02-26"
+      ]
+    }
+  },
+  "documents_summary": [
+    {
+      "source": "FACTURA MERCANCIA _compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 2
+    },
+    {
+      "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+      "type": "poliza",
+      "fields_extracted": 0
+    },
+    {
+      "source": "2b CANDADOS DE SEGURIDAD.PDF",
+      "type": "poliza",
+      "fields_extracted": 1
+    },
+    {
+      "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 1
+    },
+    {
+      "source": "1h Tarjetas de circulaciOn.PDF",
+      "type": "poliza",
+      "fields_extracted": 0
+    },
+    {
+      "source": "C&C.pdf",
+      "type": "poliza",
+      "fields_extracted": 3
+    },
+    {
+      "source": "CARTA PORTE MERCANCIA _compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 2
+    },
+    {
+      "source": "DENUNCIA INICIAL_compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 0
+    },
+    {
+      "source": "1C DENUNCIA INICIAL compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 0
+    },
+    {
+      "source": "ACREDITACION Y RATIFICACION DENUNCIA_compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 0
+    },
+    {
+      "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+      "type": "poliza",
+      "fields_extracted": 1
+    },
+    {
+      "source": "1j CI 30 compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 2
+    },
+    {
+      "source": "document_12.pdf",
+      "type": "otro",
+      "fields_extracted": 0
+    },
+    {
+      "source": "22741 CSD MODA YKT.pdf",
+      "type": "poliza",
+      "fields_extracted": 1
+    },
+    {
+      "source": "2a BITACORA DE RUTA compressed.pdf",
+      "type": "factura",
+      "fields_extracted": 0
+    },
+    {
+      "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 2
+    },
+    {
+      "source": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+      "type": "factura",
+      "fields_extracted": 1
+    },
+    {
+      "source": "22741 CEDULA.pdf",
+      "type": "poliza",
+      "fields_extracted": 2
+    },
+    {
+      "source": "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf",
+      "type": "factura",
+      "fields_extracted": 0
+    },
+    {
+      "source": "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 2
+    },
+    {
+      "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+      "type": "factura",
+      "fields_extracted": 1
+    },
+    {
+      "source": "1h Tarjetas de circulación.pdf",
+      "type": "carta_porte",
+      "fields_extracted": 0
+    },
+    {
+      "source": "1f CARTA PROVEEDOR compressed.pdf",
+      "type": "poliza",
+      "fields_extracted": 0
+    },
+    {
+      "source": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+      "type": "carta_porte",
+      "fields_extracted": 0
+    },
+    {
+      "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+      "type": "factura",
+      "fields_extracted": 1
+    },
+    {
+      "source": "REPUVE-Tracto.pdf",
+      "type": "factura",
+      "fields_extracted": 0
+    },
+    {
+      "source": "Poliza2346-1.pdf",
+      "type": "poliza",
+      "fields_extracted": 3
+    }
+  ],
+  "processing_stats": {
+    "total_documents": 27,
+    "total_memory_mb": 0.03125,
+    "avg_memory_mb": 0.0011574074074074073,
+    "total_time_ms": 11.17,
+    "avg_time_ms": 0.4137037037037037
+  },
+  "pipeline_metrics": {
+    "documents_processed": 27,
+    "batches_completed": 9,
+    "errors": [],
+    "warnings": []
+  }
+}

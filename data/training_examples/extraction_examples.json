@@ -1,0 +1,128 @@
+{
+  "poliza": [
+    {
+      "document_name": "poliza_ejemplo_1.pdf",
+      "input": "PÓLIZA DE SEGURO DE TRANSPORTE DE MERCANCÍAS\nAseguradora: AXA Seguros S.A. de C.V.\nNúmero de Póliza: 141 - 2346 - 1\nContratante/Asegurado: MODA YKT, S.A. DE C.V.\nRFC: MYK0501234A1\nDomicilio del Asegurado: EMILIANO ZAPATA 19 PISO No. Ext. 2 LOC. B Y No. Int: PISO 3, SAN JERÓNIMO TEPETLACALCO, C.P.54090, TLALNEPANTLA DE BAZ, ESTADO DE MEXICO\nVigencia: Del 26/07/2024 al 26/07/2025\nCobertura: TODO RIESGO PARA TRANSPORTE DE MERCANCÍAS\nSuma Asegurada por Embarque: $2,000,000.00 MXN\nDeducible: 10% sobre pérdida con mínimo de 40 DSMGVDF",
+      "output": {
+        "numero_poliza": "141 - 2346 - 1",
+        "nombre_asegurado": "MODA YKT, S.A. DE C.V.",
+        "rfc": "MYK0501234A1",
+        "domicilio_poliza": "EMILIANO ZAPATA 19 PISO No. Ext. 2 LOC. B Y No. Int: PISO 3, SAN JERÓNIMO TEPETLACALCO, C.P.54090, TLALNEPANTLA DE BAZ, ESTADO DE MEXICO",
+        "vigencia_inicio": "2024-07-26",
+        "vigencia_fin": "2025-07-26",
+        "tipo_cobertura": "TODO RIESGO PARA TRANSPORTE DE MERCANCÍAS",
+        "suma_asegurada": 2000000.00,
+        "deducible": "10% sobre pérdida con mínimo de 40 DSMGVDF"
+      }
+    },
+    {
+      "document_name": "poliza_ejemplo_2.pdf",
+      "input": "QUALITAS COMPAÑÍA DE SEGUROS\nPÓLIZA EMPRESARIAL\nNo. Póliza: QUA-2024-789456\nAsegurado: TRANSPORTES UNIDOS DEL NORTE S.A. DE C.V.\nRFC Asegurado: TUN9901234B2\nDirección: Av. Industrial 456, Parque Industrial, C.P. 64000, Monterrey, N.L.\nPeriodo de Cobertura: 15/01/2024 a 15/01/2025\nBienes Asegurados: Mercancía en tránsito (productos electrónicos)\nLímite Máximo: $5,000,000.00 M.N.",
+      "output": {
+        "numero_poliza": "QUA-2024-789456",
+        "nombre_asegurado": "TRANSPORTES UNIDOS DEL NORTE S.A. DE C.V.",
+        "rfc": "TUN9901234B2",
+        "domicilio_poliza": "Av. Industrial 456, Parque Industrial, C.P. 64000, Monterrey, N.L.",
+        "vigencia_inicio": "2024-01-15",
+        "vigencia_fin": "2025-01-15",
+        "bien_asegurado": "Mercancía en tránsito (productos electrónicos)",
+        "suma_asegurada": 5000000.00
+      }
+    }
+  ],
+  "denuncia": [
+    {
+      "document_name": "denuncia_ejemplo_1.pdf",
+      "input": "FISCALÍA GENERAL DE JUSTICIA DEL ESTADO DE MÉXICO\nCARPETA DE INVESTIGACIÓN: TOL/FTL/FTL/055/047892/25/02\nDENUNCIANTE: MODA YKT, S.A. DE C.V.\nRepresentante Legal: LIC. CARLOS HERNÁNDEZ LÓPEZ\nDelito: ROBO DE MERCANCÍA\nFecha de los Hechos: 26 de febrero de 2025\nHora Aproximada: 14:30 horas\nLugar: AUTOPISTA MÉXICO-QUERÉTARO (CARRETERA FEDERAL 57D) KM 42+500, HUEHUETOCA, ESTADO DE MÉXICO\nDescripción: Robo de bulto por entero de embarque completo de ropa variada\nUnidad: Tractocamión Marca Freightliner, Placas 123-AB-4\nRemolque: Caja Seca 53', Placas 567-CD-8\nValor Aproximado de lo Robado: $1,169,743.37 MXN",
+      "output": {
+        "numero_denuncia": "TOL/FTL/FTL/055/047892/25/02",
+        "nombre_denunciante": "MODA YKT, S.A. DE C.V.",
+        "tipo_siniestro": "ROBO DE BULTO POR ENTERO",
+        "fecha_ocurrencia": "2025-02-26",
+        "hora_ocurrencia": "14:30",
+        "lugar_hechos": "AUTOPISTA MÉXICO-QUERÉTARO (CARRETERA FEDERAL 57D) KM 42+500, HUEHUETOCA, ESTADO DE MÉXICO",
+        "bien_reclamado": "EMBARQUE COMPLETO DE ROPA VARIADA",
+        "monto_reclamacion": 1169743.37,
+        "unidad_siniestrada": "Tractocamión Marca Freightliner, Placas 123-AB-4",
+        "remolque": "Caja Seca 53', Placas 567-CD-8"
+      }
+    }
+  ],
+  "factura": [
+    {
+      "document_name": "factura_ejemplo_1.pdf",
+      "input": "FACTURA ELECTRÓNICA CFDI 4.0\nEmisor: TEXTILES Y MODAS S.A. DE C.V.\nRFC Emisor: TYM0301234C3\nReceptor: MODA YKT, S.A. DE C.V.\nRFC Receptor: MYK0501234A1\nFolio: A-2025-0847\nFecha: 15/02/2025\nConcepto: ROPA VARIADA (500 PIEZAS DAMA, 300 PIEZAS CABALLERO, 200 PIEZAS INFANTIL)\nSubtotal: $1,008,399.46\nIVA 16%: $161,343.91\nTotal: $1,169,743.37 MXN\nForma de Pago: 03 - Transferencia Electrónica\nMétodo de Pago: PPD - Pago en Parcialidades o Diferido",
+      "output": {
+        "numero_factura": "A-2025-0847",
+        "fecha_factura": "2025-02-15",
+        "rfc_emisor": "TYM0301234C3",
+        "emisor": "TEXTILES Y MODAS S.A. DE C.V.",
+        "rfc_receptor": "MYK0501234A1",
+        "receptor": "MODA YKT, S.A. DE C.V.",
+        "bien_reclamado": "ROPA VARIADA (500 PIEZAS DAMA, 300 PIEZAS CABALLERO, 200 PIEZAS INFANTIL)",
+        "subtotal": 1008399.46,
+        "iva": 161343.91,
+        "monto_reclamacion": 1169743.37
+      }
+    },
+    {
+      "document_name": "factura_ejemplo_2.pdf",
+      "input": "CFDI VERSIÓN 4.0\nProveedor: IMPORTADORA DE ELECTRÓNICOS DEL PACÍFICO\nRFC: IEP9912345D4\nCliente: TRANSPORTES UNIDOS DEL NORTE S.A. DE C.V.\nRFC Cliente: TUN9901234B2\nNo. Factura: B-2024-3456\nFecha Emisión: 10/03/2024\nDescripción: 100 TELEVISORES LED 55\", 50 LAPTOPS MARCA DELL, 200 SMARTPHONES\nImporte: $2,345,678.90\nIVA: $375,308.62\nTotal: $2,720,987.52 MXN",
+      "output": {
+        "numero_factura": "B-2024-3456",
+        "fecha_factura": "2024-03-10",
+        "rfc_emisor": "IEP9912345D4",
+        "emisor": "IMPORTADORA DE ELECTRÓNICOS DEL PACÍFICO",
+        "rfc_receptor": "TUN9901234B2",
+        "receptor": "TRANSPORTES UNIDOS DEL NORTE S.A. DE C.V.",
+        "bien_reclamado": "100 TELEVISORES LED 55\", 50 LAPTOPS MARCA DELL, 200 SMARTPHONES",
+        "subtotal": 2345678.90,
+        "iva": 375308.62,
+        "monto_reclamacion": 2720987.52
+      }
+    }
+  ],
+  "carta_porte": [
+    {
+      "document_name": "carta_porte_ejemplo_1.pdf",
+      "input": "COMPLEMENTO CARTA PORTE 3.1\nTransportista: LOGÍSTICA EXPRESS S.A. DE C.V.\nRFC Transportista: LEX0501234E5\nRemitente: TEXTILES Y MODAS S.A. DE C.V.\nDestinatario: MODA YKT, S.A. DE C.V.\nOrigen: Bodega Central - Av. Textil 100, Naucalpan, Estado de México\nDestino: Centro de Distribución - Blvd. Manuel Ávila Camacho 500, CDMX\nFecha Salida: 26/02/2025 12:00\nMercancía: EMBARQUE COMPLETO DE ROPA VARIADA\nPeso Bruto: 8,500 KG\nUnidad: Tractocamión Freightliner Cascadia\nPlacas Tractor: 123-AB-4\nRemolque: Caja Seca 53 pies\nPlacas Remolque: 567-CD-8\nOperador: JUAN PÉREZ GONZÁLEZ\nLicencia: MEX123456789",
+      "output": {
+        "transportista": "LOGÍSTICA EXPRESS S.A. DE C.V.",
+        "rfc_transportista": "LEX0501234E5",
+        "remitente": "TEXTILES Y MODAS S.A. DE C.V.",
+        "destinatario": "MODA YKT, S.A. DE C.V.",
+        "origen": "Bodega Central - Av. Textil 100, Naucalpan, Estado de México",
+        "destino": "Centro de Distribución - Blvd. Manuel Ávila Camacho 500, CDMX",
+        "fecha_salida": "2025-02-26",
+        "hora_salida": "12:00",
+        "bien_reclamado": "EMBARQUE COMPLETO DE ROPA VARIADA",
+        "peso_mercancia": "8,500 KG",
+        "unidad": "Tractocamión Freightliner Cascadia",
+        "placas_tractor": "123-AB-4",
+        "tipo_remolque": "Caja Seca 53 pies",
+        "placas_remolque": "567-CD-8",
+        "operador": "JUAN PÉREZ GONZÁLEZ"
+      }
+    }
+  ],
+  "peritaje": [
+    {
+      "document_name": "peritaje_ejemplo_1.pdf",
+      "input": "DICTAMEN PERICIAL\nAjustador: PARK PERALES Y ASOCIADOS\nNo. Siniestro: 20250000002494\nAsegurado: MODA YKT, S.A. DE C.V.\nPóliza: 141 - 2346 - 1\nAseguradora: AXA SEGUROS\nFecha de Inspección: 28/02/2025\nFecha del Siniestro: 26/02/2025\nTipo de Siniestro: ROBO DE BULTO POR ENTERO\nLugar de Inspección: AUTOPISTA MÉXICO-QUERÉTARO KM 42+500\nDescripción del Siniestro: Se constató el robo total del embarque de ropa variada. La unidad fue localizada abandonada sin la mercancía.\nValor de la Mercancía según Factura: $1,169,743.37 MXN\nDeducible Aplicable: 10% = $116,974.34\nMonto Indemnizable: $1,052,769.03 MXN\nConclusión: PROCEDENTE - Se recomienda la indemnización conforme a términos de póliza",
+      "output": {
+        "ajustador": "PARK PERALES Y ASOCIADOS",
+        "numero_siniestro": "20250000002494",
+        "nombre_asegurado": "MODA YKT, S.A. DE C.V.",
+        "numero_poliza": "141 - 2346 - 1",
+        "fecha_inspeccion": "2025-02-28",
+        "fecha_ocurrencia": "2025-02-26",
+        "tipo_siniestro": "ROBO DE BULTO POR ENTERO",
+        "lugar_hechos": "AUTOPISTA MÉXICO-QUERÉTARO KM 42+500",
+        "monto_reclamacion": 1169743.37,
+        "deducible": 116974.34,
+        "monto_indemnizable": 1052769.03,
+        "conclusiones": "PROCEDENTE - Se recomienda la indemnización conforme a términos de póliza"
+      }
+    }
+  ]
+}

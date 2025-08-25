@@ -5,45 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Fraud Scorer - {{ numero_siniestro|default('SIN_NUMERO') }}</title>
   
+  <!-- Fuentes e íconos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
-  
   <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet"/>
 
   <style>
-    /* --- MEJORA: Definición de variables de color (Tema Oscuro) --- */
     :root {
       --bg-color: #161922;
       --sidebar-color: #1e222e;
       --card-color: #252936;
-      --primary-accent: #268cff; /* Un azul vibrante */
+      --primary-accent: #268cff;
       --text-primary: #ffffff;
       --text-secondary: #a9b1d6;
       --border-color: #414868;
     }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Poppins', Arial, sans-serif;
       background-color: var(--bg-color);
       color: var(--text-primary);
       font-size: 14px;
     }
-
-    /* --- Layout principal con Grid --- */
     .report-wrapper {
       display: grid;
       grid-template-columns: 350px 1fr;
       min-height: 100vh;
     }
-
-    /* --- Sidebar --- */
+    /* Sidebar */
     .sidebar {
       background-color: var(--sidebar-color);
       padding: 40px;
@@ -53,7 +43,7 @@
       border-right: 1px solid var(--border-color);
     }
     .sidebar-header { text-align: center; }
-    .sidebar-header h1 { font-size: 28px; font-weight: 700; letter-spacing: 1px; }
+    .sidebar-header h1 { font-size: 26px; font-weight: 700; }
     .sidebar-header .subtitle { color: var(--primary-accent); font-weight: 600; }
     .primary-info {
       background: linear-gradient(145deg, #2a2e3b, var(--card-color));
@@ -62,14 +52,13 @@
       border: 1px solid var(--border-color);
       box-shadow: 0 8px 32px rgba(0,0,0,0.2);
     }
-
-    /* --- Contenido principal --- */
-    .main-content {
-      padding: 40px;
-      display: flex;
-      flex-direction: column;
-      gap: 30px;
-    }
+    .info-item { display: flex; flex-direction: column; gap: 5px; margin-bottom: 12px; }
+    .info-label { font-size: 13px; color: var(--text-secondary); font-weight: 400; display: flex; align-items: center; }
+    .info-label i { margin-right: 8px; font-size: 16px; }
+    .info-value { font-size: 16px; font-weight: 600; padding-left: 24px; }
+    .info-value.highlight { font-size: 22px; color: var(--primary-accent); }
+    /* Main */
+    .main-content { padding: 40px; display: flex; flex-direction: column; gap: 30px; }
     .info-card {
       background-color: var(--card-color);
       padding: 25px;
@@ -79,78 +68,39 @@
     .card-title {
       font-size: 18px;
       font-weight: 600;
-      color: var(--text-primary);
-      margin-bottom: 25px;
-      padding-bottom: 10px;
+      margin-bottom: 20px;
       border-bottom: 1px solid var(--border-color);
+      padding-bottom: 8px;
       display: flex;
       align-items: center;
     }
-    .card-title i { margin-right: 12px; font-size: 20px; color: var(--primary-accent); }
+    .card-title i { margin-right: 10px; color: var(--primary-accent); }
     .card-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-      gap: 25px;
+      gap: 20px;
     }
-
-    /* --- Ítems --- */
-    .info-item { display: flex; flex-direction: column; gap: 5px; }
-    .info-label { font-size: 13px; color: var(--text-secondary); font-weight: 400; display: flex; align-items: center; }
-    .info-label i { margin-right: 8px; font-size: 16px; }
-    .info-value { font-size: 16px; font-weight: 600; color: var(--text-primary); padding-left: 24px; }
-    .info-value.highlight { font-size: 24px; color: var(--primary-accent); font-weight: 700; }
     .full-width { grid-column: 1 / -1; }
-
-    /* --- Tabla de inconsistencias --- */
-    .table-wrap { width: 100%; overflow-x: auto; }
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid var(--border-color);
-    }
-    thead th {
-      text-align: left;
-      font-weight: 600;
-      color: var(--text-secondary);
-      border-bottom: 1px solid var(--border-color);
-      padding: 12px;
-      background: rgba(255,255,255,0.02);
-    }
-    tbody td {
-      padding: 12px;
-      border-bottom: 1px solid var(--border-color);
-      vertical-align: top;
-    }
-    .badge {
-      padding: 4px 10px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 600;
-      border: 1px solid var(--border-color);
-      background: rgba(255,255,255,0.04);
-    }
-
-    /* --- Impresión --- */
+    /* Print */
     @media print {
       :root {
         --bg-color: #ffffff;
         --sidebar-color: #f5f7fa;
         --card-color: #ffffff;
         --primary-accent: #005fcc;
-        --text-primary: #111111;
-        --text-secondary: #555555;
-        --border-color: #dee2e6;
+        --text-primary: #111;
+        --text-secondary: #555;
+        --border-color: #ccc;
       }
       .report-wrapper { display: block; }
-      .sidebar, .info-card { box-shadow: none; border: 1px solid var(--border-color); }
       body { font-size: 12px; }
-      .table-wrap { overflow: visible; }
-      thead th, tbody td { border-color: var(--border-color); }
+      .sidebar, .info-card { box-shadow: none; border: 1px solid var(--border-color); }
     }
   </style>
 </head>
 <body>
   <div class="report-wrapper">
+    <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1>FRAUD SCORER</h1>
@@ -158,7 +108,7 @@
       </div>
 
       <div class="primary-info">
-        <div class="info-item" style="margin-bottom: 20px;">
+        <div class="info-item">
           <div class="info-label"><i class="ri-barcode-line"></i>Número de siniestro</div>
           <div class="info-value">{{ numero_siniestro|default('NO ESPECIFICADO') }}</div>
         </div>
@@ -166,29 +116,17 @@
           <div class="info-label"><i class="ri-shield-user-line"></i>Nombre del asegurado</div>
           <div class="info-value">{{ nombre_asegurado|default('NO ESPECIFICADO') }}</div>
         </div>
-      </div>
-
-      <div class="primary-info">
         <div class="info-item">
           <div class="info-label"><i class="ri-money-dollar-circle-line"></i>Monto de reclamación</div>
           <div class="info-value highlight">{{ monto_reclamacion|default('0.00') }}</div>
         </div>
       </div>
-
-      <div class="info-card">
-        <div class="card-title"><i class="ri-focus-3-line"></i>Información Clave</div>
-        <div class="info-item" style="margin-top: 15px;">
-            <div class="info-label"><i class="ri-alert-line"></i>Tipo de siniestro</div>
-            <div class="info-value">{{ tipo_siniestro|default('NO ESPECIFICADO') }}</div>
-        </div>
-        <div class="info-item" style="margin-top: 15px;">
-            <div class="info-label"><i class="ri-user-search-line"></i>Ajuste</div>
-            <div class="info-value">{{ ajuste|default('NO ESPECIFICADO') }}</div>
-        </div>
-      </div>
     </aside>
 
+    <!-- Main Content -->
     <main class="main-content">
+      
+      <!-- Póliza -->
       <div class="info-card">
         <h2 class="card-title"><i class="ri-file-text-line"></i>Detalles de la Póliza</h2>
         <div class="card-grid">
@@ -198,7 +136,7 @@
           </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-calendar-check-line"></i>Vigencia</div>
-            <div class="info-value">{{ vigencia_desde|default('N/A') }} - {{ vigencia_hasta|default('N/A') }}</div>
+            <div class="info-value">{{ vigencia|default('NO ESPECIFICADO') }}</div>
           </div>
           <div class="info-item full-width">
             <div class="info-label"><i class="ri-map-pin-line"></i>Domicilio de la póliza</div>
@@ -207,9 +145,14 @@
         </div>
       </div>
 
+      <!-- Siniestro -->
       <div class="info-card">
         <h2 class="card-title"><i class="ri-fire-line"></i>Detalles del Siniestro</h2>
         <div class="card-grid">
+          <div class="info-item">
+            <div class="info-label"><i class="ri-alert-line"></i>Tipo de siniestro</div>
+            <div class="info-value">{{ tipo_siniestro|default('NO ESPECIFICADO') }}</div>
+          </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-calendar-event-line"></i>Fecha de ocurrencia</div>
             <div class="info-value">{{ fecha_ocurrencia|default('NO ESPECIFICADO') }}</div>
@@ -226,43 +169,12 @@
             <div class="info-label"><i class="ri-archive-line"></i>Bien reclamado</div>
             <div class="info-value">{{ bien_reclamado|default('NO ESPECIFICADO') }}</div>
           </div>
+          <div class="info-item">
+            <div class="info-label"><i class="ri-user-search-line"></i>Ajuste</div>
+            <div class="info-value">{{ ajuste|default('NO ESPECIFICADO') }}</div>
+          </div>
         </div>
       </div>
-
-      <!-- NUEVA SECCIÓN: Inconsistencias -->
-      <div class="info-card">
-        <h2 class="card-title"><i class="ri-scales-2-line"></i>Inconsistencias detectadas</h2>
-        <div class="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Campo</th>
-                <th>Valor A</th>
-                <th>Valor B</th>
-                <th>Severidad</th>
-                <th>Documentos afectados</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for item in inconsistencias %}
-                <tr>
-                  <td>{{ item.field }}</td>
-                  <td>{{ item.value_a }}</td>
-                  <td>{{ item.value_b }}</td>
-                  <td>
-                    <!-- Usamos un badge simple; puedes reemplazar el style inline si lo deseas -->
-                    <span class="badge">{{ item.severity }}</span>
-                  </td>
-                  <td>
-                    {{ item.affected_docs }}
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      <!-- FIN NUEVA SECCIÓN -->
 
     </main>
   </div>

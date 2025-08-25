@@ -3,7 +3,7 @@
   "document_hash": "eba24d2d4f144132",
   "document_type": "factura",
   "source_file": "REPUVE-Tracto.pdf",
-  "processing_timestamp": "2025-08-18 05:31:41.152807",
+  "processing_timestamp": "2025-08-24 02:18:35.669276",
   "raw_data": {
     "text": "Gobierno de México\nResultados de la Consulta Información del vehículo\nMarca:\nKENWORTH\nlunes, 2 de junio del 2025 23:02:09\nModelo:\nT 387\nFGJ\nAño Modelo:\n2006\nClase:\nTRACTOCAMION\nNIV Sin reporte Robo\nTipo: Número de\nQUINTA RUEDA\n1XP7DB9X86D893212\nEl vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo emitido por alguna Fiscalía General de Justicia.\nIdentificación (NIV):\nNúmero de\nOCRA\nConstancia de\n4BD8B6JK\nNIV sin ROBO.\nIncripción (NCI): Placa:\nEl vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo, conforme a la información que suministran las Instituciones de Seguros con base en el Artículo 23, Fracción III, Inciso b de la Ley de Registro Público Vehicular.\nNúmero de puertas:\nPaís de origen:\nE.U.A.\nVersión:\nDesplazamiento (cc/L):\nNIV sin REPORTE DE ROBO\nNúmero de cilindros:\nAvisos Ministeriales / Judiciales\nNúmero de ejes:\nPlanta de ensamble:\nDENTON TEXAS\nEl vehículo con NIV 1XP7DB9X86D893212 no cuenta con delito diverso.\nTRACTOCAMION 6X4 21339 -\nDatos\n25878 ...",
     "entities": [],
@@ -14,5 +14,5 @@
   "extracted_fields": {},
   "validation_results": {},
   "memory_usage_mb": 0.0,
-  "processing_time_ms": 0.6669999999999999
+  "processing_time_ms": 0.301
 }
