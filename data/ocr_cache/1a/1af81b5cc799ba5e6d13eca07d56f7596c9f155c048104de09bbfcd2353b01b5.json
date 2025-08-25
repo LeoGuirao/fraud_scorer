@@ -1,0 +1,100 @@
+{
+  "file_path": "/Users/guiraoleo/Documents/Best Assistance/Fraude Score App Resources/Test Docs/20250000002494 - MODA YKT, S.A. DE C.V/1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+  "file_name": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+  "file_hash": "1af81b5cc799ba5e6d13eca07d56f7596c9f155c048104de09bbfcd2353b01b5",
+  "cached_at": "2025-08-24T20:07:40.182429",
+  "ocr_result": {
+    "text": "SIATA DI SHMAYA S.A. DE C.V.\nTRANSPORTES MEDINA\nAsunto: Reclamación por daños en transporte de mercancía\nTlalnepantla, Estado de México, 07/04/2025\nA quien corresponda en Transportes Medina,\nPor medio de la presente, SIATA DI SHMAYA, S.A. de C.V., presenta una reclamación formal por los daños ocasionados durante el traslado de mercancía bajo su responsabilidad, realizado el día 26 de febrero del 2025.\nConcepto\nDescripción\nValor estimado (MXN)\nRobo de mercancía\nROBO DE BULTO POR ENTERO\n$1,169,743.37\nTotal estimado de daños: $1,169,743.37 MXN\n(Un millón ciento sesenta y nueve mil setecientos cuarenta y tres con treinta y siete centavos 37/100 M.N.)\nSolicitamos de su parte una respuesta formal a la presente reclamación, así como la activación de su procedimiento interno para el resarcimiento de los daños mencionados.\nAgradecemos de antemano su atención y quedamos a la espera de su pronta respuesta.\nAtentamente,\nANGEL DE JESUS RODRIGUEZ MARTINEZ SIATA DI SHMAYA, S.A. de C.V.\nBlvd. Abraham Lincoln #7, Los reyes Ixtacala 1ra, Sección, Tlalnepantla de Baz. C.P. 54090",
+    "tables": [
+      {
+        "id": 0,
+        "row_count": 2,
+        "column_count": 3,
+        "cells": [
+          {
+            "text": "Concepto",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 0
+          },
+          {
+            "text": "Descripción",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 1
+          },
+          {
+            "text": "Valor estimado (MXN)",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 2
+          },
+          {
+            "text": "Robo de mercancía",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 0
+          },
+          {
+            "text": "ROBO DE BULTO POR ENTERO",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 1
+          },
+          {
+            "text": "$1,169,743.37",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 2
+          }
+        ],
+        "confidence": 0.0,
+        "headers": [
+          "Concepto",
+          "Descripción",
+          "Valor estimado (MXN)"
+        ],
+        "data_rows": [
+          [
+            "Robo de mercancía",
+            "ROBO DE BULTO POR ENTERO",
+            "$1,169,743.37"
+          ]
+        ]
+      }
+    ],
+    "key_value_pairs": {
+      "asunto": "Reclamación por daños en transporte de mercancía Tlalnepantla, Estado de México, 07/04/2025",
+      "concepto": "Robo de mercancía",
+      "descripción": "ROBO DE BULTO POR ENTERO",
+      "valor_estimado_(mxn)": "$1,169,743.37",
+      "total_estimado_de_daños": "$1,169,743.37 MXN"
+    },
+    "metadata": {
+      "file_name": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+      "file_size": 646056,
+      "model_used": "prebuilt-document",
+      "page_count": 1,
+      "language": "es",
+      "source_type": "ocr",
+      "engine": "azure_document_intelligence",
+      "success": false,
+      "errors": [
+        "Confianza baja en el reconocimiento"
+      ],
+      "confidence": {
+        "overall": 0.0,
+        "text_extraction": 0.9,
+        "table_detection": 0.0,
+        "entity_recognition": 0.0,
+        "quality_assessment": "poor"
+      }
+    }
+  }
+}

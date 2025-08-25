@@ -1,0 +1,740 @@
+{
+  "file_path": "/Users/guiraoleo/Documents/Best Assistance/Fraude Score App Resources/Test Docs/20250000002494 - MODA YKT, S.A. DE C.V/REPUVE-Tracto.pdf",
+  "file_name": "REPUVE-Tracto.pdf",
+  "file_hash": "8f74c96cd20abd0411223d5fe7794c70dca0ab6f004f26d7093e299769f62b08",
+  "cached_at": "2025-08-24T20:07:53.106096",
+  "ocr_result": {
+    "text": "Gobierno de México\nResultados de la Consulta Información del vehículo\nMarca:\nKENWORTH\nlunes, 2 de junio del 2025 23:02:09\nModelo:\nT 387\nFGJ\nAño Modelo:\n2006\nClase:\nTRACTOCAMION\nNIV Sin reporte Robo\nTipo: Número de\nQUINTA RUEDA\n1XP7DB9X86D893212\nEl vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo emitido por alguna Fiscalía General de Justicia.\nIdentificación (NIV):\nNúmero de\nOCRA\nConstancia de\n4BD8B6JK\nNIV sin ROBO.\nIncripción (NCI): Placa:\nEl vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo, conforme a la información que suministran las Instituciones de Seguros con base en el Artículo 23, Fracción III, Inciso b de la Ley de Registro Público Vehicular.\nNúmero de puertas:\nPaís de origen:\nE.U.A.\nVersión:\nDesplazamiento (cc/L):\nNIV sin REPORTE DE ROBO\nNúmero de cilindros:\nAvisos Ministeriales / Judiciales\nNúmero de ejes:\nPlanta de ensamble:\nDENTON TEXAS\nEl vehículo con NIV 1XP7DB9X86D893212 no cuenta con delito diverso.\nTRACTOCAMION 6X4 21339 -\nDatos\n25878 KG. PESADO (CLASE 8)\ncomplementarios:\nDENTON TEXAS CATERPILLAR / CUMMINS /D\nInstitución que lo inscribió:\nAGA\nFecha de inscripción: 13/03/15\nHora de inscripción:\n19:18:05\nNOTA: La información es proporcionada gracias al esfuerzo y colaboración de las Autoridades Federales,\nEntidades Federativas y la Ciudad de México: el SESNSP únicamente es responsable de administrar y\nEntidad que lo emplacó:\nSIN INFORMACION\nsistematizar la información. Este servicio de consulta es GRATUITO de acuerdo con el Artículo 6 de la Ley del Registro Público\nVehicular.\nFecha de emplacado:\nFecha de última actualización:\n13/03/15\nFolio de constancia de inscripción\n21264797\nObservaciones:\nUNIDOS MEKL Gobierno de México\nSeguridad Secretaría de Seguridad y Protección Ciudadana\nSECRETARIADO Calle América Número 300, EJECUTIVO DEL SISTEMA NACIONAL DE SEGURIDAD PÚBLICA Colonia Los Reyes, Alcaldia Coyoacán Ciudad de México, Código Postal 04330.",
+    "tables": [
+      {
+        "id": 0,
+        "row_count": 27,
+        "column_count": 3,
+        "cells": [
+          {
+            "text": "Marca:",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 0
+          },
+          {
+            "text": "KENWORTH",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 1
+          },
+          {
+            "text": "lunes, 2 de junio del 2025 23:02:09",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 2
+          },
+          {
+            "text": "Modelo:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 0
+          },
+          {
+            "text": "T 387",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 2
+          },
+          {
+            "text": "Año Modelo:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 2,
+            "column": 0
+          },
+          {
+            "text": "2006",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 2,
+            "column": 1
+          },
+          {
+            "text": "FGJ",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 2,
+            "column": 2
+          },
+          {
+            "text": "Clase:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 3,
+            "column": 0
+          },
+          {
+            "text": "TRACTOCAMION",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 3,
+            "column": 1
+          },
+          {
+            "text": "NIV Sin reporte Robo",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 3,
+            "column": 2
+          },
+          {
+            "text": "Tipo: Número de",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 4,
+            "column": 0
+          },
+          {
+            "text": "QUINTA RUEDA",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 4,
+            "column": 1
+          },
+          {
+            "text": "El vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo emitido por alguna Fiscalía General de Justicia.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 4,
+            "column": 2
+          },
+          {
+            "text": "Identificación (NIV):",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 5,
+            "column": 0
+          },
+          {
+            "text": "1XP7DB9X86D893212",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 5,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 5,
+            "column": 2
+          },
+          {
+            "text": "Número de",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 6,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 6,
+            "column": 1
+          },
+          {
+            "text": "OCRA",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 6,
+            "column": 2
+          },
+          {
+            "text": "Constancia de",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 7,
+            "column": 0
+          },
+          {
+            "text": "4BD8B6JK",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 7,
+            "column": 1
+          },
+          {
+            "text": "NIV sin ROBO.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 7,
+            "column": 2
+          },
+          {
+            "text": "Incripción (NCI): Placa:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 8,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 8,
+            "column": 1
+          },
+          {
+            "text": "El vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo, conforme a la información que suministran las Instituciones de Seguros con base en el Artículo 23, Fracción III, Inciso b de la Ley de Registro Público Vehicular.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 8,
+            "column": 2
+          },
+          {
+            "text": "Número de puertas:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 9,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 9,
+            "column": 1
+          },
+          {
+            "text": "País de origen:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 10,
+            "column": 0
+          },
+          {
+            "text": "E.U.A.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 10,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 10,
+            "column": 2
+          },
+          {
+            "text": "Versión:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 11,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 11,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 11,
+            "column": 2
+          },
+          {
+            "text": "Desplazamiento (cc/L):",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 12,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 12,
+            "column": 1
+          },
+          {
+            "text": "NIV sin REPORTE DE ROBO",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 12,
+            "column": 2
+          },
+          {
+            "text": "Número de cilindros:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 13,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 13,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 13,
+            "column": 2
+          },
+          {
+            "text": "Número de ejes:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 14,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 14,
+            "column": 1
+          },
+          {
+            "text": "Avisos Ministeriales / Judiciales",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 14,
+            "column": 2
+          },
+          {
+            "text": "Planta de ensamble:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 15,
+            "column": 0
+          },
+          {
+            "text": "DENTON TEXAS",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 15,
+            "column": 1
+          },
+          {
+            "text": "El vehículo con NIV 1XP7DB9X86D893212 no cuenta con delito diverso.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 15,
+            "column": 2
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 16,
+            "column": 0
+          },
+          {
+            "text": "TRACTOCAMION 6X4 21339 -",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 16,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 16,
+            "column": 2
+          },
+          {
+            "text": "Datos",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 17,
+            "column": 0
+          },
+          {
+            "text": "25878 KG. PESADO (CLASE 8)",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 17,
+            "column": 1
+          },
+          {
+            "text": "complementarios:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 18,
+            "column": 0
+          },
+          {
+            "text": "DENTON TEXAS CATERPILLAR / CUMMINS /D",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 18,
+            "column": 1
+          },
+          {
+            "text": "Institución que lo inscribió:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 19,
+            "column": 0
+          },
+          {
+            "text": "AGA",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 19,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 19,
+            "column": 2
+          },
+          {
+            "text": "Fecha de inscripción:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 20,
+            "column": 0
+          },
+          {
+            "text": "13/03/15",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 20,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 20,
+            "column": 2
+          },
+          {
+            "text": "Hora de inscripción:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 21,
+            "column": 0
+          },
+          {
+            "text": "19:18:05",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 21,
+            "column": 1
+          },
+          {
+            "text": "NOTA: La información es proporcionada gracias al esfuerzo y colaboración de las Autoridades Federales,",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 21,
+            "column": 2
+          },
+          {
+            "text": "Entidad que lo emplacó:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 22,
+            "column": 0
+          },
+          {
+            "text": "SIN INFORMACION",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 22,
+            "column": 1
+          },
+          {
+            "text": "Entidades Federativas y la Ciudad de México: el SESNSP únicamente es responsable de administrar y\nsistematizar la información. Este servicio de consulta es GRATUITO de acuerdo con el Artículo 6 de la Ley del Registro Público",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 22,
+            "column": 2
+          },
+          {
+            "text": "Fecha de emplacado:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 23,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 23,
+            "column": 1
+          },
+          {
+            "text": "Vehicular.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 23,
+            "column": 2
+          },
+          {
+            "text": "Fecha de última actualización:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 24,
+            "column": 0
+          },
+          {
+            "text": "13/03/15",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 24,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 24,
+            "column": 2
+          },
+          {
+            "text": "Folio de constancia de inscripción",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 25,
+            "column": 0
+          },
+          {
+            "text": "21264797",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 25,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 25,
+            "column": 2
+          },
+          {
+            "text": "Observaciones:",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 26,
+            "column": 0
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 26,
+            "column": 1
+          },
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 26,
+            "column": 2
+          }
+        ],
+        "confidence": 0.0,
+        "headers": [
+          "Marca:",
+          "KENWORTH",
+          "lunes, 2 de junio del 2025 23:02:09"
+        ],
+        "data_rows": [
+          [
+            "Modelo:",
+            "T 387",
+            ""
+          ],
+          [
+            "Año Modelo:",
+            "2006",
+            "FGJ"
+          ],
+          [
+            "Clase:",
+            "TRACTOCAMION",
+            "NIV Sin reporte Robo"
+          ],
+          [
+            "Tipo: Número de",
+            "QUINTA RUEDA",
+            "El vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo emitido por alguna Fiscalía General de Justicia."
+          ],
+          [
+            "Identificación (NIV):",
+            "1XP7DB9X86D893212",
+            ""
+          ],
+          [
+            "Número de",
+            "",
+            "OCRA"
+          ],
+          [
+            "Constancia de",
+            "4BD8B6JK",
+            "NIV sin ROBO."
+          ],
+          [
+            "Incripción (NCI): Placa:",
+            "",
+            "El vehículo con NIV 1XP7DB9X86D893212 no cuenta con reporte de robo, conforme a la información que suministran las Instituciones de Seguros con base en el Artículo 23, Fracción III, Inciso b de la Ley de Registro Público Vehicular."
+          ],
+          [
+            "Número de puertas:",
+            "",
+            ""
+          ],
+          [
+            "País de origen:",
+            "E.U.A.",
+            ""
+          ],
+          [
+            "Versión:",
+            "",
+            ""
+          ],
+          [
+            "Desplazamiento (cc/L):",
+            "",
+            "NIV sin REPORTE DE ROBO"
+          ],
+          [
+            "Número de cilindros:",
+            "",
+            ""
+          ],
+          [
+            "Número de ejes:",
+            "",
+            "Avisos Ministeriales / Judiciales"
+          ],
+          [
+            "Planta de ensamble:",
+            "DENTON TEXAS",
+            "El vehículo con NIV 1XP7DB9X86D893212 no cuenta con delito diverso."
+          ],
+          [
+            "",
+            "TRACTOCAMION 6X4 21339 -",
+            ""
+          ],
+          [
+            "Datos",
+            "25878 KG. PESADO (CLASE 8)",
+            ""
+          ],
+          [
+            "complementarios:",
+            "DENTON TEXAS CATERPILLAR / CUMMINS /D",
+            ""
+          ],
+          [
+            "Institución que lo inscribió:",
+            "AGA",
+            ""
+          ],
+          [
+            "Fecha de inscripción:",
+            "13/03/15",
+            ""
+          ],
+          [
+            "Hora de inscripción:",
+            "19:18:05",
+            "NOTA: La información es proporcionada gracias al esfuerzo y colaboración de las Autoridades Federales,"
+          ],
+          [
+            "Entidad que lo emplacó:",
+            "SIN INFORMACION",
+            "Entidades Federativas y la Ciudad de México: el SESNSP únicamente es responsable de administrar y\nsistematizar la información. Este servicio de consulta es GRATUITO de acuerdo con el Artículo 6 de la Ley del Registro Público"
+          ],
+          [
+            "Fecha de emplacado:",
+            "",
+            "Vehicular."
+          ],
+          [
+            "Fecha de última actualización:",
+            "13/03/15",
+            ""
+          ],
+          [
+            "Folio de constancia de inscripción",
+            "21264797",
+            ""
+          ],
+          [
+            "Observaciones:",
+            "",
+            ""
+          ]
+        ]
+      }
+    ],
+    "key_value_pairs": {
+      "marca": "KENWORTH",
+      "modelo": "T 387",
+      "año_modelo": "2006",
+      "clase": "TRACTOCAMION",
+      "tipo": "QUINTA RUEDA",
+      "número_de\nidentificación_(niv)": "1XP7DB9X86D893212",
+      "número_de\nconstancia_de\nincripción_(nci)": "OCRA 4BD8B6JK",
+      "país_de_origen": "E.U.A.",
+      "planta_de_ensamble": "DENTON TEXAS",
+      "datos": "25878 KG. PESADO (CLASE 8)",
+      "complementarios": "DENTON TEXAS CATERPILLAR /",
+      "institución_que_lo_inscribió": "AGA",
+      "fecha_de_inscripción": "13/03/15",
+      "hora_de_inscripción": "19:18:05",
+      "fecha_de_última": "13/03/15",
+      "folio_de_constancia_de_inscripción\nobservaciones": "21264797"
+    },
+    "metadata": {
+      "file_name": "REPUVE-Tracto.pdf",
+      "file_size": 92589,
+      "model_used": "prebuilt-document",
+      "page_count": 1,
+      "language": "es",
+      "source_type": "ocr",
+      "engine": "azure_document_intelligence",
+      "success": false,
+      "errors": [
+        "Confianza baja en el reconocimiento"
+      ],
+      "confidence": {
+        "overall": 0.0,
+        "text_extraction": 0.9,
+        "table_detection": 0.0,
+        "entity_recognition": 0.0,
+        "quality_assessment": "poor"
+      }
+    }
+  }
+}

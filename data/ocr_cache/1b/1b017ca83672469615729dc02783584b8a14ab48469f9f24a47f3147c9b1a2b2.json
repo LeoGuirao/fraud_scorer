@@ -1,0 +1,229 @@
+{
+  "file_path": "/Users/guiraoleo/Documents/Best Assistance/Fraude Score App Resources/Test Docs/20250000002494 - MODA YKT, S.A. DE C.V/2a BITACORA DE RUTA compressed.pdf",
+  "file_name": "2a BITACORA DE RUTA compressed.pdf",
+  "file_hash": "1b017ca83672469615729dc02783584b8a14ab48469f9f24a47f3147c9b1a2b2",
+  "cached_at": "2025-08-24T20:06:02.041105",
+  "ocr_result": {
+    "text": "BITACORA DE VIAJE\nTIPO DE VEHICULO: Tractor\nNUMERO DE PLACA: 07BE4W\nMARCA Y MODELO: Peterbilt- 2006\nNOMBRE DE CONDUCTOR: Justo Castro Martinez\nHORA DE SALIDA: 05:47 AM\nFECHA DE SALIDA: 26 de Febrero 2025\nPUNTO DE ORIGEN: Francisco I. Madero #146, Col. Lazaro Cardenas .\nMichoacan. C.P. 60950\nDESTINO FINAL: Siata Di Shmaya, Tlalnepantla de Baz, Estado de Mexico\nDESCRIPCION DEL RECORRIDO\nEl trayecto fue diseñado con prioridad en la rapidez y seguridad, utilizando exclusivamente carreteras de cuota. No se programaron paradas intermedias ni desvios.\nINICIO\nOBSERVACIONES\n1\nLázaro Cárdenas, Michoacán\nIncorporación a la Autopista Siglo XXI (37D) con dirección a Pátzcuaro.\n2\nConexión hacia Morelia\nEnlace con la Autopista Morelia - Salamanca (15D), continuando hacia Salamanca, Gto.\n3\nTramo Salamanca - Querétaro (45D)\nCirculación fluida por tramo de alta demanda para transporte pesado.\n4\nTramo final: Mexico-Querétaro (57D)\nIncorporación desde Querétaro hasta llegar al Estado de México.\nCONDICIONES DE VIAJE\nTipo de carreteras: Exclusivamente autopistas de cuota. Objetivo logistico: Garantizar tiempos optimos y minimizar riesgos en carretera. Paradas: No se registraron paradas voluntarias. Incidente de seguridad: Si\nINCIDENTES OCURRIDOS\nDurante el trayecto, el conductor reportó un incidente grave de inseguridad y robo de mercancía, con las siguientes características:\nUbicación precisa: Autopista Mexico-Queretaro (Carretera Federal 57D), a la altura de la Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.\nCoordenadas: 19.8136636, -99.22972\nVehiculo sospechoso: Camioneta tipo F1500, color blanca.\nDESCRIPCION DE HECHOS:\nEl vehículo agresor comenzó a realizar maniobras de bloqueo para forzar la detención. Al reducir la velocidad para prevenir una colisión, descendieron cuatro individuos, uno de ellos portando un arma de fuego.\nSe redujo la velocidad para evitar daños mayores.\nMedidas tomadas:\nEl conductor permaneció sin oponer resistencia.\nSe procedió al reporte inmediato a la empresa y autoridades competentes.\nTRANSPORTES MEDINA",
+    "tables": [
+      {
+        "id": 0,
+        "row_count": 2,
+        "column_count": 2,
+        "cells": [
+          {
+            "text": "TIPO DE VEHICULO: Tractor",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 0,
+            "column": 0
+          },
+          {
+            "text": "NUMERO DE PLACA: 07BE4W",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 0,
+            "column": 1
+          },
+          {
+            "text": "MARCA Y MODELO: Peterbilt- 2006",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 0
+          },
+          {
+            "text": "NOMBRE DE CONDUCTOR: Justo Castro Martinez",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 1
+          }
+        ],
+        "confidence": 0.0,
+        "headers": [
+          "TIPO DE VEHICULO: Tractor",
+          "NUMERO DE PLACA: 07BE4W"
+        ],
+        "data_rows": [
+          [
+            "MARCA Y MODELO: Peterbilt- 2006",
+            "NOMBRE DE CONDUCTOR: Justo Castro Martinez"
+          ]
+        ]
+      },
+      {
+        "id": 1,
+        "row_count": 5,
+        "column_count": 3,
+        "cells": [
+          {
+            "text": "",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 0
+          },
+          {
+            "text": "INICIO",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 1
+          },
+          {
+            "text": "OBSERVACIONES",
+            "confidence": 0.0,
+            "kind": "columnHeader",
+            "row": 0,
+            "column": 2
+          },
+          {
+            "text": "1",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 0
+          },
+          {
+            "text": "Lázaro Cárdenas, Michoacán",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 1
+          },
+          {
+            "text": "Incorporación a la Autopista Siglo XXI (37D) con dirección a Pátzcuaro.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 1,
+            "column": 2
+          },
+          {
+            "text": "2",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 2,
+            "column": 0
+          },
+          {
+            "text": "Conexión hacia Morelia",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 2,
+            "column": 1
+          },
+          {
+            "text": "Enlace con la Autopista Morelia - Salamanca (15D), continuando hacia Salamanca, Gto.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 2,
+            "column": 2
+          },
+          {
+            "text": "3",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 3,
+            "column": 0
+          },
+          {
+            "text": "Tramo Salamanca - Querétaro (45D)",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 3,
+            "column": 1
+          },
+          {
+            "text": "Circulación fluida por tramo de alta demanda para transporte pesado.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 3,
+            "column": 2
+          },
+          {
+            "text": "4",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 4,
+            "column": 0
+          },
+          {
+            "text": "Tramo final: Mexico-Querétaro (57D)",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 4,
+            "column": 1
+          },
+          {
+            "text": "Incorporación desde Querétaro hasta llegar al Estado de México.",
+            "confidence": 0.0,
+            "kind": "content",
+            "row": 4,
+            "column": 2
+          }
+        ],
+        "confidence": 0.0,
+        "headers": [
+          "",
+          "INICIO",
+          "OBSERVACIONES"
+        ],
+        "data_rows": [
+          [
+            "1",
+            "Lázaro Cárdenas, Michoacán",
+            "Incorporación a la Autopista Siglo XXI (37D) con dirección a Pátzcuaro."
+          ],
+          [
+            "2",
+            "Conexión hacia Morelia",
+            "Enlace con la Autopista Morelia - Salamanca (15D), continuando hacia Salamanca, Gto."
+          ],
+          [
+            "3",
+            "Tramo Salamanca - Querétaro (45D)",
+            "Circulación fluida por tramo de alta demanda para transporte pesado."
+          ],
+          [
+            "4",
+            "Tramo final: Mexico-Querétaro (57D)",
+            "Incorporación desde Querétaro hasta llegar al Estado de México."
+          ]
+        ]
+      }
+    ],
+    "key_value_pairs": {
+      "tipo_de_vehiculo": "Tractor",
+      "numero_de_placa": "07BE4W",
+      "marca_y_modelo": "Peterbilt- 2006",
+      "nombre_de_conductor": "Justo Castro Martinez",
+      "hora_de_salida": "05:47 AM",
+      "fecha_de_salida": "26 de Febrero 2025",
+      "punto_de_origen": "Francisco I. Madero #146, Col. Lazaro Cardenas . Michoacan. C.P. 60950",
+      "destino_final": "Siata Di Shmaya, Tlalnepantla de Baz, Estado de Mexico",
+      "coordenadas": "19.8136636, -99.22972",
+      "vehiculo_sospechoso": "Camioneta tipo F1500, color blanca."
+    },
+    "metadata": {
+      "file_name": "2a BITACORA DE RUTA compressed.pdf",
+      "file_size": 48214,
+      "model_used": "prebuilt-document",
+      "page_count": 1,
+      "language": "es",
+      "source_type": "ocr",
+      "engine": "azure_document_intelligence",
+      "success": false,
+      "errors": [
+        "Confianza baja en el reconocimiento"
+      ],
+      "confidence": {
+        "overall": 0.0,
+        "text_extraction": 0.9,
+        "table_detection": 0.0,
+        "entity_recognition": 0.0,
+        "quality_assessment": "poor"
+      }
+    }
+  }
+}

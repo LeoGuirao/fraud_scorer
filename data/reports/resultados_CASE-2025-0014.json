@@ -1,0 +1,66 @@
+{
+  "case_id": "CASE-2025-0014",
+  "processing_date": "2025-08-24T20:09:56.541243",
+  "documents_processed": 29,
+  "extraction_results": [],
+  "consolidated_data": {
+    "case_id": "CASE-2025-0014",
+    "consolidated_fields": {
+      "numero_siniestro": "valor_requerido",
+      "nombre_asegurado": "valor_requerido",
+      "numero_poliza": "valor_requerido",
+      "vigencia_inicio": "valor_requerido",
+      "vigencia_fin": "valor_requerido",
+      "domicilio_poliza": "valor_requerido",
+      "bien_reclamado": "valor_requerido",
+      "monto_reclamacion": "valor_requerido",
+      "tipo_siniestro": "valor_requerido",
+      "fecha_ocurrencia": "valor_requerido",
+      "fecha_reclamacion": "valor_requerido",
+      "lugar_hechos": "valor_requerido",
+      "ajuste": "valor_requerido",
+      "conclusiones": "valor_requerido\""
+    },
+    "consolidation_sources": {},
+    "conflicts_resolved": [],
+    "confidence_scores": {
+      "numero_siniestro": 0.0,
+      "nombre_asegurado": 0.0,
+      "numero_poliza": 0.0,
+      "vigencia_inicio": 0.0,
+      "vigencia_fin": 0.0,
+      "domicilio_poliza": 0.0,
+      "bien_reclamado": 0.0,
+      "monto_reclamacion": 0.0,
+      "tipo_siniestro": 0.0,
+      "fecha_ocurrencia": 0.0,
+      "fecha_reclamacion": 0.0,
+      "lugar_hechos": 0.0,
+      "ajuste": 0.0,
+      "conclusiones": 0.0
+    }
+  },
+  "fraud_analysis": {
+    "fraud_score": 0.0,
+    "fraud_indicators": [],
+    "inconsistencies": [],
+    "external_validations": [],
+    "route_analysis": {
+      "declared_origin": "",
+      "gps_origin_verification": "",
+      "declared_incident_location": "",
+      "gps_incident_verification": "",
+      "event_analysis": "",
+      "declared_destination": "",
+      "trajectory_verification": "",
+      "route_inconsistencies": []
+    }
+  },
+  "processing_metrics": {
+    "ocr_success_rate": "100.0%",
+    "extraction_success_rate": "0.0%",
+    "fields_completion_rate": "100.0%",
+    "conflicts_resolved": 0,
+    "average_confidence": 0.0
+  }
+}

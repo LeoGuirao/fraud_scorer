@@ -7,9 +7,13 @@ import asyncio
 import argparse
 from pathlib import Path
 import logging
-from typing import Dict, List, Any, Optional  # ← Agregar Optional aquí
+from typing import Dict, List, Any, Optional
 import json
 from datetime import datetime
+
+# Añadir la raíz del proyecto al path de Python (para que Pylance/ejecución encuentren src/)
+project_root = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(project_root / "src"))
 
 # Configurar logging
 logging.basicConfig(
@@ -26,7 +30,10 @@ from fraud_scorer.storage.cases import create_case
 from fraud_scorer.ai_extractors.ai_field_extractor import AIFieldExtractor
 from fraud_scorer.ai_extractors.ai_consolidator import AIConsolidator
 from fraud_scorer.ai_extractors.ai_report_generator import AIReportGenerator
-from fraud_scorer.ai_extractors.models.extraction_models import DocumentExtraction
+from fraud_scorer.ai_extractors.models.extraction_models import (
+    DocumentExtraction,
+    ConsolidatedExtraction,
+)
 
 # >>> NUEVOS IMPORTS (Cache + Parser)
 from fraud_scorer.cache.ocr_cache_manager import OCRCacheManager
@@ -63,11 +70,14 @@ class FraudAnalysisSystemV2:
             # Nuevos componentes de IA
             self.extractor = AIFieldExtractor()
             self.consolidator = AIConsolidator()
-            self.report_generator = AIReportGenerator()
+            template_path = project_root / "src" / "fraud_scorer" / "templates"
+            self.report_generator = AIReportGenerator(template_dir=template_path)
             logger.info("Sistema inicializado con extractores de IA")
         else:
             # Sistema legacy
-            from fraud_scorer.extractors.intelligent_extractor import IntelligentFieldExtractor
+            from fraud_scorer.extractors.intelligent_extractor import (
+                IntelligentFieldExtractor,
+            )
 
             self.extractor = IntelligentFieldExtractor()
             logger.info("Sistema inicializado con extractores legacy")
@@ -86,9 +96,22 @@ class FraudAnalysisSystemV2:
         logger.info(f"🤖 Modo: {'IA Avanzada' if self.use_ai else 'Legacy'}")
         logger.info("=" * 60)
 
-        # Obtener documentos
-        supported_extensions = {".pdf", ".png", ".jpg", ".jpeg", ".tiff"}
-        documents = [p for p in folder_path.glob("*") if p.suffix.lower() in supported_extensions]
+        # Obtener documentos (se incluyen formatos ofimáticos y se ignoran archivos '._' de macOS)
+        supported_extensions = {
+            ".pdf",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".tiff",
+            ".docx",
+            ".xlsx",
+            ".csv",
+        }
+        documents = [
+            p
+            for p in folder_path.glob("*")
+            if p.suffix.lower() in supported_extensions and not p.name.startswith("._")
+        ]
 
         if not documents:
             raise RuntimeError("No se encontraron documentos para procesar")
@@ -96,7 +119,9 @@ class FraudAnalysisSystemV2:
         logger.info(f"✓ Encontrados {len(documents)} documentos")
 
         # Crear caso en DB
-        case_id = create_case(title=case_title or folder_path.name, base_path=str(folder_path))
+        case_id = create_case(
+            title=case_title or folder_path.name, base_path=str(folder_path)
+        )
         logger.info(f"✓ Case ID: {case_id}")
 
         if self.use_ai:
@@ -121,7 +146,7 @@ class FraudAnalysisSystemV2:
         logger.info("-" * 40)
 
         ocr_results = []
-        cache_files = []  # Para guardar referencias al cache
+        cache_files: List[str] = []  # Para guardar referencias al cache
 
         for doc_path in documents:
             logger.info(f"  Procesando: {doc_path.name}")
@@ -130,9 +155,10 @@ class FraudAnalysisSystemV2:
             if self.cache_manager and self.cache_manager.has_cache(doc_path):
                 logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
                 ocr_result = self.cache_manager.get_cache(doc_path)
-                cache_files.append(str(doc_path))
+                if ocr_result:
+                    cache_files.append(str(doc_path))
             else:
-                # Procesar con OCR o parser apropiado
+                # Procesar con OCR o parser apropiado (con tolerancia a fallos)
                 logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
                 try:
                     # Usar el document parser que maneja múltiples formatos
@@ -141,19 +167,25 @@ class FraudAnalysisSystemV2:
                     # Guardar en cache si está habilitado
                     if self.cache_manager and ocr_result:
                         self.cache_manager.save_cache(doc_path, ocr_result)
-
                 except Exception as e:
-                    logger.error(f"  ❌ Error procesando {doc_path.name}: {e}")
+                    logger.error(
+                        f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True
+                    )
+                    ocr_result = None
                     continue
 
             if ocr_result:
-                ocr_results.append({
-                    "filename": doc_path.name,
-                    "ocr_result": ocr_result,
-                    "document_type": None,  # Se detectará después
-                })
+                ocr_results.append(
+                    {
+                        "filename": doc_path.name,
+                        "ocr_result": ocr_result,
+                        "document_type": None,  # Se detectará después
+                    }
+                )
 
-        logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
+        logger.info(
+            f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos"
+        )
 
         # Guardar índice del caso para replay
         if self.cache_manager:
@@ -171,15 +203,19 @@ class FraudAnalysisSystemV2:
         logger.info("\n🔍 FASE 2: Extracción de campos con IA")
         logger.info("-" * 40)
 
-        extractions = await self.extractor.extract_from_documents_batch(
+        extractions: List[DocumentExtraction] = await self.extractor.extract_from_documents_batch(
             documents=ocr_results,
             parallel_limit=3,  # Procesar hasta 3 documentos en paralelo
         )
 
         # Log de resultados de extracción
         for extraction in extractions:
-            fields_found = sum(1 for v in extraction.extracted_fields.values() if v is not None)
-            logger.info(f"  ✓ {extraction.source_document}: {fields_found} campos extraídos")
+            fields_found = sum(
+                1 for v in extraction.extracted_fields.values() if v is not None
+            )
+            logger.info(
+                f"  ✓ {extraction.source_document}: {fields_found} campos extraídos"
+            )
 
         logger.info(f"✓ Extracción completada: {len(extractions)} documentos procesados")
 
@@ -189,20 +225,33 @@ class FraudAnalysisSystemV2:
         logger.info("\n🧠 FASE 3: Consolidación inteligente")
         logger.info("-" * 40)
 
-        consolidated = await self.consolidator.consolidate_extractions(
-            extractions=extractions,
-            case_id=case_id,
-            use_advanced_reasoning=True,
+        consolidated: ConsolidatedExtraction = (
+            await self.consolidator.consolidate_extractions(
+                extractions=extractions,
+                case_id=case_id,
+                use_advanced_reasoning=True,
+            )
         )
 
-        # Log de consolidación
-        fields_filled = sum(1 for v in consolidated.consolidated_fields.values() if v is not None)
-        logger.info(f"✓ Campos consolidados: {fields_filled}/{len(consolidated.consolidated_fields)}")
+        # Conteo robusto usando pydantic v2 (tolerante a dicts o modelos)
+        fields_obj = getattr(consolidated, "consolidated_fields", {}) or {}
+        if hasattr(fields_obj, "model_dump"):
+            fields_dict = fields_obj.model_dump()
+        elif hasattr(fields_obj, "dict"):
+            fields_dict = fields_obj.dict()
+        else:
+            fields_dict = dict(fields_obj)
+
+        fields_filled = sum(1 for v in fields_dict.values() if v is not None)
+        total_fields = len(fields_dict)
+        logger.info(f"✓ Campos consolidados: {fields_filled}/{total_fields}")
 
         if consolidated.conflicts_resolved:
             logger.info(f"✓ Conflictos resueltos: {len(consolidated.conflicts_resolved)}")
             for conflict in consolidated.conflicts_resolved[:3]:  # Mostrar primeros 3
-                logger.info(f"  - {conflict['field']}: {conflict['reasoning'][:80]}...")
+                logger.info(
+                    f"  - {conflict.get('field', 'N/A')}: {str(conflict.get('reasoning', ''))[:80]}..."
+                )
 
         # ============================================
         # FASE 4: Análisis de fraude (opcional)
@@ -240,22 +289,34 @@ class FraudAnalysisSystemV2:
         # ============================================
         # FASE 6: Guardar resultados JSON
         # ============================================
+        # Salvaguardas para evitar división por cero
+        ocr_total = len(documents)
+        ocr_success = len(ocr_results)
+        extraction_total = ocr_success
+        extraction_success = len(extractions)
+
+        ocr_rate = (ocr_success / ocr_total) if ocr_total > 0 else 0
+        extraction_rate = (extraction_success / extraction_total) if extraction_total > 0 else 0
+        completion_rate = (fields_filled / total_fields) if total_fields > 0 else 0
+        avg_confidence = (
+            sum(consolidated.confidence_scores.values()) / len(consolidated.confidence_scores)
+            if consolidated.confidence_scores
+            else 0
+        )
+
         results = {
             "case_id": case_id,
             "processing_date": datetime.now().isoformat(),
             "documents_processed": len(documents),
-            "extraction_results": [e.dict() for e in extractions],
-            "consolidated_data": consolidated.dict(),
+            "extraction_results": [e.model_dump() for e in extractions],
+            "consolidated_data": consolidated.model_dump(),
             "fraud_analysis": ai_analysis,
             "processing_metrics": {
-                "ocr_success_rate": f"{len(ocr_results)/len(documents):.1%}",
-                "extraction_success_rate": f"{len(extractions)/len(ocr_results):.1%}",
-                "fields_completion_rate": f"{fields_filled/len(consolidated.consolidated_fields):.1%}",
+                "ocr_success_rate": f"{ocr_rate:.1%}",
+                "extraction_success_rate": f"{extraction_rate:.1%}",
+                "fields_completion_rate": f"{completion_rate:.1%}",
                 "conflicts_resolved": len(consolidated.conflicts_resolved),
-                "average_confidence": sum(consolidated.confidence_scores.values())
-                / len(consolidated.confidence_scores)
-                if consolidated.confidence_scores
-                else 0,
+                "average_confidence": avg_confidence,
             },
         }
 
@@ -272,45 +333,27 @@ class FraudAnalysisSystemV2:
 
     async def _analyze_fraud(
         self,
-        consolidated: Any,
+        consolidated: ConsolidatedExtraction,
         extractions: List[DocumentExtraction],
     ) -> Dict[str, Any]:
         """
-        Análisis de fraude usando GPT-4
+        Análisis de fraude usando IA.
         """
         from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
 
         analyzer = AIDocumentAnalyzer()
 
-        # Preparar documentos para análisis
-        docs_for_analysis = []
-        for extraction in extractions:
-            docs_for_analysis.append(
-                {
-                    "document_type": extraction.document_type,
-                    "key_value_pairs": extraction.extracted_fields,
-                    "specific_fields": extraction.extracted_fields,
-                    "raw_text": "",  # No enviamos texto para ahorrar tokens
-                    "entities": [],
-                }
-            )
-
-        # Analizar
-        analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
-
-        return analysis
-
-    def _ocr_to_dict(self, ocr_result) -> Dict[str, Any]:
-        """Convierte resultado OCR a diccionario"""
-        if hasattr(ocr_result, "__dict__"):
-            return {
-                "text": getattr(ocr_result, "text", ""),
-                "tables": getattr(ocr_result, "tables", []),
-                "key_value_pairs": getattr(ocr_result, "key_values", {}),
-                "confidence": getattr(ocr_result, "confidence", {}),
-                "metadata": getattr(ocr_result, "metadata", {}),
+        # Payload ligero (ahorra tokens): claves y tipo de documento
+        docs_for_analysis = [
+            {
+                "document_type": extr.document_type,
+                "key_value_pairs": extr.extracted_fields,
             }
-        return ocr_result
+            for extr in extractions
+        ]
+
+        analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
+        return analysis
 
     async def _process_legacy(
         self,
@@ -322,7 +365,6 @@ class FraudAnalysisSystemV2:
         Procesamiento con el sistema legacy (fallback)
         """
         logger.info("Usando sistema legacy...")
-        # Aquí iría la lógica del sistema anterior
         return {"status": "legacy_not_implemented"}
 
 
@@ -346,8 +388,8 @@ async def main(argv: List[str]) -> None:
         logging.getLogger().setLevel(logging.DEBUG)
 
     # Validar carpeta
-    if not args.folder.exists() or not args.folder.is_dir():
-        print(f"❌ Error: La carpeta {args.folder} no existe")
+    if not args.folder.is_dir():
+        print(f"❌ Error: La carpeta {args.folder} no existe o no es un directorio.")
         sys.exit(1)
 
     # Crear carpeta de salida
@@ -369,4 +411,8 @@ async def main(argv: List[str]) -> None:
 
 
 if __name__ == "__main__":
+    # Refuerzo: asegurar que 'src' quede en sys.path al ejecutar directamente
+    if (project_root / "src").as_posix() not in sys.path:
+        sys.path.insert(0, str(project_root / "src"))
+
     asyncio.run(main(sys.argv[1:]))
