@@ -154,6 +154,60 @@ class AIConsolidator:
         # ¿Hay al menos un valor real? si no, no tiene sentido validar con IA
         has_any_value = any(v is not None for v in consolidated_fields_dict.values())
 
+        # ==========================================================
+        #   NUEVO: Extracción de emergencia si todo vino vacío
+        # ==========================================================
+        if not has_any_value and extractions:
+            logger.warning("Todos los campos vacíos - intentando extracción de emergencia")
+
+            import re
+
+            for extraction in extractions:
+                meta = getattr(extraction, "extraction_metadata", None)
+                text = ""
+                if isinstance(meta, dict):
+                    # convenciones más comunes
+                    text = meta.get("raw_text") or meta.get("text") or ""
+
+                if not text:
+                    continue  # no hay material para raspar
+
+                src = getattr(extraction, "source_document", "desconocido")
+
+                # Número de póliza (ej. "Póliza ABC-123-456")
+                if not consolidated_fields_dict.get("numero_poliza"):
+                    m = re.search(r"[Pp][óo]liza.*?([A-Z0-9\-]{5,})", text)
+                    if m:
+                        consolidated_fields_dict["numero_poliza"] = m.group(1).strip()
+                        consolidation_sources["numero_poliza"] = f"emergencia:{src}"
+                        confidence_scores["numero_poliza"] = max(
+                            confidence_scores.get("numero_poliza", 0.0), 0.3
+                        )
+
+                # Nombre del asegurado (ej. "Nombre: FULANO DE TAL")
+                if not consolidated_fields_dict.get("nombre_asegurado"):
+                    m = re.search(r"[Nn]ombre:?\s*([A-ZÁÉÍÓÚÑ][A-ZÁÉÍÓÚÑ\s,\.]+)", text)
+                    if m:
+                        consolidated_fields_dict["nombre_asegurado"] = m.group(1).strip(" ,.")
+                        consolidation_sources["nombre_asegurado"] = f"emergencia:{src}"
+                        confidence_scores["nombre_asegurado"] = max(
+                            confidence_scores.get("nombre_asegurado", 0.0), 0.2
+                        )
+
+                # Monto reclamación (ej. "$ 123,456.78")
+                if not consolidated_fields_dict.get("monto_reclamacion"):
+                    m = re.search(r"\$\s*([\d\.,]+)", text)
+                    if m:
+                        consolidated_fields_dict["monto_reclamacion"] = m.group(1).strip()
+                        consolidation_sources["monto_reclamacion"] = f"emergencia:{src}"
+                        confidence_scores["monto_reclamacion"] = max(
+                            confidence_scores.get("monto_reclamacion", 0.0), 0.2
+                        )
+
+            # Recalcular si ya tenemos algo tras la emergencia
+            has_any_value = any(v is not None for v in consolidated_fields_dict.values())
+
+        # Validación con IA (solo si ya hay algo)
         if use_advanced_reasoning and has_any_value:
             consolidated_fields_dict = await self._validate_with_ai_safe(
                 consolidated_fields_dict,

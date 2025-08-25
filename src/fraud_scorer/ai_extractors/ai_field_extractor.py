@@ -5,8 +5,8 @@ AIFieldExtractor: Extrae campos de documentos individuales usando IA
 
 from __future__ import annotations
 
-import os  # ← agregado
-import re  # ← agregado
+import os
+import re
 import json
 import logging
 from typing import Dict, Any, Optional, List, Union
@@ -40,7 +40,7 @@ class AIFieldExtractor:
             api_key: API key de OpenAI (opcional, usa env var por defecto)
         """
         raw_client = AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
-        # Instructor "parchea" el cliente para soportar response_model=...
+        # Instructor "parchea" el cliente (opcional para otros métodos)
         self.client = instructor.patch(raw_client)
 
         self.config = ExtractionConfig()
@@ -49,6 +49,9 @@ class AIFieldExtractor:
 
         logger.info("AIFieldExtractor inicializado")
 
+    # =============================================================================
+    #   MÉTODO ACTUALIZADO: maneja OCRResult (objeto) y dict + prompt mejorado
+    # =============================================================================
     async def extract_from_document(
         self,
         ocr_result: Dict[str, Any],
@@ -58,15 +61,6 @@ class AIFieldExtractor:
     ) -> DocumentExtraction:
         """
         Extrae campos de un documento individual
-
-        Args:
-            ocr_result: Resultado del OCR/Parser (JSON unificado)
-            document_name: Nombre del archivo
-            document_type: Tipo de documento (opcional)
-            use_cache: Si usar cache de extracciones
-
-        Returns:
-            DocumentExtraction con los campos extraídos
         """
         # Cache por contenido + nombre
         cache_key = self._generate_cache_key(document_name, ocr_result)
@@ -76,29 +70,55 @@ class AIFieldExtractor:
 
         # Detectar tipo si no viene
         if not document_type:
-            document_type = self._detect_document_type(ocr_result, document_name)
+            document_type = self._detect_document_type(
+                self._ocr_to_dict_safe(ocr_result),  # normalizamos para detección
+                document_name
+            )
 
         logger.info(f"Extrayendo campos de {document_name} (tipo: {document_type})")
 
-        # Preparar contenido para la IA (token-friendly)
-        prepared_content = self._prepare_ocr_content(ocr_result)
+        # IMPORTANTE: Manejar diferentes formatos de OCR
+        # El OCR puede venir como dict directo o como un objeto con .text/.key_values/.tables
+        if hasattr(ocr_result, "text"):
+            # Objeto OCRResult-like
+            prepared_content = {
+                "text": getattr(ocr_result, "text", "") or "",
+                "key_value_pairs": getattr(ocr_result, "key_values", {}) or {},
+                "tables": getattr(ocr_result, "tables", []) or [],
+            }
+        else:
+            # Dict ya normalizado
+            prepared_content = self._prepare_ocr_content(ocr_result)
 
-        # Construir prompt
-        prompt = self.prompt_builder.build_extraction_prompt(
+        # Si no hay contenido, retornar vacío
+        if not prepared_content.get("text") and not prepared_content.get("key_value_pairs"):
+            logger.warning(f"No hay contenido para extraer en {document_name}")
+            empty = DocumentExtraction(
+                source_document=document_name,
+                document_type=document_type or "otro",
+                extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
+                extraction_metadata={"warning": "no_content"},
+            )
+            if use_cache:
+                self.extraction_cache[cache_key] = empty
+            self._log_extraction_metrics(empty)
+            return empty
+
+        # Construir prompt mejorado
+        prompt = self._build_enhanced_prompt(
             document_name=document_name,
-            document_type=document_type,
+            document_type=document_type or "otro",
             ocr_content=prepared_content,
-            required_fields=self.config.REQUIRED_FIELDS,
         )
 
-        # Llamar IA con reintentos
+        # Llamar IA con reintentos (ahora acepta que el LLM responda solo con el JSON de campos)
         extraction = await self._call_ai_with_retry(
             prompt=prompt,
             document_name=document_name,
-            document_type=document_type,
+            document_type=document_type or "otro",
         )
 
-        # Post-proceso (normalización y formatos)
+        # Post-proceso
         extraction = self._post_process_extraction(extraction)
 
         # Guardar en cache
@@ -154,6 +174,9 @@ class AIFieldExtractor:
         logger.info(f"Extracciones exitosas: {len(extractions)}/{len(documents)}")
         return extractions
 
+    # =============================================================================
+    #   REINTENTO + PARSEO ROBUSTO DE JSON DE CAMPOS
+    # =============================================================================
     @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def _call_ai_with_retry(
         self,
@@ -163,47 +186,69 @@ class AIFieldExtractor:
     ) -> DocumentExtraction:
         """
         Llama a la API de OpenAI con reintentos automáticos.
-        Intenta siempre devolver un DocumentExtraction válido.
+        Acepta que el LLM responda SOLO con el JSON de campos extraídos.
+        Construye un DocumentExtraction válido con esos campos.
         """
         try:
-            # Con instructor, esto devuelve directamente un `DocumentExtraction`
             response = await self.client.chat.completions.create(
                 model=self.config.get_model_for_task("extraction"),
                 messages=[
                     {
                         "role": "system",
-                        "content": "Eres un experto en extracción de datos de documentos de seguros. Responde estrictamente con el esquema solicitado.",
+                        "content": (
+                            "Eres un experto en extracción de datos de documentos de seguros. "
+                            "Responde SOLO con un JSON válido de campos solicitados; no agregues texto extra."
+                        ),
                     },
                     {"role": "user", "content": prompt},
                 ],
-                response_model=DocumentExtraction,  # ← validación pydantic
-                temperature=self.config.OPENAI_CONFIG["temperature"],
-                max_tokens=self.config.OPENAI_CONFIG["max_tokens"],
+                temperature=self.config.OPENAI_CONFIG.get("temperature", 0.1),
+                max_tokens=self.config.OPENAI_CONFIG.get("max_tokens", 1200),
             )
 
-            # Aseguramos attrs mínimos
-            response.source_document = document_name
-            response.document_type = document_type or "otro"
-            # Aseguramos que exista extracted_fields (por seguridad)
-            if not getattr(response, "extracted_fields", None):
-                response.extracted_fields = {
-                    field: None for field in self.config.REQUIRED_FIELDS
-                }
-            return response
+            content = ""
+            if response and response.choices:
+                content = response.choices[0].message.content or ""
 
-        except ValidationError as e:
-            # El LLM no cumplió el esquema → devolvemos objeto vacío seguro (NO reintenta)
-            logger.error(f"Error de validación en {document_name}: {e}")
+            # Quitar fences si vienen con ```json
+            content = content.strip()
+            if content.startswith("```"):
+                # elimina fences tipo ```json ... ```
+                content = content.strip("`")
+                # si quedó con "json\n{...}", corta a partir de la primera "{"
+                brace_pos = content.find("{")
+                if brace_pos != -1:
+                    content = content[brace_pos:]
+
+            # Intentar parsear JSON
+            fields_dict: Dict[str, Any] = {}
+            try:
+                fields_dict = json.loads(content)
+                if not isinstance(fields_dict, dict):
+                    raise ValueError("La respuesta no es un objeto JSON")
+            except Exception as pe:
+                logger.error(f"No se pudo parsear JSON para {document_name}: {pe}")
+                fields_dict = {}
+
+            # Normalizar: solo mantener campos requeridos y asegurar presencia
+            normalized_fields: Dict[str, Optional[Any]] = {
+                field: fields_dict.get(field, None) for field in self.config.REQUIRED_FIELDS
+            }
+
             return DocumentExtraction(
                 source_document=document_name,
                 document_type=document_type or "otro",
-                extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
-                extraction_metadata={"error": "validation_error", "details": str(e)},
+                extracted_fields=normalized_fields,
+                extraction_metadata={
+                    "raw_response_len": len(content),
+                    "parsed_ok": bool(fields_dict),
+                },
             )
 
         except Exception as e:
-            # Cualquier otro error → se reintenta por tenacity
+            # Cualquier error → se reintenta por tenacity
             logger.error(f"Error llamando a OpenAI para {document_name}: {e}")
+            # En el último reintento fallido, tenacity propagará; captúalo arriba si quieres
             raise
 
     # -------------------------------
@@ -295,7 +340,7 @@ class AIFieldExtractor:
             if v in ("", "null", "None", "N/A", "NO ESPECIFICADO"):
                 fields[k] = None
 
-        # Fechas conocidas (ajusta a tus nombres reales)
+        # Fechas conocidas
         date_fields = ["fecha_ocurrencia", "fecha_reclamacion", "vigencia_inicio", "vigencia_fin"]
         for f in date_fields:
             if fields.get(f):
@@ -312,8 +357,7 @@ class AIFieldExtractor:
         """Formatea una fecha a YYYY-MM-DD (placeholder simple)."""
         if not date_str:
             return None
-        # Aquí puedes usar dateparser o reglas específicas.
-        # Por ahora, devolvemos string plano:
+        # Aquí podrías usar dateparser o reglas específicas.
         return str(date_str)
 
     def _format_amount(self, amount: Any) -> Optional[float]:
@@ -336,9 +380,15 @@ class AIFieldExtractor:
                 return None
         return None
 
-    def _generate_cache_key(self, document_name: str, ocr_result: Dict[str, Any]) -> str:
+    def _generate_cache_key(self, document_name: str, ocr_result: Any) -> str:
         """Genera una clave única para el cache a partir de nombre+texto."""
-        text_snip = (ocr_result.get("text") or "")[:1000]
+        if hasattr(ocr_result, "text"):
+            text_snip = (getattr(ocr_result, "text", "") or "")[:1000]
+        else:
+            try:
+                text_snip = (ocr_result.get("text") or "")[:1000]
+            except Exception:
+                text_snip = ""
         try:
             payload = json.dumps({"name": document_name, "text": text_snip}, ensure_ascii=False)
         except Exception:
@@ -347,6 +397,16 @@ class AIFieldExtractor:
 
         return hashlib.md5(payload.encode("utf-8", errors="ignore")).hexdigest()
 
+    def _ocr_to_dict_safe(self, ocr_result: Any) -> Dict[str, Any]:
+        """Convierte OCRResult-like a dict mínimo para funciones que esperan dict."""
+        if hasattr(ocr_result, "text"):
+            return {
+                "text": getattr(ocr_result, "text", "") or "",
+                "key_value_pairs": getattr(ocr_result, "key_values", {}) or {},
+                "tables": getattr(ocr_result, "tables", []) or [],
+            }
+        return ocr_result or {}
+
     def _log_extraction_metrics(self, extraction: DocumentExtraction) -> None:
         """Registra métricas de la extracción."""
         total = len(extraction.extracted_fields or {})
@@ -354,3 +414,51 @@ class AIFieldExtractor:
         logger.info(
             f"Documento: {extraction.source_document} | Campos extraídos: {filled}/{total} | Tipo: {extraction.document_type}"
         )
+
+    # =============================================================================
+    #   NUEVO: Prompt de extracción mejorado
+    # =============================================================================
+    def _build_enhanced_prompt(
+        self,
+        document_name: str,
+        document_type: str,
+        ocr_content: Dict[str, Any],
+    ) -> str:
+        """
+        Construye un prompt mejorado para extracción.
+        El LLM debe responder SOLO con el JSON de los campos requeridos.
+        """
+        # Campos específicos por tipo de documento
+        field_focus = {
+            "poliza": ["numero_poliza", "nombre_asegurado", "vigencia_inicio", "vigencia_fin"],
+            "factura": ["rfc", "monto_reclamacion", "fecha_ocurrencia"],
+            "denuncia": ["fecha_ocurrencia", "lugar_hechos", "tipo_siniestro"],
+        }
+        priority_fields = field_focus.get(document_type, list(self.config.REQUIRED_FIELDS)[:5])
+
+        # Para evitar respuestas enormes, recortamos texto si viene muy largo
+        text_preview = (ocr_content.get("text") or "")[:3000]
+
+        prompt = f"""
+Analiza este documento tipo '{document_type}' y extrae la siguiente información.
+
+DOCUMENTO: {document_name}
+
+CONTENIDO OCR:
+{text_preview}
+
+CAMPOS CLAVE-VALOR DETECTADOS:
+{json.dumps(ocr_content.get('key_value_pairs', {}), ensure_ascii=False, indent=2)}
+
+INSTRUCCIONES:
+1. Extrae ÚNICAMENTE los valores que encuentres en el documento.
+2. Si no encuentras un campo, déjalo como null.
+3. NO inventes información.
+4. Presta especial atención a estos campos: {', '.join(priority_fields)}.
+
+CAMPOS REQUERIDOS:
+{json.dumps({field: "valor extraído o null" for field in self.config.REQUIRED_FIELDS}, ensure_ascii=False, indent=2)}
+
+Responde SOLO con el JSON de los campos extraídos.
+"""
+        return prompt
