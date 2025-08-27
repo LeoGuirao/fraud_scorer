@@ -12,8 +12,8 @@ import json
 from jinja2 import Environment, FileSystemLoader, Template
 from pydantic import BaseModel
 
-from .models.extraction_models import ConsolidatedExtraction
-from ..templates.template_processor import InformeSiniestro
+from ..models.extraction import ConsolidatedExtraction
+from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 
 logger = logging.getLogger(__name__)
 

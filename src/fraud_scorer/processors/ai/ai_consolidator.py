@@ -15,14 +15,14 @@ from openai import AsyncOpenAI
 import instructor
 from pydantic import BaseModel, Field
 
-from .config import ExtractionConfig, FieldPriority  # FieldPriority puede usarse en reglas
-from .models.extraction_models import (
+from fraud_scorer.settings import ExtractionConfig, FieldPriority  # FieldPriority puede usarse en reglas
+from fraud_scorer.models.extraction import (
     DocumentExtraction,
     ConsolidatedExtraction,
     ConsolidatedFields,   # << importante: usar el modelo pydantic para los campos
     ExtractionBatch
 )
-from .prompts.consolidation_prompts import ConsolidationPromptBuilder
+from fraud_scorer.prompts.consolidation_prompts import ConsolidationPromptBuilder
 
 logger = logging.getLogger(__name__)
 

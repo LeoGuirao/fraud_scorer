@@ -231,5 +231,77 @@ def save_ai_analysis(document_id: str, run_id: Optional[str], ai: Dict[str, Any]
         )
     return analysis_id
 
+# --- NUEVOS HELPERS DE CACHE OCR ---
+
+def get_document_by_id(document_id: str) -> Optional[sqlite3.Row]:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM documents WHERE id = ?", (document_id,)).fetchone()
+        return row
+
+def get_ocr_by_document_id(document_id: str) -> Optional[sqlite3.Row]:
+    with get_conn() as conn:
+        row = conn.execute("SELECT * FROM ocr_results WHERE document_id = ?", (document_id,)).fetchone()
+        return row
+
+def get_document_by_case_and_hash(case_id: str, file_hash: str) -> Optional[sqlite3.Row]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM documents WHERE case_id = ? AND file_hash = ?",
+            (case_id, file_hash)
+        ).fetchone()
+        return row
+
+def get_any_ocr_by_hash(file_hash: str) -> Optional[sqlite3.Row]:
+    """
+    Busca en toda la base si existe algún OCR para un archivo con este hash,
+    sin importar el caso. Útil para reuso global.
+    """
+    with get_conn() as conn:
+        row = conn.execute(
+            """
+            SELECT ocr.*
+            FROM documents d
+            JOIN ocr_results ocr ON ocr.document_id = d.id
+            WHERE d.file_hash = ?
+            ORDER BY ocr.processed_at DESC
+            LIMIT 1
+            """,
+            (file_hash,)
+        ).fetchone()
+        return row
+
+def copy_ocr_to_document(src_ocr_row: sqlite3.Row, target_document_id: str) -> None:
+    """
+    Copia un OCR existente (row) a otro document_id (útil para reuso global por hash).
+    """
+    with get_conn() as conn:
+        conn.execute(
+            """INSERT OR REPLACE INTO ocr_results(
+                   document_id, raw_text, key_value_pairs, tables, entities, confidence,
+                   metadata, errors, engine, engine_version, processed_at
+               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (
+                target_document_id,
+                src_ocr_row["raw_text"],
+                src_ocr_row["key_value_pairs"],
+                src_ocr_row["tables"],
+                src_ocr_row["entities"],
+                src_ocr_row["confidence"],
+                src_ocr_row["metadata"],
+                src_ocr_row["errors"],
+                src_ocr_row["engine"],
+                src_ocr_row["engine_version"],
+                _now(),
+            ),
+        )
+
+def get_extracted_by_document_id(document_id: str) -> Optional[sqlite3.Row]:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM extracted_data WHERE document_id = ?",
+            (document_id,)
+        ).fetchone()
+        return row
+
 if __name__ == "__main__":
     init_db()

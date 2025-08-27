@@ -4,9 +4,56 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fraud-scorer"
-version = "0.0.1"
-description = "Fraud Scorer"
+version = "2.0.0"  
+description = "Sistema empresarial para detectar fraude en siniestros combinando OCR y LLMs."
+authors = [
+  { name = "Leo Guirao", email = "guiraoleo.2000@gmail.com" },
+]
 requires-python = ">=3.10"
+dependencies = [
+    # ---- Núcleo de la App y API ----
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "streamlit",
+    
+    # ---- Inteligencia Artificial y LLMs ----
+    "torch",
+    "transformers",
+    "safetensors",
+    "openai",
+    "sentence-transformers",
+    "numpy",
+    "pandas",
+    "scikit-learn",
+
+    # ---- Procesamiento de Documentos y OCR ----
+    "azure-ai-formrecognizer",
+    "pypdf",
+    "pdf2image",
+    "weasyprint",
+    
+    # ---- Bases de Datos y Almacenamiento ----
+    "sqlalchemy",
+    "alembic",
+    "redis",
+    "minio",
+    "asyncpg", # Driver para PostgreSQL usado por SQLAlchemy
+
+    # ---- Utilidades Generales ----
+    "python-dotenv",
+    "requests",
+    "httpx",
+    "rapidfuzz"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "black",
+    "ruff"
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]

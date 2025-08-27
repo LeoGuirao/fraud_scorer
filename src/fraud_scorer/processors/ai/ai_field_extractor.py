@@ -19,9 +19,9 @@ import instructor
 from pydantic import ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from .config import ExtractionConfig
-from .models.extraction_models import DocumentExtraction
-from .prompts.extraction_prompts import ExtractionPromptBuilder
+from fraud_scorer.settings import ExtractionConfig
+from fraud_scorer.models.extraction import DocumentExtraction
+from fraud_scorer.prompts.extraction_prompts import ExtractionPromptBuilder
 
 logger = logging.getLogger(__name__)
 

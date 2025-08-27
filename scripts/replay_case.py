@@ -27,11 +27,11 @@ logging.basicConfig(
 logger = logging.getLogger("fraud_scorer.replay")
 
 # Imports del sistema
-from fraud_scorer.cache.ocr_cache_manager import OCRCacheManager
+from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.ui.replay_ui import ReplayUI  # ← ruta actualizada a replay/
-from fraud_scorer.ai_extractors.ai_field_extractor import AIFieldExtractor
-from fraud_scorer.ai_extractors.ai_consolidator import AIConsolidator
-from fraud_scorer.ai_extractors.ai_report_generator import AIReportGenerator
+from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
+from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
+from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
 
 

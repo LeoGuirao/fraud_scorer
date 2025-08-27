@@ -1,4 +1,4 @@
-# src/fraud_scorer/ai_extractors/config.py
+# src/fraud_scorer/settings.py
 
 """
 Configuración para el sistema de extracción con IA
@@ -53,19 +53,6 @@ class ExtractionConfig:
         "factura_compra": FieldPriority.FACTURA,
         "peritaje": FieldPriority.PERITAJE,
         "carta_porte": FieldPriority.CARTA_PORTE,
-    }
-    
-    # Reglas de prioridad por campo
-    FIELD_SOURCE_RULES = {
-        "numero_poliza": ["poliza", "poliza_seguro"],
-        "nombre_asegurado": ["poliza", "poliza_seguro", "denuncia"],
-        "vigencia_inicio": ["poliza", "poliza_seguro"],
-        "vigencia_fin": ["poliza", "poliza_seguro"],
-        "domicilio_poliza": ["poliza", "poliza_seguro"],
-        "fecha_ocurrencia": ["denuncia", "peritaje", "carta_porte"],
-        "lugar_hechos": ["denuncia", "peritaje", "bitacora_gps"],
-        "monto_reclamacion": ["factura", "factura_compra", "peritaje"],
-        "bien_reclamado": ["factura", "factura_compra", "carta_porte"],
     }
     
     # Configuración de OpenAI

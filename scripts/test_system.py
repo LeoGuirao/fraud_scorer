@@ -1,228 +1,215 @@
 #!/usr/bin/env python3
 """
-Script de prueba para verificar que todo funciona correctamente
+Script de Prueba y Chequeo de Salud para Fraud Scorer v2.0
+
+Verifica el entorno, las dependencias, las credenciales y la integridad
+de los componentes clave del nuevo pipeline de IA.
 """
 import os
 import sys
+import asyncio
 from pathlib import Path
-from colorama import Fore, Style, init
 
-# Inicializar colorama
-init()
+# --- Configuración Inicial ---
+# Añadir la raíz del proyecto al path de Python para encontrar los módulos de 'src'
+project_root = Path(__file__).resolve().parents[1]
+if str(project_root / "src") not in sys.path:
+    sys.path.insert(0, str(project_root / "src"))
+
+try:
+    from colorama import Fore, Style, init
+    init(autoreset=True)
+except ImportError:
+    # Fallback si colorama no está instalado
+    class Fore:
+        CYAN = GREEN = RED = YELLOW = BLUE = ""
+    class Style:
+        RESET_ALL = ""
+
+# --- Funciones de Verificación ---
 
 def check_environment():
-    """Verifica el entorno y las dependencias"""
-    print(f"\n{Fore.CYAN}🔍 Verificando entorno...{Style.RESET_ALL}\n")
-    
+    """Verifica el entorno, las dependencias y las variables de entorno."""
+    print(f"\n{Fore.CYAN}🔍 Verificando Entorno de Desarrollo...{Style.RESET_ALL}\n")
     all_good = True
-    
-    # Verificar Python
-    python_version = sys.version_info
-    if python_version.major == 3 and python_version.minor >= 10:
-        print(f"{Fore.GREEN}✓{Style.RESET_ALL} Python {python_version.major}.{python_version.minor} instalado")
+
+    # 1. Verificar Versión de Python
+    py_version = sys.version_info
+    if py_version.major == 3 and py_version.minor >= 10:
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL} Python {py_version.major}.{py_version.minor} instalado.")
     else:
-        print(f"{Fore.RED}✗{Style.RESET_ALL} Python 3.10+ requerido (actual: {python_version.major}.{python_version.minor})")
+        print(f"{Fore.RED}✗{Style.RESET_ALL} Se requiere Python 3.10+ (tienes {py_version.major}.{py_version.minor}).")
         all_good = False
-    
-    # Verificar imports críticos
-    imports_to_check = [
+
+    # 2. Verificar Dependencias Críticas
+    imports = [
         ("azure.ai.formrecognizer", "Azure Form Recognizer"),
         ("openai", "OpenAI"),
         ("jinja2", "Jinja2"),
-        ("weasyprint", "WeasyPrint"),
+        ("weasyprint", "WeasyPrint (para PDFs)"),
         ("fastapi", "FastAPI"),
-        ("pydantic", "Pydantic")
+        ("pydantic", "Pydantic"),
+        ("pandas", "Pandas (para .xlsx/.csv)"),
+        ("docx", "python-docx (para .docx)"),
     ]
-    
-    for module_name, display_name in imports_to_check:
+    for module, name in imports:
         try:
-            __import__(module_name)
-            print(f"{Fore.GREEN}✓{Style.RESET_ALL} {display_name} instalado")
+            __import__(module)
+            print(f"{Fore.GREEN}✓{Style.RESET_ALL} Dependencia '{name}' instalada.")
         except ImportError:
-            print(f"{Fore.RED}✗{Style.RESET_ALL} {display_name} NO instalado")
+            print(f"{Fore.RED}✗{Style.RESET_ALL} Dependencia '{name}' NO instalada. Ejecuta 'pip install -r requirements.txt'.")
             all_good = False
-    
-    # Verificar variables de entorno
-    print(f"\n{Fore.CYAN}🔑 Verificando credenciales...{Style.RESET_ALL}\n")
-    
+
+    # 3. Verificar Variables de Entorno
+    print(f"\n{Fore.CYAN}🔑 Verificando Credenciales (.env)...{Style.RESET_ALL}\n")
+    try:
+        from dotenv import load_dotenv
+        load_dotenv()
+    except ImportError:
+        print(f"{Fore.YELLOW}⚠{Style.RESET_ALL} 'python-dotenv' no instalado. No se pudo cargar .env.")
+
     env_vars = [
         ("AZURE_ENDPOINT", "Azure Endpoint"),
         ("AZURE_OCR_KEY", "Azure OCR Key"),
-        ("OPENAI_API_KEY", "OpenAI API Key")
+        ("OPENAI_API_KEY", "OpenAI API Key"),
     ]
-    
-    from dotenv import load_dotenv
-    load_dotenv()
-    
-    for var_name, display_name in env_vars:
-        value = os.getenv(var_name)
+    for var, name in env_vars:
+        value = os.getenv(var)
         if value:
-            # Mostrar solo los primeros caracteres por seguridad
-            masked_value = value[:10] + "..." if len(value) > 10 else value
-            print(f"{Fore.GREEN}✓{Style.RESET_ALL} {display_name}: {masked_value}")
+            masked = value[:8] + "..." if len(value) > 8 else value
+            print(f"{Fore.GREEN}✓{Style.RESET_ALL} Credencial '{name}' encontrada: {masked}")
         else:
-            print(f"{Fore.RED}✗{Style.RESET_ALL} {display_name}: NO CONFIGURADO")
+            print(f"{Fore.RED}✗{Style.RESET_ALL} Credencial '{name}' NO encontrada en el entorno.")
             all_good = False
-    
-    # Verificar directorios
-    print(f"\n{Fore.CYAN}📁 Verificando estructura de directorios...{Style.RESET_ALL}\n")
-    
-    directories = [
-        "data/raw",
-        "data/processed", 
-        "data/reports",
-        "data/temp",
-        "templates",
-        "processors/ocr",
-        "processors/ai"
+
+    # 4. Verificar Estructura de Directorios de la v2
+    print(f"\n{Fore.CYAN}📁 Verificando Estructura de Directorios Clave...{Style.RESET_ALL}\n")
+    dirs = [
+        "data/raw", "data/reports", "data/temp",
+        "src/fraud_scorer/api", "src/fraud_scorer/parsers",
+        "src/fraud_scorer/processors/ai", "src/fraud_scorer/storage",
+        "src/fraud_scorer/templates",
     ]
-    
-    for dir_path in directories:
-        if Path(dir_path).exists():
-            print(f"{Fore.GREEN}✓{Style.RESET_ALL} {dir_path}")
+    for dir_path in dirs:
+        full_path = project_root / dir_path
+        if full_path.is_dir():
+            print(f"{Fore.GREEN}✓{Style.RESET_ALL} Directorio: {dir_path}")
         else:
-            print(f"{Fore.YELLOW}⚠{Style.RESET_ALL} {dir_path} - Creando...")
-            Path(dir_path).mkdir(parents=True, exist_ok=True)
-    
+            print(f"{Fore.RED}✗{Style.RESET_ALL} Directorio NO encontrado: {dir_path}")
+            all_good = False
+
     return all_good
 
-def test_azure_connection():
-    """Prueba la conexión con Azure OCR"""
-    print(f"\n{Fore.CYAN}🔌 Probando conexión con Azure...{Style.RESET_ALL}\n")
-    
+async def test_azure_connection():
+    """Prueba la conexión con el servicio de Azure Document Intelligence."""
+    print(f"\n{Fore.CYAN}🔌 Probando Conexión con Azure...{Style.RESET_ALL}\n")
     try:
         from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
-        processor = AzureOCRProcessor()
-        print(f"{Fore.GREEN}✓{Style.RESET_ALL} Conexión con Azure establecida")
+        AzureOCRProcessor()
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL} Conexión con Azure configurada correctamente.")
         return True
     except Exception as e:
-        print(f"{Fore.RED}✗{Style.RESET_ALL} Error conectando con Azure: {e}")
+        print(f"{Fore.RED}✗{Style.RESET_ALL} Error al inicializar el cliente de Azure: {e}")
         return False
 
-def test_openai_connection():
-    """Prueba la conexión con OpenAI"""
-    print(f"\n{Fore.CYAN}🤖 Probando conexión con OpenAI...{Style.RESET_ALL}\n")
-    
+async def test_openai_connection():
+    """Prueba la conexión con la API de OpenAI."""
+    print(f"\n{Fore.CYAN}🤖 Probando Conexión con OpenAI...{Style.RESET_ALL}\n")
     try:
-        import openai
-        from openai import OpenAI
-        
-        client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
-        
-        # Hacer una llamada simple de prueba
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": "Di 'OK' si funciona"}],
-            max_tokens=10
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), max_retries=1, timeout=10)
+        await client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=[{"role": "user", "content": "Test"}],
+            max_tokens=5,
         )
-        
-        if response.choices[0].message.content:
-            print(f"{Fore.GREEN}✓{Style.RESET_ALL} Conexión con OpenAI establecida")
-            return True
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL} Conexión con OpenAI y la API key funcionan.")
+        return True
     except Exception as e:
         print(f"{Fore.RED}✗{Style.RESET_ALL} Error conectando con OpenAI: {e}")
         return False
 
-def test_sample_document():
-    """Crea y procesa un documento de prueba"""
-    print(f"\n{Fore.CYAN}📄 Creando documento de prueba...{Style.RESET_ALL}\n")
+async def test_v2_pipeline():
+    """Crea y procesa un documento de prueba usando el pipeline de la v2."""
+    print(f"\n{Fore.CYAN}📄 Probando Pipeline de Procesamiento v2...{Style.RESET_ALL}\n")
     
-    # Crear un archivo de texto simple de prueba
-    test_dir = Path("data/temp/test_docs")
+    # 1. Crear documento de prueba
+    test_dir = project_root / "data/temp/test_docs"
     test_dir.mkdir(parents=True, exist_ok=True)
-    
-    test_file = test_dir / "documento_prueba.txt"
-    test_content = """
-    CARTA DE RECLAMACIÓN
-    
-    Fecha: 15 de Enero de 2025
-    Número de Siniestro: TEST-2025-001
-    Nombre del Asegurado: Juan Pérez González
-    RFC: PEGJ850215XXX
-    Número de Póliza: 123-456-789
-    
-    Por medio de la presente, solicito la indemnización por el siniestro
-    ocurrido el día 10 de enero de 2025, consistente en el robo de mercancía
-    con un valor de $50,000.00 MXN.
-    
-    Placa del vehículo: ABC-123-D
-    
-    Atentamente,
-    Juan Pérez González
-    """
-    
-    with open(test_file, 'w', encoding='utf-8') as f:
-        f.write(test_content)
-    
-    print(f"{Fore.GREEN}✓{Style.RESET_ALL} Documento de prueba creado: {test_file}")
-    
-    # Intentar procesar el documento
-    try:
-        print(f"\n{Fore.CYAN}🔍 Procesando documento de prueba...{Style.RESET_ALL}\n")
-        
-        from fraud_scorer.processors.ocr.document_extractor import UniversalDocumentExtractor
-        
-        extractor = UniversalDocumentExtractor()
-        
-        # Simular resultado OCR
-        mock_ocr_result = {
-            'text': test_content,
-            'tables': [],
-            'key_value_pairs': {},
-            'entities': []
-        }
-        
-        result = extractor.extract_structured_data(mock_ocr_result)
-        
-        print(f"  Tipo de documento detectado: {result.get('document_type', 'No detectado')}")
-        
-        if 'entities' in result:
-            print(f"  Entidades encontradas:")
-            for entity_type, values in result['entities'].items():
-                print(f"    - {entity_type}: {values}")
-        
-        print(f"\n{Fore.GREEN}✓{Style.RESET_ALL} Procesamiento exitoso")
-        return True
-        
-    except Exception as e:
-        print(f"{Fore.RED}✗{Style.RESET_ALL} Error procesando documento: {e}")
-        return False
+    test_file = test_dir / "documento_prueba_v2.txt"
+    test_content = "Número de Póliza: 123-ABC-789. Monto: $1,234.56"
+    test_file.write_text(test_content, encoding="utf-8")
+    print(f"{Fore.GREEN}✓{Style.RESET_ALL} Documento de prueba creado en: {test_file}")
 
-def main():
+    try:
+        # 2. Probar el DocumentParser (Punto de entrada de la v2)
+        from fraud_scorer.parsers.document_parser import DocumentParser
+        from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
+
+        # (No se llamará a Azure para un .txt, se usará el parser nativo)
+        parser = DocumentParser(AzureOCRProcessor())
+        parsed_doc = parser.parse_document(test_file)
+
+        assert parsed_doc is not None, "El parser devolvió None."
+        assert "text" in parsed_doc, "La salida del parser no tiene la clave 'text'."
+        assert parsed_doc["text"] == test_content, "El texto parseado no coincide."
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL} DocumentParser procesó el archivo correctamente.")
+
+        # 3. Prueba de humo (smoke test) del AIFieldExtractor
+        from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
+        extractor = AIFieldExtractor()
+        # Preparamos un payload similar al que recibiría el extractor
+        doc_payload = {
+            "filename": test_file.name,
+            "ocr_result": parsed_doc,
+            "document_type": "otro"
+        }
+        extraction_result = await extractor.extract_from_documents_batch([doc_payload])
+        assert isinstance(extraction_result, list), "El extractor no devolvió una lista."
+        print(f"{Fore.GREEN}✓{Style.RESET_ALL} AIFieldExtractor se ejecutó sin errores (smoke test).")
+        
+        print(f"\n{Fore.GREEN}✓{Style.RESET_ALL} Pipeline de procesamiento v2 parece estar funcionando correctamente.")
+        return True
+
+    except Exception as e:
+        print(f"{Fore.RED}✗{Style.RESET_ALL} Falló la prueba del pipeline v2: {e}")
+        return False
+    finally:
+        # Limpieza
+        if test_file.exists():
+            test_file.unlink()
+
+async def main():
     """Función principal de prueba"""
     print(f"\n{Fore.BLUE}{'='*60}{Style.RESET_ALL}")
-    print(f"{Fore.CYAN}   FRAUD SCORER - PRUEBA DEL SISTEMA{Style.RESET_ALL}")
+    print(f"{Fore.CYAN}   FRAUD SCORER v2.0 - SCRIPT DE CHEQUEO DEL SISTEMA{Style.RESET_ALL}")
     print(f"{Fore.BLUE}{'='*60}{Style.RESET_ALL}")
-    
-    # Verificar entorno
+
     env_ok = check_environment()
-    
     if not env_ok:
-        print(f"\n{Fore.YELLOW}⚠️  Hay problemas con el entorno.{Style.RESET_ALL}")
-        print(f"Por favor, ejecuta: {Fore.CYAN}bash scripts/setup_macos.sh{Style.RESET_ALL}")
+        print(f"\n{Fore.YELLOW}⚠️  Hay problemas críticos con el entorno. Por favor, corrígelos antes de continuar.{Style.RESET_ALL}")
+        print(f"   Asegúrate de haber ejecutado 'pip install -r requirements.txt' y de tener un archivo .env con las credenciales.")
         return
-    
-    # Probar conexiones
-    azure_ok = test_azure_connection()
-    openai_ok = test_openai_connection()
-    
-    # Probar procesamiento
-    processing_ok = test_sample_document()
-    
+
+    # Ejecutar pruebas de conexión y pipeline
+    azure_ok = await test_azure_connection()
+    openai_ok = await test_openai_connection()
+    pipeline_ok = await test_v2_pipeline()
+
     # Resumen
     print(f"\n{Fore.BLUE}{'='*60}{Style.RESET_ALL}")
     print(f"{Fore.CYAN}   RESUMEN DE PRUEBAS{Style.RESET_ALL}")
     print(f"{Fore.BLUE}{'='*60}{Style.RESET_ALL}\n")
     
     results = [
-        ("Entorno", env_ok),
-        ("Azure OCR", azure_ok),
-        ("OpenAI", openai_ok),
-        ("Procesamiento", processing_ok)
+        ("Entorno y Dependencias", env_ok),
+        ("Conexión a Azure", azure_ok),
+        ("Conexión a OpenAI", openai_ok),
+        ("Pipeline de Procesamiento v2", pipeline_ok)
     ]
     
     all_passed = all(r[1] for r in results)
-    
+
     for name, passed in results:
         status = f"{Fore.GREEN}✓ PASÓ{Style.RESET_ALL}" if passed else f"{Fore.RED}✗ FALLÓ{Style.RESET_ALL}"
         print(f"  {name}: {status}")
@@ -230,14 +217,15 @@ def main():
     print(f"\n{Fore.BLUE}{'='*60}{Style.RESET_ALL}")
     
     if all_passed:
-        print(f"{Fore.GREEN}🎉 ¡TODAS LAS PRUEBAS PASARON!{Style.RESET_ALL}")
-        print(f"\nEl sistema está listo para usar:")
-        print(f"  {Fore.CYAN}python scripts/run_report.py /ruta/a/carpeta/documentos{Style.RESET_ALL}")
+        print(f"{Fore.GREEN}🎉 ¡ENHORABUENA! Todas las pruebas pasaron.{Style.RESET_ALL}")
+        print(f"\nEl sistema está listo para ser utilizado. Próximos pasos sugeridos:")
+        print(f"  - Iniciar la infraestructura: {Fore.CYAN}./start.sh{Style.RESET_ALL}")
+        print(f"  - Procesar un caso: {Fore.CYAN}python scripts/run_report.py /ruta/a/tus/documentos{Style.RESET_ALL}")
+        print(f"  - Usar el modo Replay: {Fore.CYAN}python scripts/replay_case.py{Style.RESET_ALL}")
     else:
-        print(f"{Fore.YELLOW}⚠️  Algunas pruebas fallaron.{Style.RESET_ALL}")
-        print(f"Revisa los errores arriba y verifica tu configuración.")
+        print(f"{Fore.YELLOW}⚠️  Algunas pruebas fallaron. Revisa los mensajes de error para solucionar los problemas.{Style.RESET_ALL}")
     
     print(f"{Fore.BLUE}{'='*60}{Style.RESET_ALL}\n")
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

@@ -13,7 +13,7 @@ import logging
 
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-from fraud_scorer.templates.template_processor import TemplateProcessor
+from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -350,7 +350,7 @@ async def _process_documents_and_generate_report(
         # Inicializar procesadores
         ocr_processor = AzureOCRProcessor()
         ai_analyzer = AIDocumentAnalyzer()
-        template_processor = TemplateProcessor()
+        template_processor = AIReportGenerator()
         
         # Procesar cada documento con OCR
         ocr_results = []

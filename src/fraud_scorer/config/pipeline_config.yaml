@@ -32,12 +32,18 @@ consolidation:
     domicilio_poliza: # ⚠️ Agregado
       - poliza
       - poliza_seguro
-    total:           # ⚠️ Cambiado de monto_total
-      - factura
-      - factura_compra
-    fecha_siniestro:
+    fecha_ocurrencia:
       - denuncia
-      - bitacora_gps
+      - peritaje
+      - carta_porte
     lugar_hechos:
       - denuncia
       - bitacora_gps
+    monto_reclamacion:
+      - factura
+      - factura_compra
+      - peritaje
+    bien_reclamado:
+      - factura
+      - factura_compra
+      - carta_porte

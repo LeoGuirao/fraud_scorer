@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Scorer - Sistema de Análisis</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: #333;
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .logo p {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 40px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e8e8ff;
+            transform: scale(1.02);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 20px;
+        }
+
+        .upload-text {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 10px;
+        }
+
+        .upload-subtext {
+            color: #999;
+            font-size: 14px;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .file-list {
+            margin-top: 20px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            background: #f8f9fa;
+            padding: 10px 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .file-name {
+            color: #333;
+            font-size: 14px;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-size {
+            color: #999;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .remove-file {
+            color: #ff4444;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 18px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+        }
+
+        .processing {
+            display: none;
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 20px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        .status-message {
+            color: #666;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .result {
+            display: none;
+            padding: 30px;
+            background: #f0fff4;
+            border-radius: 15px;
+            border: 2px solid #4caf50;
+        }
+
+        .result-success {
+            color: #2e7d32;
+            font-size: 24px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .result-info {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .result-label {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .risk-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .risk-bajo {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .risk-medio {
+            background: #fff3e0;
+            color: #f57c00;
+        }
+
+        .risk-alto {
+            background: #ffebee;
+            color: #c62828;
+        }
+
+        .view-report-btn {
+            display: block;
+            width: 100%;
+            padding: 15px;
+            margin-top: 20px;
+            background: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+        }
+
+        .view-report-btn:hover {
+            background: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Logo y título -->
+        <div class="logo">
+            <h1>🔍 Fraud Scorer</h1>
+            <p>Sistema Inteligente de Análisis de Siniestros</p>
+        </div>
+
+        <!-- Área de carga -->
+        <div id="uploadSection">
+            <div class="upload-area" id="uploadArea">
+                <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx">
+                <div class="upload-icon">📁</div>
+                <div class="upload-text">Arrastra los documentos aquí</div>
+                <div class="upload-subtext">o haz clic para seleccionar archivos</div>
+            </div>
+
+            <div class="file-list" id="fileList"></div>
+
+            <div class="button-group">
+                <button class="btn btn-secondary" onclick="clearFiles()">Limpiar</button>
+                <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()" disabled>
+                    Analizar Documentos
+                </button>
+            </div>
+        </div>
+
+        <!-- Sección de procesamiento -->
+        <div class="processing" id="processingSection">
+            <div class="spinner"></div>
+            <h2>Procesando documentos...</h2>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status-message" id="statusMessage">Iniciando análisis...</div>
+        </div>
+
+        <!-- Sección de resultados -->
+        <div class="result" id="resultSection">
+            <div class="result-success">✅ Análisis Completado</div>
+            <div class="result-info">
+                <div class="result-row">
+                    <span class="result-label">Caso ID:</span>
+                    <span class="result-value" id="caseId">-</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Fraud Score:</span>
+                    <span class="result-value" id="fraudScore">-</span>
+                </div>
+                <div class="result-row">
+                    <span class="result-label">Nivel de Riesgo:</span>
+                    <span class="result-value">
+                        <span class="risk-badge" id="riskLevel">-</span>
+                    </span>
+                </div>
+            </div>
+            <a href="#" class="view-report-btn" id="viewReportBtn" target="_blank">
+                Ver Reporte Completo
+            </a>
+            <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="resetForm()">
+                Analizar Otro Caso
+            </button>
+        </div>
+    </div>
+
+    <script>
+        let selectedFiles = [];
+        
+        // Configurar área de carga
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileList = document.getElementById('fileList');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        
+        // Click en área de carga
+        uploadArea.addEventListener('click', () => {
+            fileInput.click();
+        });
+        
+        // Drag and drop
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+        
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+        
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            handleFiles(e.dataTransfer.files);
+        });
+        
+        // Selección de archivos
+        fileInput.addEventListener('change', (e) => {
+            handleFiles(e.target.files);
+        });
+        
+        function handleFiles(files) {
+            selectedFiles = Array.from(files);
+            updateFileList();
+        }
+        
+        function updateFileList() {
+            fileList.innerHTML = '';
+            
+            selectedFiles.forEach((file, index) => {
+                const fileItem = document.createElement('div');
+                fileItem.className = 'file-item';
+                
+                const fileName = document.createElement('span');
+                fileName.className = 'file-name';
+                fileName.textContent = file.name;
+                
+                const fileSize = document.createElement('span');
+                fileSize.className = 'file-size';
+                fileSize.textContent = formatFileSize(file.size);
+                
+                const removeBtn = document.createElement('span');
+                removeBtn.className = 'remove-file';
+                removeBtn.textContent = '×';
+                removeBtn.onclick = () => removeFile(index);
+                
+                fileItem.appendChild(fileName);
+                fileItem.appendChild(fileSize);
+                fileItem.appendChild(removeBtn);
+                fileList.appendChild(fileItem);
+            });
+            
+            analyzeBtn.disabled = selectedFiles.length === 0;
+        }
+        
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileList();
+        }
+        
+        function clearFiles() {
+            selectedFiles = [];
+            fileInput.value = '';
+            updateFileList();
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
+        }
+        
+        async function startAnalysis() {
+            if (selectedFiles.length === 0) return;
+            
+            // Mostrar sección de procesamiento
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('processingSection').style.display = 'block';
+            
+            // Preparar FormData
+            const formData = new FormData();
+            selectedFiles.forEach(file => {
+                formData.append('files', file);
+            });
+            
+            try {
+                // Enviar archivos
+                const uploadResponse = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!uploadResponse.ok) {
+                    throw new Error('Error al subir archivos');
+                }
+                
+                const uploadResult = await uploadResponse.json();
+                const processId = uploadResult.process_id;
+                
+                // Monitorear progreso
+                await monitorProgress(processId);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al procesar los documentos: ' + error.message);
+                resetForm();
+            }
+        }
+        
+        async function monitorProgress(processId) {
+            const progressFill = document.getElementById('progressFill');
+            const statusMessage = document.getElementById('statusMessage');
+            
+            const checkStatus = async () => {
+                try {
+                    const response = await fetch(`/status/${processId}`);
+                    const status = await response.json();
+                    
+                    // Actualizar progreso
+                    progressFill.style.width = `${status.progress || 0}%`;
+                    statusMessage.textContent = status.message || 'Procesando...';
+                    
+                    if (status.status === 'completed') {
+                        // Mostrar resultados
+                        showResults(status);
+                    } else if (status.status === 'error') {
+                        throw new Error(status.message);
+                    } else {
+                        // Continuar monitoreando
+                        setTimeout(checkStatus, 1000);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Error al procesar: ' + error.message);
+                    resetForm();
+                }
+            };
+            
+            checkStatus();
+        }
+        
+        function showResults(status) {
+            document.getElementById('processingSection').style.display = 'none';
+            document.getElementById('resultSection').style.display = 'block';
+            
+            // Llenar información
+            document.getElementById('caseId').textContent = status.case_id || '-';
+            document.getElementById('fraudScore').textContent = 
+                status.fraud_score ? `${(status.fraud_score * 100).toFixed(1)}%` : '-';
+            
+            // Nivel de riesgo con clase apropiada
+            const riskLevel = document.getElementById('riskLevel');
+            riskLevel.textContent = status.risk_level || '-';
+            riskLevel.className = `risk-badge risk-${(status.risk_level || 'bajo').toLowerCase()}`;
+            
+            // Botón de reporte
+            const viewReportBtn = document.getElementById('viewReportBtn');
+            viewReportBtn.href = status.report_url || '#';
+        }
+        
+        function resetForm() {
+            document.getElementById('uploadSection').style.display = 'block';
+            document.getElementById('processingSection').style.display = 'none';
+            document.getElementById('resultSection').style.display = 'none';
+            clearFiles();
+        }
+    </script>
+</body>
+</html>

@@ -6,7 +6,7 @@ Versión FINAL con todas las correcciones aplicadas.
 """
 
 from __future__ import annotations
-from fraud_scorer.extractors.intelligent_extractor import IntelligentFieldExtractor
+from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
 
 import json
 import hashlib
@@ -23,11 +23,8 @@ from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
 # IMPORTANTE: traemos tus clases del template processor
-from fraud_scorer.templates.template_processor import (
-    TemplateProcessor,
-    InformeSiniestro,
-    DocumentoAnalizado,
-    NivelAlerta,
+from fraud_scorer.templates.ai_report_generator import (
+    AIReportGenerator,
 )
 
 logger = logging.getLogger(__name__)
@@ -176,7 +173,7 @@ class IsolatedDocumentProcessor:
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # 🔧 CORRECCIÓN 1: Inicializar IntelligentFieldExtractor
-        self.intelligent_extractor = IntelligentFieldExtractor()
+        self.intelligent_extractor = AIReportGenerator()
         logger.info("✓ IntelligentFieldExtractor inicializado")
 
         cfg = (config or {}).get("pipeline", {})
@@ -582,7 +579,7 @@ class SegmentedPipelineOrchestrator:
 # INTEGRACIÓN CON TEMPLATE PROCESSOR
 # =====================================================
 
-class SegmentedTemplateProcessor(TemplateProcessor):
+class SegmentedTemplateProcessor(AIReportGenerator):
     """Template processor que usa el pipeline segmentado"""
 
     def __init__(
@@ -599,7 +596,7 @@ class SegmentedTemplateProcessor(TemplateProcessor):
         self,
         documents: List[Dict[str, Any]],
         ai_analysis: Dict[str, Any]
-    ) -> InformeSiniestro:
+    ) -> AIReportGenerator:
         """Extracción asíncrona desde documentos"""
         
         logger.info("Iniciando extracción con pipeline segmentado")
@@ -615,7 +612,7 @@ class SegmentedTemplateProcessor(TemplateProcessor):
         self,
         documents: List[Dict[str, Any]],
         ai_analysis: Dict[str, Any]
-    ) -> InformeSiniestro:
+    ) -> AIReportGenerator:
         """Extracción síncrona desde documentos"""
         
         import asyncio
@@ -632,7 +629,7 @@ class SegmentedTemplateProcessor(TemplateProcessor):
         self,
         consolidated: Dict[str, Any],
         ai: Dict[str, Any]
-    ) -> InformeSiniestro:
+    ) -> AIReportGenerator:
         """Construye el informe desde datos consolidados"""
         
         case_info = consolidated.get("case_info", {})
@@ -648,7 +645,7 @@ class SegmentedTemplateProcessor(TemplateProcessor):
         # Obtener case_id desde AI o generar uno
         numero_siniestro = ai.get("case_id", "CASE-2025-0001")
         
-        informe = InformeSiniestro(
+        informe = AIReportGenerator(
             numero_siniestro=numero_siniestro,
             nombre_asegurado=nombre_asegurado or "NO IDENTIFICADO",
             numero_poliza=case_info.get("numero_poliza") or "SIN PÓLIZA",
@@ -678,11 +675,11 @@ class SegmentedTemplateProcessor(TemplateProcessor):
                 descripcion += f" · validaciones ok: {summary.get('validations_passed', 0)}"
             
             informe.documentos_analizados.append(
-                DocumentoAnalizado(
+                AIReportGenerator(
                     tipo_documento=str(summary.get("type", "")).upper().replace("_", " "),
                     descripcion=descripcion,
                     hallazgos=[],
-                    nivel_alerta=NivelAlerta.INFO.value,
+                    nivel_alerta=AIReportGenerator.INFO.value,
                     imagen=None,
                     metadata=summary,
                 )

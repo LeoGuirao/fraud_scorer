@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-Script principal con el nuevo sistema de IA
+Fraud Scorer v2.0 - Sistema de análisis con IA (solo v2, sin legacy)
 """
+
 import sys
 import asyncio
 import argparse
@@ -11,9 +12,11 @@ from typing import Dict, List, Any, Optional
 import json
 from datetime import datetime
 
-# Añadir la raíz del proyecto al path de Python (para que Pylance/ejecución encuentren src/)
+# Añadir la raíz del proyecto al path de Python
 project_root = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(project_root / "src"))
+src_path = project_root / "src"
+if str(src_path) not in sys.path:
+    sys.path.insert(0, str(src_path))
 
 # Configurar logging
 logging.basicConfig(
@@ -22,65 +25,41 @@ logging.basicConfig(
 )
 logger = logging.getLogger("fraud_scorer.run_report")
 
-# Imports del sistema existente
+# ==== Componentes del sistema v2 ====
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
+from fraud_scorer.parsers.document_parser import DocumentParser
+from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.storage.cases import create_case
 
-# Imports del NUEVO sistema de IA
-from fraud_scorer.ai_extractors.ai_field_extractor import AIFieldExtractor
-from fraud_scorer.ai_extractors.ai_consolidator import AIConsolidator
-from fraud_scorer.ai_extractors.ai_report_generator import AIReportGenerator
-from fraud_scorer.ai_extractors.models.extraction_models import (
+from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
+from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
+from fraud_scorer.templates.ai_report_generator import AIReportGenerator
+from fraud_scorer.models.extraction import (
     DocumentExtraction,
     ConsolidatedExtraction,
 )
 
-# >>> NUEVOS IMPORTS (Cache + Parser)
-from fraud_scorer.cache.ocr_cache_manager import OCRCacheManager
-from fraud_scorer.parsers.document_parser import DocumentParser
-# <<<
-
 
 class FraudAnalysisSystemV2:
     """
-    Sistema de análisis de fraude v2.0 con IA y Cache OCR
+    Sistema de análisis de fraude v2.0 con IA y Cache OCR (sin legacy).
     """
 
-    def __init__(self, use_ai: bool = True, use_cache: bool = True):
-        """
-        Inicializa el sistema
-
-        Args:
-            use_ai: Si True, usa el nuevo sistema de IA
-            use_cache: Si True, usa cache para resultados OCR
-        """
-        self.use_ai = use_ai
-        self.use_cache = use_cache
-
-        # Componentes existentes
+    def __init__(self):
+        # OCR + Parser
         self.ocr_processor = AzureOCRProcessor()
-
-        # Nuevo: Document Parser para múltiples formatos
         self.document_parser = DocumentParser(self.ocr_processor)
 
-        # Nuevo: Cache Manager
-        self.cache_manager = OCRCacheManager() if use_cache else None
+        # Cache OCR
+        self.cache_manager = OCRCacheManager()
 
-        if use_ai:
-            # Nuevos componentes de IA
-            self.extractor = AIFieldExtractor()
-            self.consolidator = AIConsolidator()
-            template_path = project_root / "src" / "fraud_scorer" / "templates"
-            self.report_generator = AIReportGenerator(template_dir=template_path)
-            logger.info("Sistema inicializado con extractores de IA")
-        else:
-            # Sistema legacy
-            from fraud_scorer.extractors.intelligent_extractor import (
-                IntelligentFieldExtractor,
-            )
+        # IA v2
+        self.extractor = AIFieldExtractor()
+        self.consolidator = AIConsolidator()
+        template_path = project_root / "src" / "fraud_scorer" / "templates"
+        self.report_generator = AIReportGenerator(template_dir=template_path)
 
-            self.extractor = IntelligentFieldExtractor()
-            logger.info("Sistema inicializado con extractores legacy")
+        logger.info("Sistema v2.0 inicializado con componentes de IA")
 
     async def process_case(
         self,
@@ -89,30 +68,22 @@ class FraudAnalysisSystemV2:
         case_title: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Procesa un caso completo con el nuevo flujo de IA
+        Procesa un caso completo con el flujo v2 (solo IA).
         """
         logger.info("=" * 60)
         logger.info(f"📁 Procesando caso: {folder_path.name}")
-        logger.info(f"🤖 Modo: {'IA Avanzada' if self.use_ai else 'Legacy'}")
+        logger.info("🤖 Modo: IA Avanzada v2.0")
         logger.info("=" * 60)
 
-        # Obtener documentos (se incluyen formatos ofimáticos y se ignoran archivos '._' de macOS)
+        # Buscar documentos soportados (ignorar archivos '._' de macOS)
         supported_extensions = {
-            ".pdf",
-            ".png",
-            ".jpg",
-            ".jpeg",
-            ".tiff",
-            ".docx",
-            ".xlsx",
-            ".csv",
+            ".pdf", ".png", ".jpg", ".jpeg", ".tiff",
+            ".docx", ".xlsx", ".csv"
         }
         documents = [
-            p
-            for p in folder_path.glob("*")
+            p for p in folder_path.glob("*")
             if p.suffix.lower() in supported_extensions and not p.name.startswith("._")
         ]
-
         if not documents:
             raise RuntimeError("No se encontraron documentos para procesar")
 
@@ -120,14 +91,13 @@ class FraudAnalysisSystemV2:
 
         # Crear caso en DB
         case_id = create_case(
-            title=case_title or folder_path.name, base_path=str(folder_path)
+            title=case_title or folder_path.name,
+            base_path=str(folder_path)
         )
         logger.info(f"✓ Case ID: {case_id}")
 
-        if self.use_ai:
-            return await self._process_with_ai(documents, case_id, output_path)
-        else:
-            return await self._process_legacy(documents, case_id, output_path)
+        # Ejecutar pipeline v2
+        return await self._process_with_ai(documents, case_id, output_path)
 
     async def _process_with_ai(
         self,
@@ -136,56 +106,45 @@ class FraudAnalysisSystemV2:
         output_path: Path,
     ) -> Dict[str, Any]:
         """
-        Procesamiento con el nuevo sistema de IA y cache
+        Procesamiento con el sistema de IA y cache.
         """
-
         # ============================================
-        # FASE 1: OCR/Parsing de todos los documentos
+        # FASE 1: OCR/Parsing
         # ============================================
         logger.info("\n📖 FASE 1: Procesamiento de Documentos")
         logger.info("-" * 40)
 
-        ocr_results = []
-        cache_files: List[str] = []  # Para guardar referencias al cache
+        ocr_results: List[Dict[str, Any]] = []
+        cache_files: List[str] = []
 
         for doc_path in documents:
             logger.info(f"  Procesando: {doc_path.name}")
 
-            # Verificar si hay cache disponible
+            # Usar cache si existe
             if self.cache_manager and self.cache_manager.has_cache(doc_path):
                 logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
                 ocr_result = self.cache_manager.get_cache(doc_path)
                 if ocr_result:
                     cache_files.append(str(doc_path))
             else:
-                # Procesar con OCR o parser apropiado (con tolerancia a fallos)
+                # OCR/Parser tolerante a fallos
                 logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
                 try:
-                    # Usar el document parser que maneja múltiples formatos
                     ocr_result = self.document_parser.parse_document(doc_path)
-
-                    # Guardar en cache si está habilitado
                     if self.cache_manager and ocr_result:
                         self.cache_manager.save_cache(doc_path, ocr_result)
                 except Exception as e:
-                    logger.error(
-                        f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True
-                    )
-                    ocr_result = None
+                    logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
                     continue
 
             if ocr_result:
-                ocr_results.append(
-                    {
-                        "filename": doc_path.name,
-                        "ocr_result": ocr_result,
-                        "document_type": None,  # Se detectará después
-                    }
-                )
+                ocr_results.append({
+                    "filename": doc_path.name,
+                    "ocr_result": ocr_result,
+                    "document_type": None,  # se detectará dentro del extractor
+                })
 
-        logger.info(
-            f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos"
-        )
+        logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
 
         # Guardar índice del caso para replay
         if self.cache_manager:
@@ -198,24 +157,19 @@ class FraudAnalysisSystemV2:
             self.cache_manager.save_case_index(case_id, case_data)
 
         # ============================================
-        # FASE 2: Extracción con IA (documento por documento)
+        # FASE 2: Extracción con IA
         # ============================================
         logger.info("\n🔍 FASE 2: Extracción de campos con IA")
         logger.info("-" * 40)
 
         extractions: List[DocumentExtraction] = await self.extractor.extract_from_documents_batch(
             documents=ocr_results,
-            parallel_limit=3,  # Procesar hasta 3 documentos en paralelo
+            parallel_limit=3,
         )
 
-        # Log de resultados de extracción
         for extraction in extractions:
-            fields_found = sum(
-                1 for v in extraction.extracted_fields.values() if v is not None
-            )
-            logger.info(
-                f"  ✓ {extraction.source_document}: {fields_found} campos extraídos"
-            )
+            fields_found = sum(1 for v in extraction.extracted_fields.values() if v is not None)
+            logger.info(f"  ✓ {extraction.source_document}: {fields_found} campos extraídos")
 
         logger.info(f"✓ Extracción completada: {len(extractions)} documentos procesados")
 
@@ -225,15 +179,13 @@ class FraudAnalysisSystemV2:
         logger.info("\n🧠 FASE 3: Consolidación inteligente")
         logger.info("-" * 40)
 
-        consolidated: ConsolidatedExtraction = (
-            await self.consolidator.consolidate_extractions(
-                extractions=extractions,
-                case_id=case_id,
-                use_advanced_reasoning=True,
-            )
+        consolidated: ConsolidatedExtraction = await self.consolidator.consolidate_extractions(
+            extractions=extractions,
+            case_id=case_id,
+            use_advanced_reasoning=True,
         )
 
-        # Conteo robusto usando pydantic v2 (tolerante a dicts o modelos)
+        # Conteo robusto (Pydantic v2/dict)
         fields_obj = getattr(consolidated, "consolidated_fields", {}) or {}
         if hasattr(fields_obj, "model_dump"):
             fields_dict = fields_obj.model_dump()
@@ -248,21 +200,19 @@ class FraudAnalysisSystemV2:
 
         if consolidated.conflicts_resolved:
             logger.info(f"✓ Conflictos resueltos: {len(consolidated.conflicts_resolved)}")
-            for conflict in consolidated.conflicts_resolved[:3]:  # Mostrar primeros 3
+            for conflict in consolidated.conflicts_resolved[:3]:
                 logger.info(
                     f"  - {conflict.get('field', 'N/A')}: {str(conflict.get('reasoning', ''))[:80]}..."
                 )
 
         # ============================================
-        # FASE 4: Análisis de fraude (opcional)
+        # FASE 4: Análisis de fraude (IA)
         # ============================================
         logger.info("\n🔎 FASE 4: Análisis de fraude")
         logger.info("-" * 40)
-
         ai_analysis = await self._analyze_fraud(consolidated, extractions)
         fraud_score = ai_analysis.get("fraud_score", 0)
         risk_level = "BAJO" if fraud_score < 0.3 else ("MEDIO" if fraud_score < 0.6 else "ALTO")
-
         logger.info(f"✓ Fraud Score: {fraud_score:.2%}")
         logger.info(f"✓ Nivel de Riesgo: {risk_level}")
 
@@ -272,7 +222,9 @@ class FraudAnalysisSystemV2:
         logger.info("\n📝 FASE 5: Generación del reporte")
         logger.info("-" * 40)
 
-        # Generar HTML
+        output_path.mkdir(parents=True, exist_ok=True)
+
+        # HTML
         html_path = output_path / f"INF-{case_id}.html"
         html_content = self.report_generator.generate_report(
             consolidated_data=consolidated,
@@ -281,7 +233,7 @@ class FraudAnalysisSystemV2:
         )
         logger.info(f"✓ HTML generado: {html_path}")
 
-        # Generar PDF
+        # PDF
         pdf_path = output_path / f"INF-{case_id}.pdf"
         if self.report_generator.generate_pdf(html_content, pdf_path):
             logger.info(f"✓ PDF generado: {pdf_path}")
@@ -289,7 +241,6 @@ class FraudAnalysisSystemV2:
         # ============================================
         # FASE 6: Guardar resultados JSON
         # ============================================
-        # Salvaguardas para evitar división por cero
         ocr_total = len(documents)
         ocr_success = len(ocr_results)
         extraction_total = ocr_success
@@ -300,8 +251,7 @@ class FraudAnalysisSystemV2:
         completion_rate = (fields_filled / total_fields) if total_fields > 0 else 0
         avg_confidence = (
             sum(consolidated.confidence_scores.values()) / len(consolidated.confidence_scores)
-            if consolidated.confidence_scores
-            else 0
+            if consolidated.confidence_scores else 0
         )
 
         results = {
@@ -343,7 +293,7 @@ class FraudAnalysisSystemV2:
 
         analyzer = AIDocumentAnalyzer()
 
-        # Payload ligero (ahorra tokens): claves y tipo de documento
+        # Payload ligero para IA
         docs_for_analysis = [
             {
                 "document_type": extr.document_type,
@@ -355,50 +305,32 @@ class FraudAnalysisSystemV2:
         analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
         return analysis
 
-    async def _process_legacy(
-        self,
-        documents: List[Path],
-        case_id: str,
-        output_path: Path,
-    ) -> Dict[str, Any]:
-        """
-        Procesamiento con el sistema legacy (fallback)
-        """
-        logger.info("Usando sistema legacy...")
-        return {"status": "legacy_not_implemented"}
-
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
-    """Parser de argumentos"""
+    """Parser de argumentos (sin --use-legacy)."""
     p = argparse.ArgumentParser(description="Fraud Scorer v2.0 - Sistema de Análisis con IA")
     p.add_argument("folder", type=Path, help="Carpeta con documentos del caso")
     p.add_argument("--out", type=Path, default=Path("data/reports"), help="Carpeta de salida")
     p.add_argument("--title", help="Título del caso")
-    p.add_argument("--use-legacy", action="store_true", help="Usar sistema legacy en lugar de IA")
     p.add_argument("--debug", action="store_true", help="Modo debug con más logging")
-
     return p.parse_args(argv)
 
 
 async def main(argv: List[str]) -> None:
-    """Función principal"""
+    """Función principal."""
     args = parse_args(argv)
 
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
 
-    # Validar carpeta
     if not args.folder.is_dir():
         print(f"❌ Error: La carpeta {args.folder} no existe o no es un directorio.")
         sys.exit(1)
 
-    # Crear carpeta de salida
     args.out.mkdir(parents=True, exist_ok=True)
 
-    # Inicializar sistema
-    system = FraudAnalysisSystemV2(use_ai=not args.use_legacy)
+    system = FraudAnalysisSystemV2()
 
-    # Procesar caso
     try:
         await system.process_case(
             folder_path=args.folder,
@@ -411,8 +343,7 @@ async def main(argv: List[str]) -> None:
 
 
 if __name__ == "__main__":
-    # Refuerzo: asegurar que 'src' quede en sys.path al ejecutar directamente
-    if (project_root / "src").as_posix() not in sys.path:
-        sys.path.insert(0, str(project_root / "src"))
-
+    # Refuerzo: asegurar que 'src' esté en sys.path
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
     asyncio.run(main(sys.argv[1:]))

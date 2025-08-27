@@ -1,4 +1,4 @@
-# src/fraud_scorer/ai_extractors/models/extraction_models.py
+# src/fraud_scorer/models/extraction.py
 """
 Modelos Pydantic para validación y consolidación de datos extraídos.
 Incluye compatibilidad Pydantic v1/v2 y la clase ConsolidatedFields.
