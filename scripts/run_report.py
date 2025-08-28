@@ -10,6 +10,7 @@ from pathlib import Path
 import logging
 from typing import Dict, List, Any, Optional
 import json
+import re
 from datetime import datetime
 
 # Añadir la raíz del proyecto al path de Python
@@ -204,6 +205,13 @@ class FraudAnalysisSystemV2:
                 logger.info(
                     f"  - {conflict.get('field', 'N/A')}: {str(conflict.get('reasoning', ''))[:80]}..."
                 )
+        
+        # --- OBTENER DATOS PARA NOMBRAR ARCHIVOS ---
+        # Extraemos los datos del objeto `consolidated`. 
+        # Asegúrate de que los nombres de los campos coincidan con los de tu modelo `ConsolidatedFields`
+        insured_name_from_data = fields_dict.get("nombre_asegurado", "Desconocido")
+        claim_number_from_data = fields_dict.get("numero_siniestro", f"SINIESTRO_{case_id}")
+        logger.info(f"✓ Datos para organización: {insured_name_from_data} - {claim_number_from_data}")
 
         # ============================================
         # FASE 4: Análisis de fraude (IA)
@@ -239,8 +247,10 @@ class FraudAnalysisSystemV2:
             logger.info(f"✓ PDF generado: {pdf_path}")
 
         # ============================================
-        # FASE 6: Guardar resultados JSON
+        # FASE 6: Guardar resultados y Organizar archivos
         # ============================================
+        logger.info("\n💾 FASE 6: Guardar resultados y Organizar archivos")
+        logger.info("-" * 40)
         ocr_total = len(documents)
         ocr_success = len(ocr_results)
         extraction_total = ocr_success
@@ -253,6 +263,36 @@ class FraudAnalysisSystemV2:
             sum(consolidated.confidence_scores.values()) / len(consolidated.confidence_scores)
             if consolidated.confidence_scores else 0
         )
+
+        # --- RENOMBRAR ARCHIVO CONSOLIDADO ---
+        # Usamos la función de sanitización
+        def sanitize_filename(name: str) -> str:
+            if not name: 
+                return "SIN_NOMBRE"
+            return re.sub(r'[^a-zA-Z0-9_.-]+', '_', name).strip('_')
+
+        s_insured = sanitize_filename(insured_name_from_data)
+        s_claim = sanitize_filename(claim_number_from_data)
+        
+        consolidated_filename = f"{s_insured} - {s_claim} - ARCHIVO CONSOLIDADO.json"
+        
+        # GUARDAR el archivo consolidado en data/temp/pipeline_cache
+        pipeline_cache_dir = Path("data/temp/pipeline_cache")
+        pipeline_cache_dir.mkdir(parents=True, exist_ok=True)
+        consolidated_json_path = pipeline_cache_dir / consolidated_filename
+
+        with open(consolidated_json_path, "w", encoding="utf-8") as f:
+            # Guardamos solo los datos consolidados aquí
+            json.dump(consolidated.model_dump(), f, ensure_ascii=False, indent=2, default=str)
+        logger.info(f"✓ JSON consolidado guardado en: {consolidated_json_path}")
+        
+        # --- LLAMAR A LA REORGANIZACIÓN DEL CACHÉ ---
+        if self.cache_manager:
+            self.cache_manager.reorganize_cache_for_case(
+                case_id=case_id,
+                insured_name=insured_name_from_data,
+                claim_number=claim_number_from_data
+            )
 
         results = {
             "case_id": case_id,
@@ -270,10 +310,11 @@ class FraudAnalysisSystemV2:
             },
         }
 
-        json_path = output_path / f"resultados_{case_id}.json"
+        # Guardamos el reporte completo de resultados (que incluye métricas, etc.) con nombre mejorado
+        json_path = output_path / f"resultados_{s_insured}_{s_claim}.json"
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2, default=str)
-        logger.info(f"✓ JSON guardado: {json_path}")
+        logger.info(f"✓ JSON de resultados guardado: {json_path}")
 
         logger.info("\n" + "=" * 60)
         logger.info("✅ PROCESAMIENTO COMPLETADO EXITOSAMENTE")

@@ -14,6 +14,10 @@ import logging
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
+from fraud_scorer.models.feedback import FeedbackPayload
+from fraud_scorer.storage.feedback import save_feedback_from_json, validate_feedback_data
+from fraud_scorer.storage.cases import get_case_by_id
+from fraud_scorer.storage.db import get_conn
 
 logger = logging.getLogger(__name__)
 
@@ -450,6 +454,119 @@ def _detect_document_type(filename: str, ocr_result: Dict) -> str:
             return doc_type
     
     return 'otro'
+
+
+def get_case_data_for_report(case_id: str) -> Dict[str, Any]:
+    """
+    Obtiene los datos completos de un caso para generar el reporte de feedback.
+    """
+    case = get_case_by_id(case_id)
+    if not case:
+        return None
+    
+    with get_conn() as conn:
+        # Obtener documentos del caso
+        documents = conn.execute(
+            "SELECT * FROM documents WHERE case_id = ? ORDER BY created_at",
+            (case_id,)
+        ).fetchall()
+        
+        # Obtener análisis de AI más reciente
+        ai_analyses = conn.execute(
+            """
+            SELECT ai.* FROM ai_analyses ai
+            JOIN documents d ON d.id = ai.document_id
+            WHERE d.case_id = ?
+            ORDER BY ai.processed_at DESC
+            """,
+            (case_id,)
+        ).fetchall()
+        
+        # Buscar datos extraídos consolidados en el cache
+        import json
+        from pathlib import Path
+        
+        pipeline_cache_dir = Path("data/temp/pipeline_cache")
+        consolidated_files = list(pipeline_cache_dir.glob("*ARCHIVO CONSOLIDADO.json"))
+        
+        consolidated_data = None
+        for file in consolidated_files:
+            if case_id in file.name:
+                try:
+                    with open(file, 'r', encoding='utf-8') as f:
+                        consolidated_data = json.load(f)
+                    break
+                except Exception as e:
+                    logger.warning(f"Error leyendo archivo consolidado {file}: {e}")
+        
+        return {
+            "case": dict(case),
+            "documents": [dict(doc) for doc in documents],
+            "ai_analyses": [dict(analysis) for analysis in ai_analyses],
+            "consolidated_data": consolidated_data
+        }
+
+
+@router.get("/report/{case_id}/feedback", response_class=HTMLResponse)
+async def get_interactive_report(case_id: str):
+    """
+    Genera y devuelve un reporte HTML interactivo para validación y feedback.
+    """
+    try:
+        # Obtener datos del caso
+        report_data = get_case_data_for_report(case_id)
+        if not report_data:
+            raise HTTPException(status_code=404, detail="Caso no encontrado o sin datos procesados.")
+        
+        # Generar reporte usando el template de feedback
+        generator = AIReportGenerator()
+        
+        # Renderizar usando el template de feedback
+        html_content = generator.render_html_template(
+            template_name="report_template_feedback.html",
+            data=report_data
+        )
+        return HTMLResponse(content=html_content)
+        
+    except Exception as e:
+        logger.error(f"Error generando reporte interactivo: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al generar el reporte interactivo: {e}")
+
+
+@router.post("/report/{case_id}/submit_feedback")
+async def submit_feedback(case_id: str, payload: FeedbackPayload):
+    """
+    Recibe el JSON de feedback desde la interfaz y lo guarda en la base de datos.
+    """
+    try:
+        # Validar que el caso exista
+        case = get_case_by_id(case_id)
+        if not case:
+            raise HTTPException(status_code=404, detail="Caso no encontrado")
+        
+        # Convertir payload a lista de diccionarios
+        feedback_data = [item.model_dump() for item in payload.feedback]
+        
+        # Validar datos
+        if not validate_feedback_data(feedback_data):
+            raise HTTPException(status_code=400, detail="Datos de feedback inválidos")
+        
+        # Guardar feedback
+        save_feedback_from_json(case_id, feedback_data)
+        
+        logger.info(f"Feedback guardado para caso {case_id}: {len(feedback_data)} elementos")
+        
+        return {
+            "status": "success", 
+            "message": "Feedback recibido y guardado correctamente.",
+            "items_saved": len(feedback_data)
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error guardando feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar el feedback: {e}")
 
 
 # Endpoint para obtener estadísticas

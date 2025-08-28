@@ -13,7 +13,6 @@ from jinja2 import Environment, FileSystemLoader, Template
 from pydantic import BaseModel
 
 from ..models.extraction import ConsolidatedExtraction
-from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +57,7 @@ class AIReportGenerator:
         Inicializa el generador con las plantillas
         """
         if template_dir is None:
-            template_dir = Path(__file__).parent.parent / "templates"
+            template_dir = Path(__file__).parent
         
         self.template_dir = template_dir
         self.env = Environment(
@@ -67,6 +66,24 @@ class AIReportGenerator:
         )
         
         logger.info(f"AIReportGenerator inicializado con plantillas de {template_dir}")
+    
+    def render_html_template(self, template_name: str, data: dict) -> str:
+        """
+        Renderiza un template de Jinja2 con los datos proporcionados.
+        
+        Args:
+            template_name: Nombre del template (ej: "report_template_feedback.html")
+            data: Diccionario con los datos para el template
+            
+        Returns:
+            HTML renderizado como string
+        """
+        try:
+            template = self.env.get_template(template_name)
+            return template.render(**data)
+        except Exception as e:
+            logger.error(f"Error renderizando template {template_name}: {e}")
+            raise
     
     def generate_report(
         self,
@@ -94,10 +111,9 @@ class AIReportGenerator:
         # Preparar datos para la plantilla
         template_data = self._prepare_template_data(consolidated_data, ai_analysis)
         
-        # Cargar y renderizar plantilla
+        # Renderizar usando el nuevo método
         try:
-            template = self.env.get_template("report_template.html")
-            html_content = template.render(**template_data)
+            html_content = self.render_html_template("report_template.html", template_data)
         except Exception as e:
             logger.error(f"Error renderizando plantilla: {e}")
             # Usar plantilla de fallback
@@ -282,6 +298,13 @@ class AIReportGenerator:
             return "MEDIO"
         else:
             return "ALTO"
+    
+    def _dataclass_to_dict(self, obj: Any) -> Dict[str, Any]:
+        """
+        Convierte cualquier objeto (Pydantic, dataclass, etc.) a diccionario.
+        Método público para usar en endpoints.
+        """
+        return _to_dict(obj)
     
     def _generate_fallback_html(self, data: Dict[str, Any]) -> str:
         """Genera HTML de fallback si falla la plantilla principal"""

@@ -135,6 +135,24 @@ def init_db() -> None:
             );
             """
         )
+
+        # feedback
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS feedback (
+                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                case_id         TEXT NOT NULL,
+                field_name      TEXT NOT NULL,
+                original_value  TEXT,
+                corrected_value TEXT,
+                status          TEXT NOT NULL,
+                created_at      TEXT NOT NULL,
+                FOREIGN KEY(case_id) REFERENCES cases(case_id) ON DELETE CASCADE
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_feedback_case_id ON feedback(case_id);")
+
     print("✓ Esquema OK")
 
 def sha256_of_file(path: Path) -> str:
@@ -302,6 +320,40 @@ def get_extracted_by_document_id(document_id: str) -> Optional[sqlite3.Row]:
             (document_id,)
         ).fetchone()
         return row
+
+# --- FEEDBACK HELPERS ---
+
+def save_feedback(case_id: str, field_name: str, original_value: Optional[str], corrected_value: Optional[str], status: str) -> str:
+    """Guarda feedback del usuario para un campo específico."""
+    feedback_id = str(uuid.uuid4())
+    with get_conn() as conn:
+        conn.execute(
+            "INSERT INTO feedback(case_id, field_name, original_value, corrected_value, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+            (case_id, field_name, original_value, corrected_value, status, _now())
+        )
+        return conn.lastrowid
+
+def get_feedback_by_case(case_id: str) -> List[sqlite3.Row]:
+    """Obtiene todo el feedback para un caso específico."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT * FROM feedback WHERE case_id = ? ORDER BY created_at DESC",
+            (case_id,)
+        ).fetchall()
+        return rows
+
+def get_feedback_stats(case_id: Optional[str] = None) -> Dict[str, int]:
+    """Obtiene estadísticas de feedback (global o por caso)."""
+    with get_conn() as conn:
+        if case_id:
+            query = "SELECT status, COUNT(*) as count FROM feedback WHERE case_id = ? GROUP BY status"
+            params = (case_id,)
+        else:
+            query = "SELECT status, COUNT(*) as count FROM feedback GROUP BY status"
+            params = ()
+        
+        rows = conn.execute(query, params).fetchall()
+        return {row["status"]: row["count"] for row in rows}
 
 if __name__ == "__main__":
     init_db()
