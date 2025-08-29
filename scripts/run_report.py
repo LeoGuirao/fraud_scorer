@@ -231,18 +231,43 @@ class FraudAnalysisSystemV2:
         logger.info("-" * 40)
 
         output_path.mkdir(parents=True, exist_ok=True)
-
-        # HTML
-        html_path = output_path / f"INF-{case_id}.html"
+        
+        # Generar nombres de archivo con nomenclatura dinámica
+        def sanitize_filename(name: str) -> str:
+            if not name: 
+                return "SIN_NOMBRE"
+            return re.sub(r'[^a-zA-Z0-9_.-]+', '_', name).strip('_')
+        
+        s_insured = sanitize_filename(insured_name_from_data)
+        s_claim = sanitize_filename(claim_number_from_data)
+        
+        # HTML - con nomenclatura dinámica y reemplazo
+        html_filename = f"{s_insured}_{s_claim}_INFORME.html"
+        html_path = output_path / html_filename
+        
+        # Eliminar archivo existente si existe
+        if html_path.exists():
+            logger.info(f"  ⚠️ Reemplazando archivo existente: {html_filename}")
+            html_path.unlink()
+        
         html_content = self.report_generator.generate_report(
             consolidated_data=consolidated,
             ai_analysis=ai_analysis,
             output_path=html_path,
+            insured_name=insured_name_from_data,
+            claim_number=claim_number_from_data
         )
         logger.info(f"✓ HTML generado: {html_path}")
 
-        # PDF
-        pdf_path = output_path / f"INF-{case_id}.pdf"
+        # PDF - con nomenclatura dinámica y reemplazo
+        pdf_filename = f"{s_insured}_{s_claim}_INFORME.pdf"
+        pdf_path = output_path / pdf_filename
+        
+        # Eliminar archivo existente si existe
+        if pdf_path.exists():
+            logger.info(f"  ⚠️ Reemplazando archivo existente: {pdf_filename}")
+            pdf_path.unlink()
+            
         if self.report_generator.generate_pdf(html_content, pdf_path):
             logger.info(f"✓ PDF generado: {pdf_path}")
 
@@ -264,17 +289,8 @@ class FraudAnalysisSystemV2:
             if consolidated.confidence_scores else 0
         )
 
-        # --- RENOMBRAR ARCHIVO CONSOLIDADO ---
-        # Usamos la función de sanitización
-        def sanitize_filename(name: str) -> str:
-            if not name: 
-                return "SIN_NOMBRE"
-            return re.sub(r'[^a-zA-Z0-9_.-]+', '_', name).strip('_')
-
-        s_insured = sanitize_filename(insured_name_from_data)
-        s_claim = sanitize_filename(claim_number_from_data)
-        
-        consolidated_filename = f"{s_insured} - {s_claim} - ARCHIVO CONSOLIDADO.json"
+        # --- GUARDAR ARCHIVO CONSOLIDADO CON NOMENCLATURA DINÁMICA ---
+        consolidated_filename = f"{s_insured}_{s_claim}_CONSOLIDADO.json"
         
         # GUARDAR el archivo consolidado en data/temp/pipeline_cache (usando ruta absoluta)
         pipeline_cache_dir = project_root / "data" / "temp" / "pipeline_cache"
@@ -282,6 +298,12 @@ class FraudAnalysisSystemV2:
         logger.info(f"✓ Directorio pipeline_cache creado/verificado: {pipeline_cache_dir}")
         
         consolidated_json_path = pipeline_cache_dir / consolidated_filename
+        
+        # Eliminar archivo existente si existe
+        if consolidated_json_path.exists():
+            logger.info(f"  ⚠️ Reemplazando archivo consolidado existente: {consolidated_filename}")
+            consolidated_json_path.unlink()
+        
         logger.info(f"✓ Guardando archivo consolidado como: {consolidated_filename}")
 
         try:
@@ -319,7 +341,14 @@ class FraudAnalysisSystemV2:
         }
 
         # Guardamos el reporte completo de resultados (que incluye métricas, etc.) con nombre mejorado
-        json_path = output_path / f"resultados_{s_insured}_{s_claim}.json"
+        results_filename = f"{s_insured}_{s_claim}_RESULTADOS.json"
+        json_path = output_path / results_filename
+        
+        # Eliminar archivo existente si existe
+        if json_path.exists():
+            logger.info(f"  ⚠️ Reemplazando archivo de resultados existente: {results_filename}")
+            json_path.unlink()
+            
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(results, f, ensure_ascii=False, indent=2, default=str)
         logger.info(f"✓ JSON de resultados guardado: {json_path}")

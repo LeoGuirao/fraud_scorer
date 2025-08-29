@@ -547,13 +547,19 @@
                 // Formatear fecha de procesamiento
                 const processedDate = formatDate(caseItem.processed_at || caseItem.created_at);
                 
+                // Usar case_title si está disponible, sino title, sino case_id
+                const displayTitle = caseItem.case_title || caseItem.title || caseItem.case_id;
+                
+                // Usar total_documents si está disponible, sino document_count
+                const docCount = caseItem.total_documents || caseItem.document_count || 0;
+                
                 row.innerHTML = `
                     <td>${startIndex + index + 1}</td>
                     <td class="case-id">${caseItem.case_id}</td>
-                    <td class="case-title" title="${caseItem.title || caseItem.case_id}">
-                        ${caseItem.title || caseItem.case_id}
+                    <td class="case-title" title="${displayTitle}">
+                        ${displayTitle}
                     </td>
-                    <td class="doc-count">${caseItem.document_count || 0}</td>
+                    <td class="doc-count">${docCount}</td>
                     <td class="processed-date">${processedDate}</td>
                     <td class="actions-cell">
                         <button class="replay-btn" onclick="event.stopPropagation(); startReplay('${caseItem.case_id}')">

@@ -89,7 +89,9 @@ class AIReportGenerator:
         self,
         consolidated_data: ConsolidatedExtraction,
         ai_analysis: Optional[Dict[str, Any]] = None,
-        output_path: Optional[Path] = None
+        output_path: Optional[Path] = None,
+        insured_name: Optional[str] = None,
+        claim_number: Optional[str] = None
     ) -> str:
         """
         Genera el reporte HTML final
@@ -98,18 +100,29 @@ class AIReportGenerator:
             consolidated_data: Datos consolidados del caso
             ai_analysis: Análisis adicional de IA (fraud score, etc.)
             output_path: Ruta donde guardar el HTML
+            insured_name: Nombre del asegurado para nomenclatura (opcional)
+            claim_number: Número de siniestro para nomenclatura (opcional)
             
         Returns:
             HTML generado como string
         """
         # case_id robusto incluso si consolidated_data es Pydantic v1/v2
-        try:
-            logger.info(f"Generando reporte para caso {getattr(consolidated_data, 'case_id', 'SIN_CASE_ID')}")
-        except Exception:
-            logger.info("Generando reporte para caso (case_id no disponible)")
+        case_id = getattr(consolidated_data, 'case_id', 'SIN_CASE_ID')
+        
+        # Log con información adicional si está disponible
+        if insured_name and claim_number:
+            logger.info(f"Generando reporte para: {insured_name} - {claim_number} (Case ID: {case_id})")
+        else:
+            logger.info(f"Generando reporte para caso {case_id}")
 
         # Preparar datos para la plantilla
         template_data = self._prepare_template_data(consolidated_data, ai_analysis)
+        
+        # Añadir nombre del asegurado y número de siniestro si están disponibles
+        if insured_name:
+            template_data['insured_name_display'] = insured_name
+        if claim_number:
+            template_data['claim_number_display'] = claim_number
         
         # Renderizar usando el nuevo método
         try:

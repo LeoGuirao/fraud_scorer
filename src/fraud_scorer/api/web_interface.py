@@ -438,9 +438,17 @@ async def upload_files(
 async def process_documents_background(process_id: str, files: List[Path]):
     """Procesa documentos en background usando el sistema completo de run_report.py"""
     try:
+        # Verificar si el proceso fue cancelado antes de empezar
+        if processing_status.get(process_id, {}).get("status") == "cancelled":
+            logger.info(f"Proceso {process_id} cancelado antes de iniciar")
+            return
+            
         # Actualizar estado
-        processing_status[process_id]["message"] = "Iniciando procesamiento..."
-        processing_status[process_id]["progress"] = 10
+        total_files = len(files)
+        processing_status[process_id]["message"] = f"Iniciando procesamiento de {total_files} documentos..."
+        processing_status[process_id]["progress"] = 5
+        processing_status[process_id]["total_documents"] = total_files
+        processing_status[process_id]["current_document"] = 0
         
         # Usar el sistema completo de FraudAnalysisSystemV2 de run_report.py
         # Agregar la ruta de scripts al path
@@ -454,8 +462,20 @@ async def process_documents_background(process_id: str, files: List[Path]):
         # No necesitamos copiarlos, solo usar la ruta del directorio padre
         temp_case_dir = files[0].parent if files else TEMP_DIR / process_id
         
-        processing_status[process_id]["message"] = "Procesando documentos con IA..."
-        processing_status[process_id]["progress"] = 30
+        # Simular procesamiento granular de cada documento
+        for idx, file in enumerate(files, 1):
+            # Verificar cancelación antes de cada documento
+            if processing_status.get(process_id, {}).get("status") == "cancelled":
+                logger.info(f"Proceso {process_id} cancelado durante procesamiento")
+                return
+                
+            processing_status[process_id]["current_document"] = idx
+            processing_status[process_id]["message"] = f"Procesando documento {idx}/{total_files}: {file.name}"
+            processing_status[process_id]["progress"] = 10 + (20 * idx // total_files)
+            await asyncio.sleep(0.1)  # Pequeña pausa para permitir actualizaciones
+        
+        processing_status[process_id]["message"] = "Extrayendo campos con IA..."
+        processing_status[process_id]["progress"] = 35
         
         # Inicializar el sistema v2
         system = FraudAnalysisSystemV2()
@@ -463,8 +483,13 @@ async def process_documents_background(process_id: str, files: List[Path]):
         # Procesar el caso usando el sistema completo
         case_title = f"Caso_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        processing_status[process_id]["message"] = "Analizando con IA..."
-        processing_status[process_id]["progress"] = 60
+        # Verificar cancelación antes del análisis principal
+        if processing_status.get(process_id, {}).get("status") == "cancelled":
+            logger.info(f"Proceso {process_id} cancelado antes del análisis")
+            return
+            
+        processing_status[process_id]["message"] = "Consolidando datos con IA..."
+        processing_status[process_id]["progress"] = 50
         
         # Ejecutar el procesamiento completo
         result = await system.process_case(
@@ -473,7 +498,11 @@ async def process_documents_background(process_id: str, files: List[Path]):
             case_title=case_title
         )
         
-        processing_status[process_id]["message"] = "Finalizando..."
+        processing_status[process_id]["message"] = "Analizando riesgo de fraude..."
+        processing_status[process_id]["progress"] = 75
+        await asyncio.sleep(0.5)  # Simular tiempo de análisis
+        
+        processing_status[process_id]["message"] = "Generando reporte final..."
         processing_status[process_id]["progress"] = 90
         
         # Extraer información del resultado
@@ -496,12 +525,14 @@ async def process_documents_background(process_id: str, files: List[Path]):
         logger.info(f"Procesamiento completo exitoso para caso {case_id}")
             
     except Exception as e:
-        logger.error(f"Error en proceso {process_id}: {e}", exc_info=True)
-        processing_status[process_id] = {
-            "status": "error",
-            "message": f"Error procesando documentos: {str(e)}",
-            "progress": 0
-        }
+        # No sobrescribir si fue cancelado
+        if processing_status.get(process_id, {}).get("status") != "cancelled":
+            logger.error(f"Error en proceso {process_id}: {e}", exc_info=True)
+            processing_status[process_id] = {
+                "status": "error",
+                "message": f"Error procesando documentos: {str(e)}",
+                "progress": 0
+            }
     finally:
         # Limpiar archivos temporales
         try:
@@ -516,6 +547,37 @@ async def get_status(process_id: str):
         raise HTTPException(status_code=404, detail="Proceso no encontrado")
     
     return processing_status[process_id]
+
+@app.post("/cancel/{process_id}")
+async def cancel_process(process_id: str):
+    """Cancela un proceso en ejecución"""
+    if process_id not in processing_status:
+        raise HTTPException(status_code=404, detail="Proceso no encontrado")
+    
+    current_status = processing_status[process_id].get("status")
+    
+    # Solo se puede cancelar si está en progreso
+    if current_status == "processing":
+        processing_status[process_id]["status"] = "cancelled"
+        processing_status[process_id]["message"] = "Proceso cancelado por el usuario"
+        processing_status[process_id]["cancelled_at"] = datetime.now().isoformat()
+        
+        logger.info(f"Proceso {process_id} marcado para cancelación")
+        
+        return {
+            "success": True,
+            "message": "Proceso cancelado exitosamente"
+        }
+    elif current_status == "cancelled":
+        return {
+            "success": False,
+            "message": "El proceso ya fue cancelado"
+        }
+    else:
+        return {
+            "success": False,
+            "message": f"No se puede cancelar un proceso con estado: {current_status}"
+        }
 
 @app.get("/feedback/{case_id}", response_class=HTMLResponse)
 async def get_feedback_page(case_id: str, request: Request):
@@ -578,10 +640,22 @@ async def process_feedback(case_id: str, feedback_data: dict):
             output_path=html_path
         )
         
-        # Guardar feedback para mejorar el sistema
-        feedback_path = TEMP_DIR / f"feedback_{case_id}.json"
-        with open(feedback_path, "w", encoding="utf-8") as f:
+        # Guardar y archivar feedback para mejorar el sistema
+        # Primero guardar temporalmente
+        temp_feedback_path = TEMP_DIR / f"feedback_{case_id}.json"
+        with open(temp_feedback_path, "w", encoding="utf-8") as f:
             json.dump(feedback_data, f, ensure_ascii=False, indent=2)
+        
+        # Crear directorio de archivo si no existe
+        feedback_archive_dir = project_root / "data" / "feedback_archive"
+        feedback_archive_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Mover a archivo con timestamp para evitar sobrescritura
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        archive_path = feedback_archive_dir / f"feedback_{case_id}_{timestamp}.json"
+        shutil.move(str(temp_feedback_path), str(archive_path))
+        
+        logger.info(f"Feedback archivado en: {archive_path}")
         
         logger.info(f"Feedback procesado y reporte regenerado para caso {case_id}")
         

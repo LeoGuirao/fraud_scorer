@@ -162,6 +162,7 @@ class OCRCacheManager:
     def reorganize_cache_for_case(self, case_id: str, insured_name: str, claim_number: str):
         """
         Reorganiza los archivos de caché de un caso en una nueva estructura de carpetas.
+        Limpia las carpetas de hash vacías después de mover los archivos.
         """
         logger.info(f"Reorganizando caché para el caso {case_id}...")
         case_index_path = self.index_dir / f"{case_id}.json"
@@ -186,7 +187,10 @@ class OCRCacheManager:
         # Creamos el directorio principal del caso si no existe
         new_case_path.mkdir(parents=True, exist_ok=True)
 
-        # 2. Mover cada archivo de caché a su nueva ubicación
+        # 2. Mantener registro de carpetas de hash para limpiar
+        hash_folders_to_clean = set()
+        
+        # 3. Mover cada archivo de caché a su nueva ubicación
         if "cache_files" in case_data:
             for original_doc_path_str in case_data["cache_files"]:
                 original_doc_path = Path(original_doc_path_str)
@@ -194,6 +198,10 @@ class OCRCacheManager:
 
                 if cache_path.exists():
                     try:
+                        # Guardar la carpeta de hash para limpiar después
+                        hash_folder = cache_path.parent
+                        hash_folders_to_clean.add(hash_folder)
+                        
                         # Crear subcarpeta para el documento específico
                         doc_folder_name = self._sanitize_filename(original_doc_path.stem)
                         doc_specific_path = new_case_path / doc_folder_name
@@ -203,16 +211,34 @@ class OCRCacheManager:
                         new_cache_filename = f"ocr_results_for_{self._sanitize_filename(original_doc_path.name)}.json"
                         destination_path = doc_specific_path / new_cache_filename
                         
+                        # Verificar que no exista el destino antes de mover
+                        if destination_path.exists():
+                            logger.warning(f"El archivo destino ya existe: {destination_path}. Sobrescribiendo...")
+                            destination_path.unlink()
+                        
                         logger.info(f"Moviendo {cache_path} -> {destination_path}")
                         shutil.move(str(cache_path), str(destination_path))
+                        
                     except Exception as e:
                         logger.error(f"No se pudo mover el archivo de caché {cache_path}: {e}")
+        
+        # 4. Limpiar carpetas de hash vacías
+        for hash_folder in hash_folders_to_clean:
+            try:
+                if hash_folder.exists() and hash_folder.is_dir():
+                    # Verificar si la carpeta está vacía
+                    if not any(hash_folder.iterdir()):
+                        hash_folder.rmdir()
+                        logger.debug(f"Carpeta de hash vacía eliminada: {hash_folder}")
+            except Exception as e:
+                logger.warning(f"No se pudo eliminar la carpeta de hash {hash_folder}: {e}")
         
         logger.info(f"Reorganización del caché completada para el caso {case_id} en: {new_case_path}")
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """
         Obtiene estadísticas del cache para mostrar en la UI.
+        Cuenta correctamente las carpetas de casos con nombre y excluye carpetas de hash.
         """
         stats = {
             'total_cases': 0,
@@ -222,23 +248,44 @@ class OCRCacheManager:
         }
         
         try:
-            # Contar archivos de índice de casos
+            # Contar casos de múltiples fuentes
+            case_count_index = 0
+            case_count_folders = 0
+            
+            # 1. Contar archivos de índice de casos
             if self.index_dir.exists():
                 index_files = list(self.index_dir.glob("*.json"))
-                stats['total_cases'] = len(index_files)
+                case_count_index = len(index_files)
             
-            # Contar archivos de cache y calcular tamaño
+            # 2. Contar carpetas de casos con nombre (formato: "Nombre - Número")
+            # Excluir carpetas de hash (solo 2 caracteres) y case_index
+            if self.cache_dir.exists():
+                for folder in self.cache_dir.iterdir():
+                    if folder.is_dir():
+                        folder_name = folder.name
+                        # Excluir carpetas de hash (2 caracteres hex) y case_index
+                        if (len(folder_name) > 2 and 
+                            folder_name != 'case_index' and 
+                            '-' in folder_name):  # Carpetas con formato "Nombre - Número"
+                            case_count_folders += 1
+            
+            # Usar el máximo entre los dos conteos
+            stats['total_cases'] = max(case_count_index, case_count_folders)
+            
+            # 3. Contar archivos de cache y calcular tamaño
             total_size = 0
             total_files = 0
             
             if self.cache_dir.exists():
                 for cache_file in self.cache_dir.rglob("*.json"):
                     if cache_file.is_file():
-                        total_files += 1
-                        try:
-                            total_size += cache_file.stat().st_size
-                        except OSError:
-                            pass  # Ignorar archivos que no se pueden leer
+                        # Excluir archivos en case_index
+                        if 'case_index' not in str(cache_file.parent):
+                            total_files += 1
+                            try:
+                                total_size += cache_file.stat().st_size
+                            except OSError:
+                                pass  # Ignorar archivos que no se pueden leer
             
             stats['total_cached_files'] = total_files
             stats['cache_size_mb'] = round(total_size / (1024 * 1024), 2)
@@ -266,12 +313,45 @@ class OCRCacheManager:
                     with open(index_file, 'r', encoding='utf-8') as f:
                         case_data = json.load(f)
                     
+                    # Construir título dinámicamente a partir de insured_name y claim_number
+                    insured_name = case_data.get('insured_name', '')
+                    claim_number = case_data.get('claim_number', '')
+                    
+                    if insured_name and claim_number:
+                        case_title = f"{insured_name} - {claim_number}"
+                    elif insured_name:
+                        case_title = insured_name
+                    elif claim_number:
+                        case_title = f"Reclamo {claim_number}"
+                    else:
+                        # Fallback al título existente o al case_id
+                        case_title = case_data.get('case_title', case_id)
+                    
+                    # Contar documentos correctamente
+                    total_documents = case_data.get('total_documents', 0)
+                    if total_documents == 0 and 'documents' in case_data:
+                        # Si no hay total_documents pero hay lista de documentos, contar
+                        total_documents = len(case_data.get('documents', []))
+                    
+                    # Obtener fecha de procesamiento o usar fecha de modificación del archivo
+                    processed_at = case_data.get('processed_at', '')
+                    if not processed_at:
+                        try:
+                            # Usar fecha de modificación del archivo como fallback
+                            file_stat = index_file.stat()
+                            from datetime import datetime
+                            processed_at = datetime.fromtimestamp(file_stat.st_mtime).isoformat()
+                        except:
+                            processed_at = ''
+                    
                     case_info = {
                         'case_id': case_id,
-                        'case_title': case_data.get('case_title', case_id),
-                        'total_documents': case_data.get('total_documents', 0),
-                        'processed_at': case_data.get('processed_at', ''),
-                        'folder_path': case_data.get('folder_path', '')
+                        'case_title': case_title,
+                        'total_documents': total_documents,
+                        'processed_at': processed_at,
+                        'folder_path': case_data.get('folder_path', ''),
+                        'insured_name': insured_name,
+                        'claim_number': claim_number
                     }
                     cases.append(case_info)
                     

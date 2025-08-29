@@ -347,6 +347,13 @@
                 <div class="progress-fill" id="progressFill"></div>
             </div>
             <div class="status-message" id="statusMessage">Iniciando análisis...</div>
+            <div style="margin-top: 15px; padding: 10px; background: #f0f8ff; border-radius: 5px; font-size: 14px; color: #555;">
+                <div id="detailedStatus" style="margin-bottom: 5px;"></div>
+                <div id="documentProgress" style="font-weight: bold;"></div>
+            </div>
+            <button class="btn btn-secondary" id="cancelBtn" onclick="cancelProcess()" style="margin-top: 20px; background: #dc3545; border-color: #dc3545;">
+                ❌ Cancelar Proceso
+            </button>
         </div>
 
         <!-- Sección de resultados -->
@@ -502,9 +509,15 @@
             }
         }
         
+        let currentProcessId = null;
+        
         async function monitorProgress(processId) {
+            currentProcessId = processId;
             const progressFill = document.getElementById('progressFill');
             const statusMessage = document.getElementById('statusMessage');
+            const detailedStatus = document.getElementById('detailedStatus');
+            const documentProgress = document.getElementById('documentProgress');
+            const cancelBtn = document.getElementById('cancelBtn');
             
             const checkStatus = async () => {
                 try {
@@ -515,11 +528,34 @@
                     progressFill.style.width = `${status.progress || 0}%`;
                     statusMessage.textContent = status.message || 'Procesando...';
                     
+                    // Actualizar estado detallado
+                    if (status.current_document && status.total_documents) {
+                        documentProgress.textContent = `Documento ${status.current_document} de ${status.total_documents}`;
+                    }
+                    
+                    // Mostrar detalles adicionales según el progreso
+                    if (status.progress < 30) {
+                        detailedStatus.textContent = '🔍 Extrayendo texto con OCR...';
+                    } else if (status.progress < 50) {
+                        detailedStatus.textContent = '🤖 Analizando con Inteligencia Artificial...';
+                    } else if (status.progress < 75) {
+                        detailedStatus.textContent = '🧠 Consolidando información...';
+                    } else if (status.progress < 90) {
+                        detailedStatus.textContent = '📈 Evaluando riesgo de fraude...';
+                    } else {
+                        detailedStatus.textContent = '📝 Generando reporte final...';
+                    }
+                    
                     if (status.status === 'completed') {
                         // Mostrar resultados
+                        cancelBtn.disabled = true;
                         showResults(status);
                     } else if (status.status === 'error') {
+                        cancelBtn.disabled = true;
                         throw new Error(status.message);
+                    } else if (status.status === 'cancelled') {
+                        alert('Proceso cancelado exitosamente');
+                        resetForm();
                     } else {
                         // Continuar monitoreando
                         setTimeout(checkStatus, 1000);
@@ -532,6 +568,26 @@
             };
             
             checkStatus();
+        }
+        
+        async function cancelProcess() {
+            if (!currentProcessId) return;
+            
+            if (confirm('¿Está seguro de que desea cancelar el proceso?')) {
+                try {
+                    const response = await fetch(`/cancel/${currentProcessId}`, {
+                        method: 'POST'
+                    });
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        alert('No se pudo cancelar el proceso: ' + result.message);
+                    }
+                } catch (error) {
+                    console.error('Error cancelando proceso:', error);
+                    alert('Error al cancelar el proceso');
+                }
+            }
         }
         
         function showResults(status) {

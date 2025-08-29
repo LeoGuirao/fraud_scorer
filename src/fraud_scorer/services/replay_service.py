@@ -83,7 +83,28 @@ class ReplayService:
     async def process_replay(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
         Función principal que ejecuta el pipeline de replay.
-        Aquí adaptas la lógica de replay_case.py.
+        Delega a _core_replay_processing para la lógica centralizada.
+        """
+        return await self._core_replay_processing(config)
+    
+    async def _core_replay_processing(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Lógica centralizada del sistema de replay.
+        Esta función es usada tanto por la interfaz web como por la terminal.
+        
+        Args:
+            config: Diccionario con las opciones del replay incluyendo:
+                - case_id: ID del caso a procesar
+                - use_ai: Boolean para usar AI o sistema legacy
+                - output_dir: Directorio de salida para reportes
+                - regenerate_report: Boolean para generar reportes
+                - api_key: API key de OpenAI (opcional)
+                - model: Modelo de AI a usar
+                - temperature: Temperatura del modelo
+                - per_doc: Boolean para análisis por documento
+        
+        Returns:
+            Dict con los resultados del procesamiento
         """
         case_id = config["case_id"]
         logger.info(f"Iniciando replay para el caso: {case_id} con config: {config}")
@@ -124,6 +145,30 @@ class ReplayService:
                 options=config
             )
 
+    def _clean_existing_files(self, case_id: str, output_path: Path) -> None:
+        """
+        Elimina archivos existentes para un case_id antes de generar nuevos.
+        
+        Args:
+            case_id: ID del caso
+            output_path: Directorio donde buscar archivos existentes
+        """
+        patterns_to_clean = [
+            f"INF-{case_id}.html",
+            f"INF-{case_id}.pdf",
+            f"replay_{case_id}_*.json",
+            f"{case_id}_*.html",
+            f"{case_id}_*.pdf"
+        ]
+        
+        for pattern in patterns_to_clean:
+            for file in output_path.glob(pattern):
+                try:
+                    file.unlink()
+                    logger.info(f"Archivo existente eliminado: {file.name}")
+                except Exception as e:
+                    logger.warning(f"No se pudo eliminar {file.name}: {e}")
+    
     async def _process_with_ai(
         self,
         ocr_results: List[Dict],
@@ -137,16 +182,22 @@ class ReplayService:
         output_path = Path(options.get('output_dir', 'data/reports'))
         output_path.mkdir(parents=True, exist_ok=True)
         logger.info(f"Directorio de salida: {output_path.absolute()}")
+        
+        # Limpiar archivos existentes antes de generar nuevos
+        self._clean_existing_files(case_id, output_path)
 
-        # 1) Resolver API key
+        # 1) Resolver API key (UI/CLI > entorno)
         api_key = (options.get("api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
         if not api_key:
             raise RuntimeError(
                 "No se encontró OPENAI_API_KEY. Cárgala desde .env o introdúcela en la UI/CLI."
             )
+        # Exportar al entorno por si algún componente la lee de os.getenv
+        if os.getenv("OPENAI_API_KEY") != api_key:
+            os.environ["OPENAI_API_KEY"] = api_key
 
-        # 2) Resolver config de IA
-        model = options.get("model") or "gpt-4o-mini"
+        # 2) Resolver config de IA (modelo/temperatura)
+        model = options.get("model") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
         try:
             temperature = float(options.get("temperature", 0.1))
         except Exception:

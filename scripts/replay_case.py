@@ -29,19 +29,18 @@ logger = logging.getLogger("fraud_scorer.replay")
 # Imports del sistema
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.ui.replay_ui import ReplayUI  # ← ruta actualizada a replay/
-from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
-from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
-from fraud_scorer.templates.ai_report_generator import AIReportGenerator
-from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
+from fraud_scorer.services.replay_service import ReplayService
 
 
 class ReplaySystem:
     """
-    Sistema de replay con cache OCR
+    Sistema de replay con cache OCR.
+    Ahora delega la lógica de procesamiento a ReplayService para mantener consistencia.
     """
 
     def __init__(self):
         self.cache_manager = OCRCacheManager()
+        self.replay_service = ReplayService()  # Usar el servicio centralizado
         self.ui = None  # Se inicializa después
 
     async def replay_case(
@@ -50,174 +49,19 @@ class ReplaySystem:
         options: Dict[str, Any]
     ) -> Dict[str, Any]:
         """
-        Ejecuta el replay de un caso con las opciones especificadas
+        Ejecuta el replay de un caso con las opciones especificadas.
+        Delega al servicio centralizado para mantener consistencia.
         """
-        logger.info(f"Iniciando replay del caso {case_id}")
-
-        # Obtener información del caso
-        case_index = self.cache_manager.get_case_index(case_id)
-        if not case_index:
-            raise RuntimeError(f"No se encontró información del caso {case_id}")
-
-        # Cargar resultados OCR del cache
-        ocr_results = []
-        for doc_path in case_index['documents']:
-            doc_path = Path(doc_path)
-            if self.cache_manager.has_cache(doc_path):
-                ocr_result = self.cache_manager.get_cache(doc_path)
-                ocr_results.append({
-                    'filename': doc_path.name,
-                    'ocr_result': ocr_result,
-                    'document_type': None
-                })
-            else:
-                logger.warning(f"No hay cache para {doc_path.name}")
-
-        if not ocr_results:
-            raise RuntimeError("No se encontraron resultados OCR en cache")
-
-        # Procesar según las opciones
-        if options.get('use_ai'):
-            return await self._process_with_ai(
-                ocr_results=ocr_results,
-                case_id=case_id,
-                options=options
-            )
-        else:
-            return await self._process_legacy(
-                ocr_results=ocr_results,
-                case_id=case_id,
-                options=options
-            )
-
-    async def _process_with_ai(
-        self,
-        ocr_results: List[Dict],
-        case_id: str,
-        options: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Procesa con el sistema de IA usando los datos cacheados
-        """
-        # Asegurar que el directorio de salida existe
-        output_path = Path(options.get('output_dir', 'data/reports'))
-        output_path.mkdir(parents=True, exist_ok=True)
-        logger.info(f"Directorio de salida: {output_path.absolute()}")
-
-        # 1) Resolver API key (UI > entorno)
-        api_key = (options.get("api_key") or os.getenv("OPENAI_API_KEY") or "").strip()
-        if not api_key:
-            raise RuntimeError(
-                "No se encontró OPENAI_API_KEY. Cárgala desde .env o introdúcela en la UI/CLI."
-            )
-        # Exportar al entorno por si algún componente la lee de os.getenv
-        if os.getenv("OPENAI_API_KEY") != api_key:
-            os.environ["OPENAI_API_KEY"] = api_key
-
-        # 2) Resolver config de IA (modelo/temperatura) si vienen de la UI
-        model = options.get("model") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-        try:
-            temperature = float(options.get("temperature", 0.1))
-        except Exception:
-            temperature = 0.1
-
-        # 3) Inicializar componentes de IA con la misma API key
-        extractor = AIFieldExtractor(api_key=api_key)
-        consolidator = AIConsolidator(api_key=api_key)
-        report_generator = AIReportGenerator()
-        analyzer = AIDocumentAnalyzer(api_key=api_key, model=model, temperature=temperature)
-
-        # Fase 1: Extracción (usando cache OCR)
-        logger.info("Extrayendo campos con IA...")
-        extractions = await extractor.extract_from_documents_batch(
-            documents=ocr_results,
-            parallel_limit=3
-        )
-
-        # Fase 2: Consolidación
-        logger.info("Consolidando datos...")
-        consolidated = await consolidator.consolidate_extractions(
-            extractions=extractions,
-            case_id=case_id,
-            use_advanced_reasoning=True
-        )
-
-        # Fase 3: Análisis de fraude
-        logger.info("Analizando fraude...")
-        docs_for_analysis = []
-        for extraction in extractions:
-            docs_for_analysis.append({
-                "document_type": getattr(extraction, "document_type", None),
-                "key_value_pairs": getattr(extraction, "extracted_fields", {}) or {},
-                "specific_fields": getattr(extraction, "extracted_fields", {}) or {},
-                "raw_text": "",
-                "entities": []
-            })
-
-        ai_analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
-
-        # Fase 4: Generar reporte si se solicita
-        if options.get('regenerate_report', True):
-            logger.info("Generando reporte...")
-            html_path = output_path / f"INF-{case_id}.html"
-            html_content = report_generator.generate_report(
-                consolidated_data=consolidated,
-                ai_analysis=ai_analysis,
-                output_path=html_path
-            )
-
-            # Intentar generar PDF
-            pdf_path = output_path / f"INF-{case_id}.pdf"
-            report_generator.generate_pdf(html_content, pdf_path)
-
-        # Preparar resultados
-        # Compatibilidad: Pydantic v2 usa .model_dump(); si es un dict simple, usar tal cual
-        try:
-            consolidated_dict = consolidated.model_dump()  # type: ignore[attr-defined]
-        except Exception:
-            try:
-                consolidated_dict = consolidated.dict()  # pydantic v1
-            except Exception:
-                consolidated_dict = consolidated  # fallback
-
-        try:
-            extractions_list = [e.model_dump() for e in extractions]  # type: ignore[attr-defined]
-        except Exception:
-            try:
-                extractions_list = [e.dict() for e in extractions]
-            except Exception:
-                extractions_list = extractions  # fallback
-
-        results = {
-            "case_id": case_id,
-            "replay_date": datetime.now().isoformat(),
-            "options_used": {**options, "api_key": "***redacted***"},
-            "extraction_results": extractions_list,
-            "consolidated_data": consolidated_dict,
-            "fraud_analysis": ai_analysis,
-            "output_path": str(output_path)
+        logger.info(f"Iniciando replay del caso {case_id} desde terminal")
+        
+        # Preparar configuración para el servicio
+        config = {
+            'case_id': case_id,
+            **options  # Incluir todas las opciones proporcionadas
         }
-
-        # Guardar JSON de resultados
-        json_path = output_path / f"replay_{case_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
-        with open(json_path, 'w', encoding='utf-8') as f:
-            json.dump(results, f, ensure_ascii=False, indent=2, default=str)
-
-        logger.info(f"Replay completado. Resultados en: {output_path}")
-        return results
-
-    async def _process_legacy(
-        self,
-        ocr_results: List[Dict],
-        case_id: str,
-        options: Dict[str, Any]
-    ) -> Dict[str, Any]:
-        """
-        Procesa con el sistema legacy
-        """
-        # Implementar procesamiento legacy si es necesario
-        logger.info("Procesamiento legacy no implementado aún")
-        return {"status": "legacy_not_implemented"}
+        
+        # Usar la función centralizada del servicio
+        return await self.replay_service._core_replay_processing(config)
 
     async def run_interactive(self):
         """
