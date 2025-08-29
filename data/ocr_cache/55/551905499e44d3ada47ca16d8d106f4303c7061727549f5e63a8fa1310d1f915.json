@@ -1,0 +1,31 @@
+{
+  "text": "TRANSPORTES MEDINA\nm\nTel. 443 727 88 01 Correo electrónico: cossmedinahectorhugo@gmail.com\nFrancisco I. Madero 146, Lazaro Cardenas, C.P. 60950 05 de Mayo 2025\nHDI Seguros, S.A. de C.V. At'n: Área de Siniestros\nPresente\nPor medio de la presente, hago constar que en el embarque correspondiente al siniestro reportado bajo la póliza No. 141- 2346 inciso 1, con fecha de 26 de F, la unidad que transportaba la mercancía fue asegurada mediante un candado foleado numerado 000121, como medida preventiva de seguridad.\nDicho candado fue colocado al inicio de la ruta en la caja metálica donde se encontraba la mercancía, asegurando que no se pudiera abrir sin romper dicho elemento. Esta acción fue adoptada con el objetivo de garantizar el resguardo de la carga durante el trayecto.\nA continuación, se anexa fotografía del candado utilizado, así como el número de folio correspondiente:\nFolio del candado: 000121\nFotografía anexa del candado colocado\nSEALED\n000121\nHH 05 GO HH\nSin otro particular, agradezco de antemano su atención y quedo a disposición para cualquier aclaración adicional.\nAtentamente,\nTRANSPORTES MEDINA",
+  "tables": [],
+  "key_value_pairs": {
+    "tel.": "443 727 88 01",
+    "correo_electrónico": "cossmedinahectorhugo@gmail.com",
+    "at'n": "Área de Siniestros",
+    "folio_del_candado": "000121",
+    "fotografía_anexa_del_candado_colocado": "HH 05 GO HH"
+  },
+  "metadata": {
+    "file_name": "2b CANDADOS DE SEGURIDAD.PDF",
+    "file_size": 279323,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

@@ -1163,14 +1163,20 @@
 
     </div>
 
-    <!-- Download Section -->
+    <!-- Action Section -->
     <div class="download-section">
-      <h3 style="margin-bottom: 20px; font-size: 20px;">¿Todo listo?</h3>
-      <p style="margin-bottom: 30px; color: var(--text-secondary);">Una vez que hayas validado todos los campos, descarga tu reporte final.</p>
-      <button class="download-btn" onclick="downloadReport()">
-        <i class="ri-download-line"></i>
-        Descargar Reporte Final
-      </button>
+      <h3 style="margin-bottom: 20px; font-size: 20px;">¿Todo correcto?</h3>
+      <p style="margin-bottom: 30px; color: var(--text-secondary);">Una vez que hayas validado todos los campos, procede a generar el reporte final.</p>
+      <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+        <button class="download-btn" onclick="generateFinalReport()">
+          <i class="ri-file-check-line"></i>
+          Generar Reporte Final
+        </button>
+        <a href="/upload" class="download-btn" style="background: linear-gradient(135deg, #6c757d 0%, #495057 100%); text-decoration: none;">
+          <i class="ri-upload-2-line"></i>
+          Analizar Nuevo Caso
+        </a>
+      </div>
     </div>
 
   </div>
@@ -1225,52 +1231,79 @@
       infoItem.classList.remove('editing');
     }
     
-    function downloadReport() {
+    let caseId = "{{ case_id|default('') }}";
+    
+    async function generateFinalReport() {
       // Collect feedback data
       const feedbackData = {
+        case_id: caseId,
         timestamp: new Date().toISOString(),
         fields: {}
       };
       
       // Collect all field feedback
       document.querySelectorAll('.info-item, .primary-info-item').forEach((item, index) => {
-        const label = item.querySelector('.info-label, .primary-info-label').textContent.trim();
-        const value = item.querySelector('.info-value, .primary-info-value').textContent.trim();
+        const labelElement = item.querySelector('.info-label, .primary-info-label');
+        const valueElement = item.querySelector('.info-value, .primary-info-value');
         const editInput = item.querySelector('.edit-input');
         
-        let status = 'none';
-        if (item.classList.contains('correct')) status = 'correct';
-        else if (item.classList.contains('incorrect')) status = 'incorrect';
-        
-        feedbackData.fields[label] = {
-          original_value: value,
-          corrected_value: editInput ? editInput.value.trim() : '',
-          status: status,
-          field_index: index
-        };
+        if (labelElement && valueElement) {
+          const label = labelElement.textContent.trim();
+          const originalValue = valueElement.textContent.trim();
+          const correctedValue = editInput ? editInput.value.trim() : '';
+          
+          let status = 'none';
+          if (item.classList.contains('correct')) status = 'correct';
+          else if (item.classList.contains('incorrect')) status = 'incorrect';
+          
+          // Determine final value
+          let finalValue = originalValue;
+          if (status === 'incorrect' && correctedValue) {
+            finalValue = correctedValue;
+          }
+          
+          feedbackData.fields[label] = {
+            original_value: originalValue,
+            corrected_value: correctedValue,
+            final_value: finalValue,
+            status: status,
+            field_index: index
+          };
+        }
       });
       
-      // Log feedback data (in production, this would be sent to your server)
-      console.log('Feedback Data:', JSON.stringify(feedbackData, null, 2));
-      
-      // Create a clean version for download by hiding feedback elements
-      const feedbackElements = document.querySelectorAll('.feedback-controls, .edit-input, .feedback-instructions, .download-section');
-      feedbackElements.forEach(el => el.style.display = 'none');
-      
-      // Change subtitle
-      document.querySelector('.subtitle').textContent = 'Reporte de Siniestro';
-      
-      // Trigger download/print
-      window.print();
-      
-      // Restore feedback elements after a delay
-      setTimeout(() => {
-        feedbackElements.forEach(el => el.style.display = '');
-        document.querySelector('.subtitle').textContent = 'Reporte de Siniestro - Validación';
-      }, 1000);
-      
-      // Show success message
-      alert('¡Reporte procesado! Los datos de validación han sido enviados para mejorar nuestro sistema.');
+      try {
+        // Show loading state
+        const button = document.querySelector('.download-btn');
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="ri-loader-4-line"></i> Generando...';
+        button.disabled = true;
+        
+        // Send feedback data to server
+        const response = await fetch(`/process-feedback/${caseId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(feedbackData)
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          // Redirect to final report
+          window.location.href = `/report/${caseId}`;
+        } else {
+          throw new Error('Error procesando el feedback');
+        }
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al procesar el feedback. Por favor, intenta nuevamente.');
+        
+        // Restore button
+        const button = document.querySelector('.download-btn');
+        button.innerHTML = originalText;
+        button.disabled = false;
+      }
     }
     
     // Handle Enter key and clicks outside edit inputs

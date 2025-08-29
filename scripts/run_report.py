@@ -276,15 +276,23 @@ class FraudAnalysisSystemV2:
         
         consolidated_filename = f"{s_insured} - {s_claim} - ARCHIVO CONSOLIDADO.json"
         
-        # GUARDAR el archivo consolidado en data/temp/pipeline_cache
-        pipeline_cache_dir = Path("data/temp/pipeline_cache")
+        # GUARDAR el archivo consolidado en data/temp/pipeline_cache (usando ruta absoluta)
+        pipeline_cache_dir = project_root / "data" / "temp" / "pipeline_cache"
         pipeline_cache_dir.mkdir(parents=True, exist_ok=True)
+        logger.info(f"✓ Directorio pipeline_cache creado/verificado: {pipeline_cache_dir}")
+        
         consolidated_json_path = pipeline_cache_dir / consolidated_filename
+        logger.info(f"✓ Guardando archivo consolidado como: {consolidated_filename}")
 
-        with open(consolidated_json_path, "w", encoding="utf-8") as f:
-            # Guardamos solo los datos consolidados aquí
-            json.dump(consolidated.model_dump(), f, ensure_ascii=False, indent=2, default=str)
-        logger.info(f"✓ JSON consolidado guardado en: {consolidated_json_path}")
+        try:
+            with open(consolidated_json_path, "w", encoding="utf-8") as f:
+                # Guardamos solo los datos consolidados aquí
+                json.dump(consolidated.model_dump(), f, ensure_ascii=False, indent=2, default=str)
+            logger.info(f"✓ JSON consolidado guardado exitosamente en: {consolidated_json_path}")
+            logger.info(f"✓ Tamaño del archivo: {consolidated_json_path.stat().st_size} bytes")
+        except Exception as e:
+            logger.error(f"❌ Error guardando archivo consolidado: {e}")
+            raise
         
         # --- LLAMAR A LA REORGANIZACIÓN DEL CACHÉ ---
         if self.cache_manager:

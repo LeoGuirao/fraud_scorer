@@ -1,0 +1,50 @@
+{
+  "text": "1\nFGJ\nESTADO DE MÉXICO\nCARÁTULA\nNIC FTR/RGT/00/MPI/625/00319/25/02\nNUC TLA/FTR/RGT/013/058310/25/02\nFECHA 26 de febrero de 2025\nDELITO ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA\nVÍCTIMA JUSTO CASTRO MARTINEZ\nIMPUTADO QUIÉN RESULTE RESPONSABLE\nLUGAR CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO\nAUTORIDAD VICTORIA JAQUELINE VEGA TORRES AGENTE DEL MINISTERIO PUBLICO ADSCRITO A ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE ATIZAPAN DE ZARAGOZA\nCALLE FGJ CC\nFGU\nESTADO DE MÉXICO\nENTREVISTA\nFECHA DE ENTREVISTA: 27 de febrero de 2025\n2\nFGJ\nNIC: FTR/RGT/00/MPI/625/00319/25/02 NUC: TLA/FTR/RGT/013/058310/25/02\nHORA DE ENTREVISTA: 00:01 hofas\nNOMBRE DE LA AUTORIDAD QUE REALIZA LA ENTREVISTA: LIC. VICTORIA JAQUELINE VEGA\nTORRES\nLUGAR DONDE SE REALIZA LA ENTREVISTA: FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN\n1. DATOS DEL ENTREVISTADO\nOLDE\nNOMBRE DEL ENTREVISTADO: JUSTO CASTRO MARTINEZ\nSEXO: HOMBRE FECHA DE NACIMIENTO: 29-04-1984 EDAD: 40\nNACIONALIDAD: Mexicana\nORIGINARIO DE: MÉXICO - Ciudad de México - Cuauhtémoc ESTADO MIGRATORIO (EN SU CASO):\nCALIDAD: Víctima IDENTIFICACIÓN: CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2092083165 CURP: CAMJ840429HDFSRS07 R.F.C: Sin valor ¿SABE LEER Y ESCRIBIR? SABE LEER Y ESCRIBIR GRADO DE ESCOLARIDAD: PRIMARIA OCUPACIÓN: EMPLEADO LUGAR DE TRABAJO O NEGÓCIOS: VARIABLE ESTADO CIVIL: CASADO(A) INGRESOS MENSUALES: 12000 RELACIÓN DEL ENTREVISTADO CON ALGUNA DE LAS PARTES:\nII. DOMICILIO PARA OÍR Y RECIBIR TODO TIPO DE NOTIFICACIONES\nDOMICILIO: LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo\nFGJ",
+  "tables": [],
+  "key_value_pairs": {
+    "nuc": "TLA/FTR/RGT/013/058310/25/02",
+    "agente_del_ministerio_publico": "VICTORIA JAQUELINE VEGA TORRES",
+    "fecha_de_entrevista": "27 de febrero de 2025",
+    "nic": "FTR/RGT/00/MPI/625/00319/25/02",
+    "de_entrevista": "00:01 hofas",
+    "nombre_de_la_autoridad_que_realiza_la_entrevista": "LIC. VICTORIA JAQUELINE VEGA TORRES",
+    "lugar_donde_se_realiza_la_entrevista": "FISCALIA ESPECIALIZADA DE DELITOS COMETIDOS CONTRA EL TRANSPORTE SEDE ATIZAPAN",
+    "nombre_del_entrevistado": "JUSTO CASTRO MARTINEZ",
+    "sexo": "HOMBRE",
+    "fecha_de_nacimiento": "29-04-1984",
+    "edad": "40",
+    "nacionalidad": "Mexicana",
+    "originario_de": "MÉXICO - Ciudad de México - Cuauhtémoc",
+    "calidad": "Víctima",
+    "identificación": "CREDENCIAL DE ELECTOR (IFE O INE) EMITIDA POR: INSTITUTO NACIONAL ELECTORAL NÚMERO IDMEX2092083165",
+    "curp": "CAMJ840429HDFSRS07",
+    "r.f.c": "Sin valor",
+    "¿sabe_leer_y_escribir?": "SABE LEER Y ESCRIBIR",
+    "grado_de_escolaridad": "PRIMARIA",
+    "ocupación": "EMPLEADO",
+    "lugar_de_trabajo_o_negócios": "VARIABLE",
+    "estado_civil": "CASADO(A)",
+    "ingresos_mensuales": "12000",
+    "domicilio": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo"
+  },
+  "metadata": {
+    "file_name": "DENUNCIA INICIAL_compressed.pdf",
+    "file_size": 1446356,
+    "model_used": "prebuilt-document",
+    "page_count": 2,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

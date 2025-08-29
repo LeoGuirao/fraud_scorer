@@ -1,0 +1,25 @@
+{
+  "text": "TRANSPORTES\nTel. 443 727 88 03\nCorreo electrónico:\nm\nMEDINA\ncossmedinahectorhugo@gmail.com\nAsunto: Respuesta a solicitud de tarjetas de circulación\nFrancisco I.Madero 146, Lazaro Cardenas, C.P.60950\n16 de Abril 2025\nA quien corresponda en SIATA DI SHMAYA S.A. de C.V.:\nEn atención a su amable solicitud respecto a las copias de las tarjetas de circulación del\ntractor y la plataforma involucrados en el servicio que les brindamos, queremos\ninformarles lo siguiente:\nLamentablemente, no nos es posible proporcionarles dichos documentos en este\nmomento, ya que fueron robados como parte del siniestro ocurrido el pasado 26 de\nfebrero de 2025.\nComo consecuencia directa de este incidente, se produjo el robo total de la\ndocumentación original correspondiente al vehículo, entre ellos las tarjetas de circulación\ntanto del tractor como de la plataforma.\nEsta situación fue reportada de manera inmediata ante las autoridades competentes y se\nlevantó la denuncia correspondiente, misma que se encuentra actualmente en proceso.\nPor esta razón, no contamos con copias ni versiones digitales de dichos documentos, ya\nque el robo fue total y no hubo oportunidad de resguardo.\nEntendemos la importancia de estos documentos y agradecemos profundamente su\ncomprensión ante esta situación fuera de nuestro control.\nQuedamos atentos a cualquier comentario adicional o a los requisitos que pudieran\nnecesitar para respaldar esta información ante su aseguradora.\nTRANSPORTES MEDINA\n-",
+  "tables": [],
+  "key_value_pairs": {},
+  "metadata": {
+    "file_name": "1h Tarjetas de circulaciOn.PDF",
+    "file_size": 60572,
+    "model_used": "prebuilt-businessCard",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

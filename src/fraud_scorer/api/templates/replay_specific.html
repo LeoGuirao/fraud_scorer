@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Replay Caso Específico - Fraud Scorer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px;
+            color: white;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header .subtitle {
+            font-size: 16px;
+            opacity: 0.9;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .back-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 20px;
+            background: #f3f4f6;
+            color: #333;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            margin-bottom: 30px;
+        }
+
+        .back-button:hover {
+            background: #e5e7eb;
+            transform: translateX(-5px);
+        }
+
+        .input-section {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 30px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #374151;
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-group input.error {
+            border-color: #ef4444;
+        }
+
+        .help-text {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 5px;
+        }
+
+        .error-message {
+            color: #ef4444;
+            font-size: 13px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            flex: 1;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f3f4f6;
+            color: #374151;
+        }
+
+        .btn-secondary:hover {
+            background: #e5e7eb;
+        }
+
+        /* Loading state */
+        .loading-spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #ffffff40;
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .btn-primary.loading .loading-spinner {
+            display: inline-block;
+        }
+
+        .btn-primary.loading .btn-text {
+            display: none;
+        }
+
+        /* Result section */
+        .result-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f0fdf4;
+            border: 1px solid #86efac;
+            border-radius: 12px;
+            display: none;
+        }
+
+        .result-section.error {
+            background: #fef2f2;
+            border-color: #fca5a5;
+        }
+
+        .result-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #16a34a;
+        }
+
+        .result-section.error .result-title {
+            color: #dc2626;
+        }
+
+        .result-content {
+            color: #374151;
+        }
+
+        .case-info {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+
+        .case-info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .case-info-row:last-child {
+            border-bottom: none;
+        }
+
+        .case-info-label {
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .case-info-value {
+            color: #111827;
+        }
+
+        .action-button {
+            display: inline-block;
+            margin-top: 15px;
+            padding: 10px 20px;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .action-button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Recent cases */
+        .recent-cases {
+            margin-top: 40px;
+            padding: 25px;
+            background: #f9fafb;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+        }
+
+        .recent-cases h3 {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #374151;
+        }
+
+        .recent-case-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            background: white;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .recent-case-item:hover {
+            background: #f3f4f6;
+            transform: translateX(5px);
+        }
+
+        .recent-case-id {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .recent-case-date {
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 Replay de Caso Específico</h1>
+            <p class="subtitle">Ingrese el ID del caso para iniciar el replay</p>
+        </div>
+        
+        <div class="content">
+            <a href="/replay/" class="back-button">
+                ← Volver al Dashboard
+            </a>
+            
+            <div class="input-section">
+                <form id="specificCaseForm">
+                    <div class="form-group">
+                        <label for="caseId">ID del Caso</label>
+                        <input 
+                            type="text" 
+                            id="caseId" 
+                            name="caseId" 
+                            placeholder="Ej: CASE-2025-0001"
+                            autocomplete="off"
+                            required
+                        >
+                        <p class="help-text">Ingrese el identificador único del caso</p>
+                        <p class="error-message" id="errorMessage">ID de caso no válido</p>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" class="btn btn-primary" id="searchBtn">
+                            <span class="btn-text">🔍 Buscar Caso</span>
+                            <span class="loading-spinner"></span>
+                        </button>
+                        <button type="button" class="btn btn-secondary" onclick="clearForm()">
+                            Limpiar
+                        </button>
+                    </div>
+                </form>
+            </div>
+            
+            <div class="result-section" id="resultSection">
+                <h3 class="result-title" id="resultTitle">Caso encontrado</h3>
+                <div class="result-content" id="resultContent">
+                    <!-- Content will be injected here -->
+                </div>
+            </div>
+            
+            <div class="recent-cases" id="recentCases">
+                <h3>Casos Recientes</h3>
+                <div id="recentCasesList">
+                    <p style="color: #6b7280; text-align: center; padding: 20px;">
+                        Cargando casos recientes...
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let isSearching = false;
+        
+        // Load recent cases on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadRecentCases();
+            
+            // Focus on input
+            document.getElementById('caseId').focus();
+        });
+        
+        // Form submission
+        document.getElementById('specificCaseForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (isSearching) return;
+            
+            const caseId = document.getElementById('caseId').value.trim();
+            
+            if (!caseId) {
+                showError('Por favor ingrese un ID de caso');
+                return;
+            }
+            
+            searchCase(caseId);
+        });
+        
+        async function searchCase(caseId) {
+            isSearching = true;
+            const searchBtn = document.getElementById('searchBtn');
+            const resultSection = document.getElementById('resultSection');
+            
+            // Show loading state
+            searchBtn.classList.add('loading');
+            searchBtn.disabled = true;
+            resultSection.style.display = 'none';
+            hideError();
+            
+            try {
+                const response = await fetch(`/replay/api/case/${caseId}/info`);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    showCaseInfo(data.data || data);
+                } else if (response.status === 404) {
+                    showNotFound(caseId);
+                } else {
+                    throw new Error('Error al buscar el caso');
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                showError('Error al buscar el caso. Por favor intente nuevamente.');
+            } finally {
+                searchBtn.classList.remove('loading');
+                searchBtn.disabled = false;
+                isSearching = false;
+            }
+        }
+        
+        function showCaseInfo(caseData) {
+            const resultSection = document.getElementById('resultSection');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultSection.classList.remove('error');
+            resultTitle.textContent = '✅ Caso encontrado';
+            
+            const processedDate = caseData.processed_at ? 
+                new Date(caseData.processed_at).toLocaleString('es-ES') : 
+                'No procesado';
+            
+            resultContent.innerHTML = `
+                <div class="case-info">
+                    <div class="case-info-row">
+                        <span class="case-info-label">ID del Caso:</span>
+                        <span class="case-info-value">${caseData.case_id || 'N/A'}</span>
+                    </div>
+                    <div class="case-info-row">
+                        <span class="case-info-label">Título:</span>
+                        <span class="case-info-value">${caseData.case_title || caseData.case_id || 'Sin título'}</span>
+                    </div>
+                    <div class="case-info-row">
+                        <span class="case-info-label">Documentos:</span>
+                        <span class="case-info-value">${caseData.total_documents || 0} archivos</span>
+                    </div>
+                    <div class="case-info-row">
+                        <span class="case-info-label">Procesado:</span>
+                        <span class="case-info-value">${processedDate}</span>
+                    </div>
+                </div>
+                <a href="/replay/config/${caseData.case_id}" class="action-button">
+                    ▶️ Configurar Replay
+                </a>
+            `;
+            
+            resultSection.style.display = 'block';
+        }
+        
+        function showNotFound(caseId) {
+            const resultSection = document.getElementById('resultSection');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultSection.classList.add('error');
+            resultTitle.textContent = '❌ Caso no encontrado';
+            
+            resultContent.innerHTML = `
+                <p>No se encontró ningún caso con el ID: <strong>${caseId}</strong></p>
+                <p style="margin-top: 10px; color: #6b7280;">
+                    Verifique que el ID sea correcto o consulte la lista de casos disponibles.
+                </p>
+                <a href="/replay/cases" class="action-button" style="background: #6b7280;">
+                    📋 Ver casos disponibles
+                </a>
+            `;
+            
+            resultSection.style.display = 'block';
+        }
+        
+        function showError(message) {
+            const errorMessage = document.getElementById('errorMessage');
+            const input = document.getElementById('caseId');
+            
+            errorMessage.textContent = message;
+            errorMessage.style.display = 'block';
+            input.classList.add('error');
+        }
+        
+        function hideError() {
+            const errorMessage = document.getElementById('errorMessage');
+            const input = document.getElementById('caseId');
+            
+            errorMessage.style.display = 'none';
+            input.classList.remove('error');
+        }
+        
+        function clearForm() {
+            document.getElementById('caseId').value = '';
+            document.getElementById('resultSection').style.display = 'none';
+            hideError();
+            document.getElementById('caseId').focus();
+        }
+        
+        async function loadRecentCases() {
+            try {
+                const response = await fetch('/replay/api/cases');
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const cases = data.data || [];
+                    displayRecentCases(cases.slice(0, 5)); // Show only 5 most recent
+                } else {
+                    document.getElementById('recentCasesList').innerHTML = `
+                        <p style="color: #6b7280; text-align: center; padding: 20px;">
+                            No hay casos disponibles
+                        </p>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error loading recent cases:', error);
+                document.getElementById('recentCasesList').innerHTML = `
+                    <p style="color: #ef4444; text-align: center; padding: 20px;">
+                        Error cargando casos recientes
+                    </p>
+                `;
+            }
+        }
+        
+        function displayRecentCases(cases) {
+            const container = document.getElementById('recentCasesList');
+            
+            if (cases.length === 0) {
+                container.innerHTML = `
+                    <p style="color: #6b7280; text-align: center; padding: 20px;">
+                        No hay casos disponibles
+                    </p>
+                `;
+                return;
+            }
+            
+            container.innerHTML = cases.map(caseItem => {
+                const date = caseItem.processed_at || caseItem.created_at;
+                const formattedDate = date ? 
+                    new Date(date).toLocaleDateString('es-ES') : 
+                    'Sin fecha';
+                
+                return `
+                    <div class="recent-case-item" onclick="quickSelect('${caseItem.case_id}')">
+                        <span class="recent-case-id">${caseItem.case_id}</span>
+                        <span class="recent-case-date">${formattedDate}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        function quickSelect(caseId) {
+            document.getElementById('caseId').value = caseId;
+            searchCase(caseId);
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                clearForm();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fraud Scorer - Replay System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="80" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="40" cy="60" r="1" fill="rgba(255,255,255,0.05)"/></svg>');
+            opacity: 0.5;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header p {
+            font-size: 16px;
+            opacity: 0.9;
+            position: relative;
+            z-index: 1;
+        }
+
+        .main-content {
+            padding: 40px;
+        }
+
+        .stats-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 40px;
+            border: 2px solid #e9ecef;
+        }
+
+        .stats-title {
+            color: #333;
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #667eea;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .stat-value {
+            color: #333;
+            font-size: 24px;
+            font-weight: 700;
+        }
+
+        .actions-section {
+            margin-top: 30px;
+        }
+
+        .actions-title {
+            color: #333;
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+
+        .actions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .action-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 15px;
+            padding: 30px;
+            text-align: center;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .action-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.1), transparent);
+            transition: left 0.5s;
+        }
+
+        .action-card:hover::before {
+            left: 100%;
+        }
+
+        .action-card:hover {
+            transform: translateY(-5px);
+            border-color: #667eea;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+        }
+
+        .action-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            color: #667eea;
+        }
+
+        .action-title {
+            color: #333;
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .action-description {
+            color: #666;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #c62828;
+        }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.3s;
+        }
+
+        .refresh-btn:hover {
+            background: #5a6fd8;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .container {
+                margin: 10px;
+                border-radius: 15px;
+            }
+
+            .header {
+                padding: 30px 20px;
+            }
+
+            .header h1 {
+                font-size: 28px;
+            }
+
+            .main-content {
+                padding: 20px;
+            }
+
+            .stats-section {
+                padding: 20px;
+            }
+
+            .actions-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .action-card {
+                padding: 20px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .action-icon {
+                font-size: 36px;
+            }
+
+            .action-title {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🔄 FRAUD SCORER - REPLAY SYSTEM</h1>
+            <p>Sistema de Re-procesamiento con Cache OCR</p>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Navigation Bar -->
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; padding: 20px; background: #f8f9fa; border-radius: 12px;">
+                <a href="/" style="display: flex; align-items: center; gap: 8px; background: #6c757d; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all 0.3s;" onmouseover="this.style.background='#5a6268'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#6c757d'; this.style.transform='translateY(0)'">
+                    ← Volver al Menú Principal
+                </a>
+                <button onclick="loadDashboard()" style="background: #667eea; color: white; border: none; padding: 12px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; transition: all 0.3s;" onmouseover="this.style.background='#5a6fd8'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#667eea'; this.style.transform='translateY(0)'">
+                    🔄 Actualizar
+                </button>
+            </div>
+            <!-- Loading State -->
+            <div id="loadingSection" class="loading">
+                <div class="spinner"></div>
+                <p>Cargando estadísticas del sistema...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="errorSection" style="display: none;">
+                <div class="error-message">
+                    <strong>Error:</strong> <span id="errorMessage">No se pudieron cargar las estadísticas del sistema.</span>
+                </div>
+                <button class="refresh-btn" onclick="loadDashboard()">Reintentar</button>
+            </div>
+
+            <!-- Stats Section -->
+            <div id="statsSection" class="stats-section" style="display: none;">
+                <div class="stats-title">
+                    📊 Estadísticas del Cache
+                </div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="stat-label">Casos en cache</div>
+                        <div class="stat-value" id="caseCount">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Archivos cacheados</div>
+                        <div class="stat-value" id="fileCount">-</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-label">Tamaño total</div>
+                        <div class="stat-value" id="totalSize">-</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Actions Section -->
+            <div id="actionsSection" class="actions-section" style="display: none;">
+                <div class="actions-title">Opciones disponibles</div>
+                <div class="actions-grid">
+                    <div class="action-card" onclick="navigateToAction('cases')">
+                        <div class="action-icon">📋</div>
+                        <div class="action-title">Ver casos disponibles</div>
+                        <div class="action-description">
+                            Explorar y seleccionar casos disponibles para replay desde el cache OCR
+                        </div>
+                    </div>
+
+                    <div class="action-card" onclick="navigateToAction('specific')">
+                        <div class="action-icon">🔄</div>
+                        <div class="action-title">Replay de caso específico</div>
+                        <div class="action-description">
+                            Introducir manualmente un Case ID para procesar un caso específico
+                        </div>
+                    </div>
+
+                    <div class="action-card" onclick="navigateToAction('cache')">
+                        <div class="action-icon">🗑️</div>
+                        <div class="action-title">Limpiar cache</div>
+                        <div class="action-description">
+                            Gestionar y eliminar datos del cache OCR por caso o completamente
+                        </div>
+                    </div>
+
+                    <div class="action-card" onclick="navigateToAction('stats')">
+                        <div class="action-icon">📈</div>
+                        <div class="action-title">Estadísticas detalladas</div>
+                        <div class="action-description">
+                            Ver información completa sobre el sistema de cache y casos procesados
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Estado global
+        let dashboardData = null;
+        
+        // Inicializar dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            loadDashboard();
+        });
+        
+        async function loadDashboard() {
+            showLoading();
+            
+            try {
+                const response = await fetch('/replay/api/stats');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const responseData = await response.json();
+                dashboardData = responseData.data || responseData;
+                showDashboard();
+                
+            } catch (error) {
+                console.error('Error cargando dashboard:', error);
+                showError(error.message);
+            }
+        }
+        
+        function showLoading() {
+            document.getElementById('loadingSection').style.display = 'block';
+            document.getElementById('errorSection').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'none';
+            document.getElementById('actionsSection').style.display = 'none';
+        }
+        
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'block';
+            document.getElementById('statsSection').style.display = 'none';
+            document.getElementById('actionsSection').style.display = 'none';
+        }
+        
+        function showDashboard() {
+            // Actualizar estadísticas
+            document.getElementById('caseCount').textContent = dashboardData.case_count || 0;
+            document.getElementById('fileCount').textContent = dashboardData.file_count || 0;
+            document.getElementById('totalSize').textContent = 
+                dashboardData.total_size_mb ? `${dashboardData.total_size_mb} MB` : '0 MB';
+            
+            // Mostrar secciones
+            document.getElementById('loadingSection').style.display = 'none';
+            document.getElementById('errorSection').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'block';
+            document.getElementById('actionsSection').style.display = 'block';
+        }
+        
+        function navigateToAction(action) {
+            const routes = {
+                'cases': '/replay/cases',
+                'specific': '/replay/specific',
+                'cache': '/replay/cache',
+                'stats': '/replay/detailed-stats'
+            };
+            
+            const url = routes[action];
+            if (url) {
+                window.location.href = url;
+            } else {
+                console.error('Ruta no encontrada para la acción:', action);
+                alert('Funcionalidad no disponible temporalmente.');
+            }
+        }
+        
+        // Auto-refresh cada 30 segundos
+        setInterval(() => {
+            if (dashboardData && document.getElementById('statsSection').style.display !== 'none') {
+                loadDashboard();
+            }
+        }, 30000);
+        
+        // Manejar errores de red
+        window.addEventListener('online', function() {
+            if (document.getElementById('errorSection').style.display !== 'none') {
+                loadDashboard();
+            }
+        });
+    </script>
+</body>
+</html>

@@ -55,6 +55,24 @@ class ExtractionConfig:
         "carta_porte": FieldPriority.CARTA_PORTE,
     }
     
+    # Reglas de fuente de datos por campo
+    FIELD_SOURCE_RULES = {
+        "numero_siniestro": ["denuncia", "poliza"],
+        "nombre_asegurado": ["poliza", "denuncia"],
+        "numero_poliza": ["poliza", "denuncia"],
+        "vigencia_inicio": ["poliza"],
+        "vigencia_fin": ["poliza"],
+        "domicilio_poliza": ["poliza", "denuncia"],
+        "bien_reclamado": ["denuncia", "factura"],
+        "monto_reclamacion": ["denuncia", "factura", "peritaje"],
+        "tipo_siniestro": ["denuncia", "poliza"],
+        "fecha_ocurrencia": ["denuncia", "peritaje"],
+        "fecha_reclamacion": ["denuncia"],
+        "lugar_hechos": ["denuncia", "peritaje"],
+        "ajuste": ["peritaje"],
+        "conclusiones": ["peritaje", "denuncia"]
+    }
+    
     # Configuración de OpenAI
     OPENAI_CONFIG = {
         "temperature": 0.1,  # Muy bajo para consistencia

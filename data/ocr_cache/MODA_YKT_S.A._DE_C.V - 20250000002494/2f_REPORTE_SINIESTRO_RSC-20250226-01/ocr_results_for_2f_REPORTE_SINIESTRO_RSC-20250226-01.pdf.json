@@ -1,0 +1,41 @@
+{
+  "text": "REPORTE DE SINIESTRO CON PLAN DE CONTINGENCIA\nFolio: RSC-20250226-01\nFecha del evento: 26/02/2025\nHora de detección del siniestro: 18:46 hrs\nLugar estimado del incidente: Autopista México-Querétaro, Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.\n1. Datos Generales de la Unidad\nTractor\n- Marca: Peterbilt\n- Modelo: 2006\n- No. de serie (VIN): 1XP7DB9X86D893212\n- No. de motor: MXS24811\n- Placas: 07BE4W\nCaja / Plataforma\n- Marca: Alberto\n- Modelo: 1999\n- No. de serie (VIN): 3S9SP4021XA014065\n- Placas: 63UW1A\n2. Conductor\nNombre completo: Justo Castro Martínez\n3. Ruta Asignada\nOrigen: Francisco I. Madero 146, Lázaro Cárdenas, C.P. 60950, Michoacán\nDestino: Siata Di Shmaya, Tlalnepantla de Baz, Estado de México\nHora de inicio de ruta: 05:47 hrs\n4. Descripción del Evento\nDurante el monitoreo activo de la unidad, se detectó una anomalía a las 18:46 hrs del día 26 de febrero de 2025, momento en el que se perdió la señal del sistema de rastreo satelital. De acuerdo con los protocolos internos, se procedió de la siguiente manera:\n1. Monitoreo activo desde el inicio de la ruta.\n2. Supervisión constante con intervalos de 1 a 5 minutos.\n3. Detección de anomalía por pérdida de señal del GPS.\n4. Activación del plan de contingencia:\n- Se notifico de inmediato al cliente.\n- Se dio aviso a las autoridades correspondientes.\n5. Generación de reporte del evento con folio RSC-20250226-01.\n5. Documentación Adjunta\n· Archivo de coordenadas del transporte hasta el momento del siniestro: SERIE68_GPS(20250226-20250226)\nAtentamente,\nJesús Manuel Quintero Marín Servicios Logísticos\nGerente de Seguridad Logística\nQAE LOGISTICS JESÚS MANUEL QUINTERO MARÍN GERENTE DE SEGURIDAD LOGÍSTICA",
+  "tables": [],
+  "key_value_pairs": {
+    "folio": "RSC-20250226-01",
+    "fecha_del_evento": "26/02/2025",
+    "hora_de_detección_del_siniestro": "18:46 hrs",
+    "lugar_estimado_del_incidente": "Autopista México-Querétaro, Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.",
+    "-_marca": "Alberto",
+    "-_modelo": "1999",
+    "-_no._de_serie_(vin)": "3S9SP4021XA014065",
+    "-_no._de_motor": "MXS24811",
+    "-_placas": "63UW1A",
+    "nombre_completo": "Justo Castro Martínez",
+    "origen": "Francisco I. Madero 146, Lázaro Cárdenas, C.P. 60950, Michoacán",
+    "destino": "Siata Di Shmaya, Tlalnepantla de Baz, Estado de México",
+    "hora_de_inicio_de_ruta": "05:47 hrs",
+    "logistics": "QAE JESÚS MANUEL",
+    "gerente_de_seguridad": "QUINTERO MARÍN"
+  },
+  "metadata": {
+    "file_name": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+    "file_size": 110275,
+    "model_used": "prebuilt-document",
+    "page_count": 2,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

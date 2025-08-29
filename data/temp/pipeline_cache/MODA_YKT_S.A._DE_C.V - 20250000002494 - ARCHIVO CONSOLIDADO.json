@@ -1,0 +1,651 @@
+{
+  "case_id": "CASE-2025-0019",
+  "consolidated_fields": {
+    "numero_siniestro": "20250000002494",
+    "nombre_asegurado": "MODA YKT, S.A. DE C.V",
+    "monto_reclamacion": "1169743.37",
+    "numero_poliza": "141 - 2346",
+    "vigencia": null,
+    "domicilio_poliza": "Francisco I. Madero 146, Lazaro Cardenas, C.P 60950",
+    "tipo_siniestro": "ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA",
+    "fecha_ocurrencia": "26 de febrero de 2025",
+    "fecha_reclamacion": "07 de Abril 2025",
+    "lugar_hechos": "CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO",
+    "bien_reclamado": "Robo de mercancía",
+    "ajuste": "CERRADO POR CABINA",
+    "conclusiones": "no podemos asumir responsabilidad económica directa por el valor de la mercancía robada"
+  },
+  "consolidation_sources": {
+    "numero_siniestro": "El valor '20250000002494' aparece en tres documentos de tipo 'poliza', que es la segunda fuente más prioritaria según las reglas de negocio. Además, este valor es consistente en múltiples documentos, lo que aumenta su confiabilidad. Aunque no hay ejemplos previos, la frecuencia y la prioridad del tipo de documento respaldan la selección de este valor. El valor '20250000002429' también aparece varias veces, pero en documentos de menor prioridad o en combinación con otros tipos de documentos, lo que reduce su confiabilidad en comparación con '20250000002494'. El valor 'RSC-20250226-01' no sigue el formato estándar esperado para un número de siniestro y proviene de una fuente de menor prioridad.",
+    "nombre_asegurado": "Siguiendo las reglas de negocio, se da prioridad a los documentos de tipo 'poliza'. El valor 'MODA YKT, S.A. DE C.V' aparece en múltiples documentos de tipo 'poliza', lo que refuerza su validez. Además, este valor es consistente en varias fuentes, lo que sugiere que es el nombre correcto del asegurado. Aunque hay otros valores que aparecen en documentos de tipo 'denuncia', la prioridad de las pólizas y la frecuencia del valor seleccionado en estas fuentes justifican su elección como el más confiable.",
+    "monto_reclamacion": "El valor '1169743.37' aparece en múltiples documentos, lo que sugiere una alta frecuencia y consistencia. Además, según las reglas de negocio, las facturas tienen una alta prioridad, y este valor proviene de un documento de tipo factura. Aunque también aparece en documentos de tipo póliza, la prioridad de la fuente factura es mayor. No hay ejemplos previos que contradigan esta decisión, y el valor es consistente con el contexto del siniestro. Por lo tanto, selecciono '1169743.37' como el valor más confiable para el campo 'monto_reclamacion'.",
+    "numero_poliza": "El valor '141 - 2346' aparece en tres documentos diferentes de tipo 'poliza', lo que sugiere una alta frecuencia y consistencia. Además, el formato '141 - 2346' es más completo y detallado que '2346', lo que se alinea con el ejemplo de resoluciones correctas anteriores donde se prefiere el formato más completo y estándar. Aunque el valor '141 - 2346 Inciso:1' es aún más detallado, el inciso no es relevante para el campo 'numero_poliza' en este contexto. Por lo tanto, '141 - 2346' es la opción más confiable y correcta.",
+    "domicilio_poliza": "El valor seleccionado proviene de un documento de tipo 'poliza', que tiene la máxima prioridad según las reglas de negocio. Además, este valor aparece en múltiples documentos de tipo 'poliza', lo que refuerza su validez y consistencia. Aunque hay ligeras variaciones en el formato de los valores similares, el contenido esencial es el mismo, y el formato seleccionado es el más frecuente y consistente con el estándar esperado. No hay ejemplos previos disponibles, pero la aplicación de las reglas de negocio y la frecuencia del valor en documentos de alta prioridad justifican esta elección.",
+    "tipo_siniestro": "Siguiendo las reglas de negocio, la prioridad de las fuentes indica que la 'denuncia' tiene mayor peso que la 'poliza'. El valor 'ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA' aparece en dos documentos de tipo denuncia, lo que refuerza su validez. Además, este valor es el más detallado y específico, lo que proporciona una descripción clara y completa del tipo de siniestro, alineándose con el contexto del caso. Por lo tanto, es el valor más confiable y correcto para el campo 'tipo_siniestro'.",
+    "fecha_ocurrencia": "Siguiendo las reglas de negocio, la prioridad de las fuentes es la denuncia, seguida del peritaje. En este caso, el valor '26 de febrero de 2025' aparece en dos documentos de tipo denuncia, lo que le otorga la máxima prioridad. Además, este valor es consistente con otros documentos y aparece en múltiples fuentes, lo que refuerza su validez. El formato es estándar y coherente con el contexto del siniestro. Por lo tanto, selecciono '26 de febrero de 2025' como la fecha de ocurrencia más confiable.",
+    "fecha_reclamacion": "El valor '07 de Abril 2025' aparece en múltiples documentos de tipo póliza, lo que sugiere una alta consistencia y frecuencia. Aunque no hay una denuncia que tenga prioridad según las reglas de negocio, la repetición del valor en documentos de póliza le da mayor credibilidad. Además, el formato es consistente con el estándar esperado para fechas en documentos formales. Por lo tanto, selecciono este valor como el más confiable.",
+    "lugar_hechos": "La selección del valor para el campo 'lugar_hechos' se basa en las reglas de negocio que priorizan las fuentes de tipo 'denuncia'. Entre las opciones disponibles, el valor 'CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO' aparece en dos documentos de tipo 'denuncia', lo que refuerza su validez. Además, este valor es consistente con otros valores similares encontrados en documentos de tipo 'factura' y 'poliza', lo que sugiere una coherencia lógica con el contexto del siniestro. Por lo tanto, este valor es el más confiable y correcto para el campo 'lugar_hechos'.",
+    "bien_reclamado": "Siguiendo las reglas de negocio, se da prioridad a las fuentes de tipo 'factura'. Entre las opciones disponibles, el valor 'Robo de mercancía' aparece en un documento de tipo 'factura', específicamente en '1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF'. Además, este valor es consistente con el contexto del siniestro, que involucra un robo, y es coherente con otros valores similares encontrados en documentos de tipo 'poliza'. Por lo tanto, se selecciona este valor con alta confianza.",
+    "ajuste": "Único valor de C&C.pdf",
+    "conclusiones": "Ambas opciones presentan el mismo valor para el campo 'conclusiones', lo que indica una alta consistencia y frecuencia del valor. Aunque las reglas de negocio priorizan documentos de peritaje y denuncia, en este caso específico, ambos valores provienen de documentos de póliza, lo que no afecta la decisión ya que no hay conflicto entre diferentes tipos de documentos. Dado que el valor es idéntico en ambas fuentes, se selecciona el primero por simplicidad y claridad en la trazabilidad del documento. La coherencia lógica con el contexto del siniestro también respalda esta elección, ya que el valor refleja una decisión común en situaciones de reclamaciones de seguros."
+  },
+  "conflicts_resolved": [
+    {
+      "field": "numero_siniestro",
+      "options": [
+        {
+          "value": "20250000002494",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "20250000002429",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "20250000002429",
+          "source": "22741 CSD MODA YKT.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "20250000002429",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "20250000002494",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "RSC-20250226-01",
+          "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "20250000002494",
+          "source": "NT_.docx",
+          "document_type": "poliza"
+        }
+      ],
+      "selected": "20250000002494",
+      "reasoning": "El valor '20250000002494' aparece en tres documentos de tipo 'poliza', que es la segunda fuente más prioritaria según las reglas de negocio. Además, este valor es consistente en múltiples documentos, lo que aumenta su confiabilidad. Aunque no hay ejemplos previos, la frecuencia y la prioridad del tipo de documento respaldan la selección de este valor. El valor '20250000002429' también aparece varias veces, pero en documentos de menor prioridad o en combinación con otros tipos de documentos, lo que reduce su confiabilidad en comparación con '20250000002494'. El valor 'RSC-20250226-01' no sigue el formato estándar esperado para un número de siniestro y proviene de una fuente de menor prioridad."
+    },
+    {
+      "field": "nombre_asegurado",
+      "options": [
+        {
+          "value": "PORFIRIO HERNANDEZ ALONSO",
+          "source": "FACTURA MERCANCIA _compressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "TRANSPORTES MEDINA",
+          "source": "2b CANDADOS DE SEGURIDAD.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "TRANSPORTES MEDINA",
+          "source": "1h Tarjetas de circulaciOn.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "MODA YKT, S.A. DE C.V",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "JUSTO CASTRO MARTINEZ",
+          "source": "DENUNCIA INICIAL_compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "JUSTO CASTRO MARTINEZ",
+          "source": "1C DENUNCIA INICIAL compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "SIATA DI SHMAYA S.A. de C.V.",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Moda YKT, S.A. de C.V.",
+          "source": "22741 CSD MODA YKT.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "MODA YKT, S.A. de C.V.",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Moda YKT, S.A. de C.V / SIATA DI SHMAYA, S.A. de C.V.",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Jesús Manuel Quintero Marin",
+          "source": "plan de contingencia en caso de incidentes por parte de la empresa de rastreo satelital_compressed.pdf",
+          "document_type": "peritaje"
+        },
+        {
+          "value": "Justo Castro Martínez",
+          "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "MODA YKT, S.A. DE C.V. y/o SIATA DI SHMAYA, S.A. DE C.V.",
+          "source": "NT_.docx",
+          "document_type": "poliza"
+        },
+        {
+          "value": "GUILLERMO CESAR TELLEZ CORREA",
+          "source": "1h Tarjetas de circulación.pdf",
+          "document_type": "otro"
+        },
+        {
+          "value": "GUILLERMO CESAR TELLEZ CORREA",
+          "source": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+          "document_type": "otro"
+        },
+        {
+          "value": "SIATA DI SHMAYA S.A. DE C.V.",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        },
+        {
+          "value": "MODA YKT, S.A. DE C.V",
+          "source": "Poliza2346-1.pdf",
+          "document_type": "poliza"
+        }
+      ],
+      "selected": "MODA YKT, S.A. DE C.V",
+      "reasoning": "Siguiendo las reglas de negocio, se da prioridad a los documentos de tipo 'poliza'. El valor 'MODA YKT, S.A. DE C.V' aparece en múltiples documentos de tipo 'poliza', lo que refuerza su validez. Además, este valor es consistente en varias fuentes, lo que sugiere que es el nombre correcto del asegurado. Aunque hay otros valores que aparecen en documentos de tipo 'denuncia', la prioridad de las pólizas y la frecuencia del valor seleccionado en estas fuentes justifican su elección como el más confiable."
+    },
+    {
+      "field": "monto_reclamacion",
+      "options": [
+        {
+          "value": 1169743.37,
+          "source": "FACTURA MERCANCIA _compressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": 1169743.37,
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": 1169743.37,
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": 756299.6,
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": 1169743.37,
+          "source": "NT_.docx",
+          "document_type": "poliza"
+        },
+        {
+          "value": 1169743.37,
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        }
+      ],
+      "selected": "1169743.37",
+      "reasoning": "El valor '1169743.37' aparece en múltiples documentos, lo que sugiere una alta frecuencia y consistencia. Además, según las reglas de negocio, las facturas tienen una alta prioridad, y este valor proviene de un documento de tipo factura. Aunque también aparece en documentos de tipo póliza, la prioridad de la fuente factura es mayor. No hay ejemplos previos que contradigan esta decisión, y el valor es consistente con el contexto del siniestro. Por lo tanto, selecciono '1169743.37' como el valor más confiable para el campo 'monto_reclamacion'."
+    },
+    {
+      "field": "numero_poliza",
+      "options": [
+        {
+          "value": "141-2346",
+          "source": "2b CANDADOS DE SEGURIDAD.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "2346",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "141 - 2346",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "141 - 2346",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "141 - 2346",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "141 - 2346 Inciso:1",
+          "source": "Poliza2346-1.pdf",
+          "document_type": "poliza"
+        }
+      ],
+      "selected": "141 - 2346",
+      "reasoning": "El valor '141 - 2346' aparece en tres documentos diferentes de tipo 'poliza', lo que sugiere una alta frecuencia y consistencia. Además, el formato '141 - 2346' es más completo y detallado que '2346', lo que se alinea con el ejemplo de resoluciones correctas anteriores donde se prefiere el formato más completo y estándar. Aunque el valor '141 - 2346 Inciso:1' es aún más detallado, el inciso no es relevante para el campo 'numero_poliza' en este contexto. Por lo tanto, '141 - 2346' es la opción más confiable y correcta."
+    },
+    {
+      "field": "domicilio_poliza",
+      "options": [
+        {
+          "value": "Francisco I. Madero 146, Lazaro Cardenas, C.P 60950",
+          "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Francisco I. Madero 146, Lazaro Cardenas, C.P. 60950",
+          "source": "2b CANDADOS DE SEGURIDAD.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Francisco I. Madero 146, Lazaro Cardenas, C.P 60950",
+          "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Francisco I.Madero 146, Lazaro Cardenas, C.P.60950",
+          "source": "1h Tarjetas de circulaciOn.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo",
+          "source": "DENUNCIA INICIAL_compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "LOCALIDAD EL GARAMBULO, S/N, S/N, Garambullo, 61285, Irimbo, Michoacán de Ocampo",
+          "source": "1C DENUNCIA INICIAL compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "Blvd. Abraham Lincoln #7, Los reyes Ixtacala Ira, Sección, Tlalnepantla de Baz. C.P. 54090",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "EMILIANO ZAPATA 19 PISO 2 LOC B Y PISO 3 LOCALIDAD TLALNEPANTLA CP 54090 TLALNEPANTLA DE BAZ, MÉXICO",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "MANUEL PATI-O 10, LOS GIGANTES, HIDALGO MICHOACAN, 61134",
+          "source": "1h Tarjetas de circulación.pdf",
+          "document_type": "otro"
+        },
+        {
+          "value": "MANUEL PATI O NO. 10 COL. LOS GIGANTES HIDALGO MICHOACAN C.P. 61134",
+          "source": "TARJETA DE CIRCULACIÓN DEL CAMIÓN Y REMOLQUE_compressed.pdf",
+          "document_type": "otro"
+        },
+        {
+          "value": "Blvd. Abraham Lincoln #7, Los reyes Ixtacala 1ra, Sección, Tlalnepantla de Baz. C.P. 54090",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        },
+        {
+          "value": "EMILIANO ZAPATA 19 PISO No. Ext. 2 LOC. B Y No. Int: PISO 3, SAN JERÓNIMO C.P.54090. TLALNEPANTLA DE BAZ. ESTADO DE MEXICO",
+          "source": "Poliza2346-1.pdf",
+          "document_type": "poliza"
+        }
+      ],
+      "selected": "Francisco I. Madero 146, Lazaro Cardenas, C.P 60950",
+      "reasoning": "El valor seleccionado proviene de un documento de tipo 'poliza', que tiene la máxima prioridad según las reglas de negocio. Además, este valor aparece en múltiples documentos de tipo 'poliza', lo que refuerza su validez y consistencia. Aunque hay ligeras variaciones en el formato de los valores similares, el contenido esencial es el mismo, y el formato seleccionado es el más frecuente y consistente con el estándar esperado. No hay ejemplos previos disponibles, pero la aplicación de las reglas de negocio y la frecuencia del valor en documentos de alta prioridad justifican esta elección."
+    },
+    {
+      "field": "tipo_siniestro",
+      "options": [
+        {
+          "value": "robo",
+          "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "robo de mercancía",
+          "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "robo",
+          "source": "1h Tarjetas de circulaciOn.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "TRANSPORTES",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA",
+          "source": "DENUNCIA INICIAL_compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA",
+          "source": "1C DENUNCIA INICIAL compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "Robo",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Robo total de mercancía por asalto",
+          "source": "22741 CSD MODA YKT.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Incidente de seguridad y robo de mercancía",
+          "source": "2a BITACORA DE RUTA compressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Robo de mercancía",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Robo",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Robo",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        }
+      ],
+      "selected": "ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA",
+      "reasoning": "Siguiendo las reglas de negocio, la prioridad de las fuentes indica que la 'denuncia' tiene mayor peso que la 'poliza'. El valor 'ROBO DE LA MERCANCÍA TRANSPORTADA A BORDO DE UN VEHÍCULO AUTOMOTOR Y CON VIOLENCIA' aparece en dos documentos de tipo denuncia, lo que refuerza su validez. Además, este valor es el más detallado y específico, lo que proporciona una descripción clara y completa del tipo de siniestro, alineándose con el contexto del caso. Por lo tanto, es el valor más confiable y correcto para el campo 'tipo_siniestro'."
+    },
+    {
+      "field": "fecha_ocurrencia",
+      "options": [
+        {
+          "value": "26 de F",
+          "source": "2b CANDADOS DE SEGURIDAD.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26 de febrero de 2025",
+          "source": "1h Tarjetas de circulaciOn.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26/02/2025 06:45:58 p. n",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26 de febrero de 2025",
+          "source": "DENUNCIA INICIAL_compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "26 de febrero de 2025",
+          "source": "1C DENUNCIA INICIAL compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "26 de Febrero del 2025",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26 de febrero del 2025",
+          "source": "22741 CSD MODA YKT.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "26 de Febrero 2025",
+          "source": "2a BITACORA DE RUTA compressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "26 de febrero del 2025",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26/02/2025",
+          "source": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "26 de febrero del 2025",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26/02/2025",
+          "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "26 de febrero de 2025",
+          "source": "NT_.docx",
+          "document_type": "poliza"
+        },
+        {
+          "value": "26 de febrero del 2025",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        }
+      ],
+      "selected": "26 de febrero de 2025",
+      "reasoning": "Siguiendo las reglas de negocio, la prioridad de las fuentes es la denuncia, seguida del peritaje. En este caso, el valor '26 de febrero de 2025' aparece en dos documentos de tipo denuncia, lo que le otorga la máxima prioridad. Además, este valor es consistente con otros documentos y aparece en múltiples fuentes, lo que refuerza su validez. El formato es estándar y coherente con el contexto del siniestro. Por lo tanto, selecciono '26 de febrero de 2025' como la fecha de ocurrencia más confiable."
+    },
+    {
+      "field": "fecha_reclamacion",
+      "options": [
+        {
+          "value": "07 de Abril 2025",
+          "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "6/2/2025",
+          "source": "FACTURA MERCANCIA _compressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "07 de Abril 2025",
+          "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "16 de Abril 2025",
+          "source": "1h Tarjetas de circulaciOn.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "24/03/2025 10:24:57 a. n",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "07/04/2025",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "02 de abril de 2025",
+          "source": "22741 CSD MODA YKT.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "07 de abril del 2025",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "07/04/2025",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        }
+      ],
+      "selected": "07 de Abril 2025",
+      "reasoning": "El valor '07 de Abril 2025' aparece en múltiples documentos de tipo póliza, lo que sugiere una alta consistencia y frecuencia. Aunque no hay una denuncia que tenga prioridad según las reglas de negocio, la repetición del valor en documentos de póliza le da mayor credibilidad. Además, el formato es consistente con el estándar esperado para fechas en documentos formales. Por lo tanto, selecciono este valor como el más confiable."
+    },
+    {
+      "field": "lugar_hechos",
+      "options": [
+        {
+          "value": "TLALNEPANTLA DE BAZ ESTADO DE MEXICO",
+          "source": "C&C.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO",
+          "source": "DENUNCIA INICIAL_compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO",
+          "source": "1C DENUNCIA INICIAL compressed.pdf",
+          "document_type": "denuncia"
+        },
+        {
+          "value": "Tlalnepantla Estado de Mexico",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Autopista Mexico-Queretaro (Carretera Federal 57D), a la altura de la Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.",
+          "source": "2a BITACORA DE RUTA compressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Tlalnepantla, Estado de México",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "FRANCISCO I. MADERO 146, LAZARO CARDENAS, C.P. 60950 - SIATA DI SHMAYA, TLALNEPANTLA DE BAZ, ESTADO DE MEXICO",
+          "source": "2f MACHOTE-PLAN DE REACCIÓN.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Carretera México - Queretaro, San Miguel Jagueyes, Huehuetoca, Estado de México",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Tlalnepantla de Baz, Estado de México",
+          "source": "1D ACREDITACION Y RATIFICACION DENUNCIAcompressed.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Autopista México-Querétaro, Colonia San Miguel Jagueyes, municipio de Huehuetoca, Estado de México.",
+          "source": "2f REPORTE_SINIESTRO_RSC-20250226-01.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Autopista México-Querétaro, Colonia San Miguel Jagueyes, Huehuetoca, Estado de México",
+          "source": "NT_.docx",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Tlalnepantla, Estado de México",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        }
+      ],
+      "selected": "CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO",
+      "reasoning": "La selección del valor para el campo 'lugar_hechos' se basa en las reglas de negocio que priorizan las fuentes de tipo 'denuncia'. Entre las opciones disponibles, el valor 'CALLE AUTOPISTA MEXICO QUERETARO #KILOMETRO COLONIA SAN MIGUEL JAGÜEYES C.P. 54693 LOCALIDAD/CIUDAD HUEHUETOCA, MÉXICO, MÉXICO' aparece en dos documentos de tipo 'denuncia', lo que refuerza su validez. Además, este valor es consistente con otros valores similares encontrados en documentos de tipo 'factura' y 'poliza', lo que sugiere una coherencia lógica con el contexto del siniestro. Por lo tanto, este valor es el más confiable y correcto para el campo 'lugar_hechos'."
+    },
+    {
+      "field": "bien_reclamado",
+      "options": [
+        {
+          "value": "mercancía robada",
+          "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "tarjetas de circulación del tractor y la plataforma",
+          "source": "1h Tarjetas de circulaciOn.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "ROBO DE BULTO POR ENTERO",
+          "source": "1a RECLAMACION FORMAL ASEGURADORA.PDF",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Mercancía",
+          "source": "22741 CSD MODA YKT.pdf",
+          "document_type": "factura"
+        },
+        {
+          "value": "Robo de mercancía",
+          "source": "MODA YKT S.A. DE C.V._compressed.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Robo total del embarque por asalto al vehículo transportista",
+          "source": "22741 CEDULA.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Robo de embarque completo de ropa en general (blusas, camisas, pantalones, etc.)",
+          "source": "NT_.docx",
+          "document_type": "poliza"
+        },
+        {
+          "value": "Robo de mercancía",
+          "source": "1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF",
+          "document_type": "factura"
+        }
+      ],
+      "selected": "Robo de mercancía",
+      "reasoning": "Siguiendo las reglas de negocio, se da prioridad a las fuentes de tipo 'factura'. Entre las opciones disponibles, el valor 'Robo de mercancía' aparece en un documento de tipo 'factura', específicamente en '1b CARTA DE FORMAL RECLAMACION TRANSPORTISTA.PDF'. Además, este valor es consistente con el contexto del siniestro, que involucra un robo, y es coherente con otros valores similares encontrados en documentos de tipo 'poliza'. Por lo tanto, se selecciona este valor con alta confianza."
+    },
+    {
+      "field": "conclusiones",
+      "options": [
+        {
+          "value": "no podemos asumir responsabilidad económica directa por el valor de la mercancía robada",
+          "source": "1b1 RESPUESTA_TRANSPORTES_MEDINA_.pdf",
+          "document_type": "poliza"
+        },
+        {
+          "value": "no podemos asumir responsabilidad económica directa por el valor de la mercancía robada",
+          "source": "RESPUESTA TRANSPORTES MEDINA_compressed.pdf",
+          "document_type": "poliza"
+        }
+      ],
+      "selected": "no podemos asumir responsabilidad económica directa por el valor de la mercancía robada",
+      "reasoning": "Ambas opciones presentan el mismo valor para el campo 'conclusiones', lo que indica una alta consistencia y frecuencia del valor. Aunque las reglas de negocio priorizan documentos de peritaje y denuncia, en este caso específico, ambos valores provienen de documentos de póliza, lo que no afecta la decisión ya que no hay conflicto entre diferentes tipos de documentos. Dado que el valor es idéntico en ambas fuentes, se selecciona el primero por simplicidad y claridad en la trazabilidad del documento. La coherencia lógica con el contexto del siniestro también respalda esta elección, ya que el valor refleja una decisión común en situaciones de reclamaciones de seguros."
+    }
+  ],
+  "confidence_scores": {
+    "numero_siniestro": 0.9,
+    "nombre_asegurado": 0.9,
+    "monto_reclamacion": 0.95,
+    "numero_poliza": 0.95,
+    "vigencia": 0.0,
+    "domicilio_poliza": 0.9,
+    "tipo_siniestro": 0.95,
+    "fecha_ocurrencia": 0.95,
+    "fecha_reclamacion": 0.9,
+    "lugar_hechos": 0.9,
+    "bien_reclamado": 0.9,
+    "ajuste": 1.0,
+    "conclusiones": 0.9
+  }
+}
