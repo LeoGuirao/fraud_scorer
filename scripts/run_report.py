@@ -118,34 +118,80 @@ class FraudAnalysisSystemV2:
         ocr_results: List[Dict[str, Any]] = []
         cache_files: List[str] = []
 
-        for doc_path in documents:
-            logger.info(f"  Procesando: {doc_path.name}")
-
-            # Usar cache si existe
-            if self.cache_manager and self.cache_manager.has_cache(doc_path):
-                logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
-                ocr_result = self.cache_manager.get_cache(doc_path)
-                if ocr_result:
-                    cache_files.append(str(doc_path))
+        # Paso 3.2: Verificar si todos los documentos ya están en cache
+        all_cached = True
+        if self.cache_manager:
+            for doc_path in documents:
+                if not self.cache_manager.has_cache(doc_path):
+                    all_cached = False
+                    break
+            
+            if all_cached:
+                logger.info("✨ Todos los documentos ya están en el cache. Omitiendo fase de OCR.")
+                logger.info("-" * 40)
+                
+                # Cargar todos los documentos desde el cache
+                for doc_path in documents:
+                    logger.info(f"  ⚡ Cargando desde cache: {doc_path.name}")
+                    ocr_result = self.cache_manager.get_cache(doc_path)
+                    if ocr_result:
+                        ocr_results.append({
+                            "filename": doc_path.name,
+                            "ocr_result": ocr_result,
+                            "document_type": None,  # se detectará dentro del extractor
+                        })
+                        cache_files.append(str(doc_path))
+                
+                logger.info(f"✓ Carga desde cache completada: {len(ocr_results)}/{len(documents)} documentos")
             else:
-                # OCR/Parser tolerante a fallos
+                # Procesar documentos normalmente (algunos pueden estar en cache, otros no)
+                for doc_path in documents:
+                    logger.info(f"  Procesando: {doc_path.name}")
+
+                    # Usar cache si existe
+                    if self.cache_manager.has_cache(doc_path):
+                        logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
+                        ocr_result = self.cache_manager.get_cache(doc_path)
+                        if ocr_result:
+                            cache_files.append(str(doc_path))
+                    else:
+                        # OCR/Parser tolerante a fallos
+                        logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
+                        try:
+                            ocr_result = self.document_parser.parse_document(doc_path)
+                            if self.cache_manager and ocr_result:
+                                self.cache_manager.save_cache(doc_path, ocr_result)
+                        except Exception as e:
+                            logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
+                            continue
+
+                    if ocr_result:
+                        ocr_results.append({
+                            "filename": doc_path.name,
+                            "ocr_result": ocr_result,
+                            "document_type": None,  # se detectará dentro del extractor
+                        })
+
+                logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
+        else:
+            # Si no hay cache manager, procesar todos los documentos normalmente
+            for doc_path in documents:
+                logger.info(f"  Procesando: {doc_path.name}")
                 logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
                 try:
                     ocr_result = self.document_parser.parse_document(doc_path)
-                    if self.cache_manager and ocr_result:
-                        self.cache_manager.save_cache(doc_path, ocr_result)
                 except Exception as e:
                     logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
                     continue
 
-            if ocr_result:
-                ocr_results.append({
-                    "filename": doc_path.name,
-                    "ocr_result": ocr_result,
-                    "document_type": None,  # se detectará dentro del extractor
-                })
+                if ocr_result:
+                    ocr_results.append({
+                        "filename": doc_path.name,
+                        "ocr_result": ocr_result,
+                        "document_type": None,  # se detectará dentro del extractor
+                    })
 
-        logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
+            logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
 
         # Guardar índice del caso para replay
         if self.cache_manager:
