@@ -152,6 +152,35 @@ def init_db() -> None:
             """
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_feedback_case_id ON feedback(case_id);")
+        
+        # cache_stats - Tabla para métricas de caché persistentes
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS cache_stats (
+                scope           TEXT PRIMARY KEY,  -- 'global' o case_id
+                ocr_hits        INTEGER DEFAULT 0,
+                ocr_misses      INTEGER DEFAULT 0,
+                ai_hits         INTEGER DEFAULT 0,
+                ai_misses       INTEGER DEFAULT 0,
+                bytes_saved     INTEGER DEFAULT 0,
+                ms_saved        INTEGER DEFAULT 0,
+                avg_ms_ocr      INTEGER DEFAULT 0,
+                avg_ms_extract  INTEGER DEFAULT 0,
+                avg_ms_consolidate INTEGER DEFAULT 0,
+                avg_ms_analyze  INTEGER DEFAULT 0,
+                avg_ms_report   INTEGER DEFAULT 0,
+                updated_at      TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            """
+        )
+        
+        # Insertar registro global si no existe
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO cache_stats(scope, updated_at) 
+            VALUES ('global', CURRENT_TIMESTAMP)
+            """
+        )
 
     print("✓ Esquema OK")
 
@@ -354,6 +383,61 @@ def get_feedback_stats(case_id: Optional[str] = None) -> Dict[str, int]:
         
         rows = conn.execute(query, params).fetchall()
         return {row["status"]: row["count"] for row in rows}
+
+# --- CACHE STATS HELPERS ---
+
+def increment_cache_stats(scope: str, field: str, value: int = 1) -> None:
+    """Incrementa una métrica de caché específica."""
+    with get_conn() as conn:
+        # Asegurar que existe el registro para este scope
+        conn.execute(
+            "INSERT OR IGNORE INTO cache_stats(scope, updated_at) VALUES (?, CURRENT_TIMESTAMP)",
+            (scope,)
+        )
+        # Incrementar el campo específico
+        conn.execute(
+            f"UPDATE cache_stats SET {field} = {field} + ?, updated_at = CURRENT_TIMESTAMP WHERE scope = ?",
+            (value, scope)
+        )
+
+def update_cache_avg(scope: str, field: str, value: int) -> None:
+    """Actualiza un promedio de tiempo en cache_stats."""
+    with get_conn() as conn:
+        # Asegurar que existe el registro
+        conn.execute(
+            "INSERT OR IGNORE INTO cache_stats(scope, updated_at) VALUES (?, CURRENT_TIMESTAMP)",
+            (scope,)
+        )
+        # Actualizar el promedio
+        conn.execute(
+            f"UPDATE cache_stats SET {field} = ?, updated_at = CURRENT_TIMESTAMP WHERE scope = ?",
+            (value, scope)
+        )
+
+def get_cache_stats(scope: str = 'global') -> Optional[Dict[str, Any]]:
+    """Obtiene las estadísticas de caché para un scope específico."""
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM cache_stats WHERE scope = ?",
+            (scope,)
+        ).fetchone()
+        return dict(row) if row else None
+
+def reset_cache_stats(scope: str) -> None:
+    """Reinicia las estadísticas de caché para un scope específico."""
+    with get_conn() as conn:
+        if scope == 'global':
+            # Para global, solo resetear contadores, mantener promedios
+            conn.execute(
+                """UPDATE cache_stats 
+                   SET ocr_hits = 0, ocr_misses = 0, ai_hits = 0, ai_misses = 0,
+                       bytes_saved = 0, ms_saved = 0, updated_at = CURRENT_TIMESTAMP
+                   WHERE scope = ?""",
+                (scope,)
+            )
+        else:
+            # Para casos específicos, eliminar el registro
+            conn.execute("DELETE FROM cache_stats WHERE scope = ?", (scope,))
 
 if __name__ == "__main__":
     init_db()

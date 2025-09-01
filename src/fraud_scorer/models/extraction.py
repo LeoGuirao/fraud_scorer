@@ -146,6 +146,24 @@ class ExtractionBatch(BaseModelCompat):
 
 
 # ==============
+#  Progress Events
+# ==============
+
+class ProgressEvent(BaseModelCompat):
+    """Event model for real-time progress tracking via JSONL files."""
+    timestamp: float
+    case_id: str
+    stage: str               # "upload" | "ocr" | "extract" | "consolidate" | "analyze" | "report"
+    doc_index: Optional[int] = None
+    doc_total: Optional[int] = None
+    status: str              # "started" | "running" | "done" | "error"
+    elapsed_ms: Optional[int] = None
+    avg_stage_ms: Optional[int] = None
+    eta_ms: Optional[int] = None
+    message: Optional[str] = None
+
+
+# ==============
 #  Utilidades
 # ==============
 

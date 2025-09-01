@@ -1,0 +1,16 @@
+{
+  "text": "",
+  "tables": [],
+  "key_value_pairs": {},
+  "metadata": {
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Error HTTP 403: (403) Out of call volume quota for FormRecognizer F0 pricing tier. Please retry after 6 days. To increase your call volume switch to a paid tier.\nCode: 403\nMessage: Out of call volume quota for FormRecognizer F0 pricing tier. Please retry after 6 days. To increase your call volume switch to a paid tier."
+    ],
+    "confidence": {
+      "overall": 0.0
+    }
+  }
+}

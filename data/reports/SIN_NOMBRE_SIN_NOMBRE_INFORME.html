@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fraud Scorer - {{ numero_siniestro|default('SIN_NUMERO') }}</title>
+  <title>Fraud Scorer - None</title>
   
   <!-- Fuentes e íconos -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -552,15 +552,15 @@
       <div class="primary-info-grid">
         <div class="primary-info-item">
           <div class="primary-info-label"><i class="ri-barcode-line"></i>Número de siniestro</div>
-          <div class="primary-info-value">{{ numero_siniestro|default('NO ESPECIFICADO') }}</div>
+          <div class="primary-info-value">None</div>
         </div>
         <div class="primary-info-item">
           <div class="primary-info-label"><i class="ri-shield-user-line"></i>Nombre del asegurado</div>
-          <div class="primary-info-value">{{ nombre_asegurado|default('NO ESPECIFICADO') }}</div>
+          <div class="primary-info-value">None</div>
         </div>
         <div class="primary-info-item">
           <div class="primary-info-label"><i class="ri-money-dollar-circle-line"></i>Monto de reclamación</div>
-          <div class="primary-info-value highlight">{{ monto_reclamacion|default('0.00') }}</div>
+          <div class="primary-info-value highlight">0.00</div>
         </div>
       </div>
     </div>
@@ -574,15 +574,15 @@
         <div class="card-grid">
           <div class="info-item">
             <div class="info-label"><i class="ri-file-zip-line"></i>Número de póliza</div>
-            <div class="info-value">{{ numero_poliza|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">None</div>
           </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-calendar-check-line"></i>Vigencia</div>
-            <div class="info-value">{{ vigencia|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">NO ESPECIFICADO</div>
           </div>
           <div class="info-item full-width">
             <div class="info-label"><i class="ri-map-pin-line"></i>Domicilio de la póliza</div>
-            <div class="info-value">{{ domicilio_poliza|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">None</div>
           </div>
         </div>
       </div>
@@ -593,27 +593,27 @@
         <div class="card-grid">
           <div class="info-item">
             <div class="info-label"><i class="ri-alert-line"></i>Tipo de siniestro</div>
-            <div class="info-value">{{ tipo_siniestro|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">None</div>
           </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-calendar-event-line"></i>Fecha de ocurrencia</div>
-            <div class="info-value">{{ fecha_ocurrencia|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">NO ESPECIFICADO</div>
           </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-calendar-todo-line"></i>Fecha de reclamación</div>
-            <div class="info-value">{{ fecha_reclamacion|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">NO ESPECIFICADO</div>
           </div>
           <div class="info-item full-width">
             <div class="info-label"><i class="ri-map-2-line"></i>Lugar de los hechos</div>
-            <div class="info-value">{{ lugar_hechos|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">None</div>
           </div>
           <div class="info-item full-width">
             <div class="info-label"><i class="ri-archive-line"></i>Bien reclamado</div>
-            <div class="info-value">{{ bien_reclamado|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">None</div>
           </div>
           <div class="info-item">
             <div class="info-label"><i class="ri-user-search-line"></i>Ajuste</div>
-            <div class="info-value">{{ ajuste|default('NO ESPECIFICADO') }}</div>
+            <div class="info-value">None</div>
           </div>
         </div>
       </div>

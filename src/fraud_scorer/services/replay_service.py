@@ -364,3 +364,97 @@ class ReplayService:
             "cleared": cleared_cases,
             "errors": errors
         }
+    
+    async def purge_case(self, case_id: str) -> bool:
+        """
+        Limpia artefactos del caso especificado sin tocar métricas globales.
+        """
+        try:
+            # Limpiar archivos del caso en el caché
+            case_index = self.cache_manager.get_case_index(case_id)
+            if case_index and "cache_files" in case_index:
+                for doc_path_str in case_index["cache_files"]:
+                    cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
+                    if cache_path.exists():
+                        cache_path.unlink()
+            
+            # Limpiar índice del caso
+            index_path = self.cache_manager.index_dir / f"{case_id}.json"
+            if index_path.exists():
+                index_path.unlink()
+            
+            # Limpiar carpeta reorganizada si existe
+            for folder in self.cache_manager.cache_dir.iterdir():
+                if folder.is_dir() and case_id in folder.name:
+                    shutil.rmtree(folder)
+            
+            # Limpiar archivos de status/progress
+            base = os.getenv("FS_DATA_DIR", "data")
+            status_file = Path(base) / "temp" / "pipeline_cache" / f"{case_id}.status.jsonl"
+            if status_file.exists():
+                status_file.unlink()
+            
+            # Resetear métricas del caso (pero no las globales)
+            from ..storage.db import reset_cache_stats
+            reset_cache_stats(case_id)
+            
+            logger.info(f"✅ Caso {case_id} purgado exitosamente")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Error purgando caso {case_id}: {e}")
+            return False
+    
+    async def purge_orphans(self) -> int:
+        """
+        Elimina archivos de caché sin entrada correspondiente en la DB.
+        """
+        orphan_count = 0
+        
+        try:
+            # Obtener todos los casos conocidos de la DB
+            with get_conn() as conn:
+                rows = conn.execute("SELECT DISTINCT case_id FROM cases").fetchall()
+                valid_cases = {row["case_id"] for row in rows}
+            
+            # Revisar archivos de índice
+            for index_file in self.cache_manager.index_dir.glob("*.json"):
+                case_id = index_file.stem
+                if case_id not in valid_cases:
+                    logger.info(f"Eliminando índice huérfano: {case_id}")
+                    index_file.unlink()
+                    orphan_count += 1
+                    
+                    # Eliminar archivos de caché asociados
+                    try:
+                        with open(index_file, 'r') as f:
+                            case_data = json.load(f)
+                        for doc_path_str in case_data.get("cache_files", []):
+                            cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
+                            if cache_path.exists():
+                                cache_path.unlink()
+                                orphan_count += 1
+                    except Exception:
+                        pass
+            
+            # Revisar carpetas reorganizadas
+            for folder in self.cache_manager.cache_dir.iterdir():
+                if folder.is_dir() and folder.name != "case_index":
+                    # Extraer case_id del nombre de la carpeta si es posible
+                    folder_has_valid_case = False
+                    for case_id in valid_cases:
+                        if case_id in folder.name:
+                            folder_has_valid_case = True
+                            break
+                    
+                    if not folder_has_valid_case and "-" in folder.name:
+                        logger.info(f"Eliminando carpeta huérfana: {folder.name}")
+                        shutil.rmtree(folder)
+                        orphan_count += 1
+            
+            logger.info(f"✅ {orphan_count} archivos huérfanos eliminados")
+            return orphan_count
+            
+        except Exception as e:
+            logger.error(f"Error eliminando huérfanos: {e}")
+            return orphan_count

@@ -128,9 +128,7 @@
         var(--accent-primary) 0%, 
         var(--accent-secondary) 50%, 
         var(--accent-tertiary) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      /* Removed text-fill-color transparent for better visibility */
       letter-spacing: -0.02em;
       position: relative;
       z-index: 1;
@@ -329,11 +327,22 @@
     }
 
     .primary-info-value {
-      font-size: 19px;
-      font-weight: 600;
-      padding-left: 30px;
-      color: var(--text-primary);
-      letter-spacing: -0.01em;
+      font-size: 19px !important;
+      font-weight: 600 !important;
+      padding-left: 30px !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      text-fill-color: #ffffff !important;
+      letter-spacing: -0.01em !important;
+      /* FORCE COMPLETE VISIBILITY */
+      min-height: 24px !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      background-color: rgba(255, 255, 0, 0.3) !important;
+      border: 1px solid #ffff00 !important;
+      position: relative !important;
+      z-index: 99999 !important;
     }
 
     .primary-info-value.highlight {
@@ -342,9 +351,7 @@
       background: linear-gradient(135deg, 
         var(--accent-primary) 0%, 
         var(--accent-gold) 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      /* Removed text-fill-color transparent for better visibility */
       letter-spacing: -0.02em;
     }
 
@@ -573,14 +580,24 @@
     }
 
     .info-value {
-      font-size: 17px;
-      font-weight: 500;
-      padding-left: 28px;
-      color: var(--text-primary);
-      word-break: break-word;
-      line-height: 1.5;
-      letter-spacing: -0.01em;
-      min-height: 24px;
+      font-size: 17px !important;
+      font-weight: 500 !important;
+      padding-left: 28px !important;
+      color: #ffffff !important;
+      -webkit-text-fill-color: #ffffff !important;
+      text-fill-color: #ffffff !important;
+      word-break: break-word !important;
+      line-height: 1.5 !important;
+      letter-spacing: -0.01em !important;
+      /* FORCE COMPLETE VISIBILITY */
+      min-height: 24px !important;
+      display: block !important;
+      visibility: visible !important;
+      opacity: 1 !important;
+      background-color: rgba(0, 255, 255, 0.3) !important;
+      border: 1px solid #00ffff !important;
+      position: relative !important;
+      z-index: 99999 !important;
     }
 
     .edit-input {
@@ -611,6 +628,15 @@
     }
 
     .info-item.editing .edit-input {
+      display: block;
+    }
+
+    /* Add missing rules for primary-info-item editing mode */
+    .primary-info-item.editing .primary-info-value {
+      display: none;
+    }
+
+    .primary-info-item.editing .edit-input {
       display: block;
     }
 

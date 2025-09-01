@@ -2,7 +2,8 @@ from __future__ import annotations
 from typing import Optional, Dict, Any
 from .db import (
     upsert_document, get_ocr_by_document_id, get_any_ocr_by_hash, copy_ocr_to_document,
-    save_ocr_result, mark_ocr_success, sha256_of_file, get_extracted_by_document_id, save_extracted_data
+    save_ocr_result, mark_ocr_success, sha256_of_file, get_extracted_by_document_id, save_extracted_data,
+    increment_cache_stats, update_cache_avg
 )
 from pathlib import Path
 import json
@@ -10,6 +11,7 @@ import os
 import shutil
 import re
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -23,21 +25,39 @@ def ensure_document_registered(case_id: str, filepath: str) -> tuple[str, str]:
     doc_id, _is_new = upsert_document(case_id, str(p), mime_type=None, page_count=None, language=None)
     return doc_id, file_hash
 
-def try_get_cached_ocr(document_id: str, file_hash: str, allow_global: bool = True) -> Optional[Dict[str, Any]]:
+def try_get_cached_ocr(document_id: str, file_hash: str, allow_global: bool = True, case_id: str = None) -> Optional[Dict[str, Any]]:
     """
     Devuelve el OCR (dict) si ya existe para este document_id o por hash global.
     """
+    start_time = time.time()
     row = get_ocr_by_document_id(document_id)
     if row:
+        # Cache hit
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        increment_cache_stats('global', 'ocr_hits')
+        increment_cache_stats('global', 'ms_saved', elapsed_ms)
+        if case_id:
+            increment_cache_stats(case_id, 'ocr_hits')
+            increment_cache_stats(case_id, 'ms_saved', elapsed_ms)
         return _row_to_ocr_dict(row)
 
     if allow_global:
         any_ocr = get_any_ocr_by_hash(file_hash)
         if any_ocr:
-            # copiar y devolver
+            # copiar y devolver (hit global)
             copy_ocr_to_document(any_ocr, document_id)
+            elapsed_ms = int((time.time() - start_time) * 1000)
+            increment_cache_stats('global', 'ocr_hits')
+            increment_cache_stats('global', 'ms_saved', elapsed_ms)
+            if case_id:
+                increment_cache_stats(case_id, 'ocr_hits')
+                increment_cache_stats(case_id, 'ms_saved', elapsed_ms)
             return _row_to_ocr_dict(any_ocr)
 
+    # Cache miss
+    increment_cache_stats('global', 'ocr_misses')
+    if case_id:
+        increment_cache_stats(case_id, 'ocr_misses')
     return None
 
 def persist_ocr(document_id: str, ocr_dict: Dict[str, Any], engine: str, engine_version: Optional[str] = None) -> None:
@@ -141,24 +161,55 @@ class OCRCacheManager:
         reorganized_path = self._find_cache_in_reorganized_structure(document_path)
         return reorganized_path is not None
     
-    def get_cache(self, document_path: Path) -> Optional[Dict[str, Any]]:
+    def get_cache(self, document_path: Path, case_id: str = None) -> Optional[Dict[str, Any]]:
         """
         Obtiene el resultado de OCR desde el caché.
         Busca primero en la estructura de hash, luego en la reorganizada.
         """
         try:
+            start_time = time.time()
             # Primero intentar estructura de hash
             cache_path = self._get_cache_path(document_path)
             if cache_path.exists():
                 with open(cache_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                # Registrar hit de caché
+                elapsed_ms = int((time.time() - start_time) * 1000)
+                increment_cache_stats('global', 'ocr_hits')
+                increment_cache_stats('global', 'ms_saved', elapsed_ms)
+                if case_id:
+                    increment_cache_stats(case_id, 'ocr_hits')
+                    increment_cache_stats(case_id, 'ms_saved', elapsed_ms)
+                # Estimar bytes ahorrados (tamaño del archivo)
+                bytes_saved = cache_path.stat().st_size
+                increment_cache_stats('global', 'bytes_saved', bytes_saved)
+                if case_id:
+                    increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
+                return data
             
             # Si no existe, buscar en estructura reorganizada
             reorganized_path = self._find_cache_in_reorganized_structure(document_path)
             if reorganized_path:
                 with open(reorganized_path, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+                    data = json.load(f)
+                # Registrar hit de caché
+                elapsed_ms = int((time.time() - start_time) * 1000)
+                increment_cache_stats('global', 'ocr_hits')
+                increment_cache_stats('global', 'ms_saved', elapsed_ms)
+                if case_id:
+                    increment_cache_stats(case_id, 'ocr_hits')
+                    increment_cache_stats(case_id, 'ms_saved', elapsed_ms)
+                # Estimar bytes ahorrados
+                bytes_saved = reorganized_path.stat().st_size
+                increment_cache_stats('global', 'bytes_saved', bytes_saved)
+                if case_id:
+                    increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
+                return data
             
+            # Cache miss
+            increment_cache_stats('global', 'ocr_misses')
+            if case_id:
+                increment_cache_stats(case_id, 'ocr_misses')
             return None
         except Exception as e:
             logger.error(f"Error leyendo caché para {document_path}: {e}")

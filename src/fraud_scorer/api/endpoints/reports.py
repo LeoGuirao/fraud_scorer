@@ -1,7 +1,7 @@
 """
 API Endpoints para generación automática de informes de siniestros
 """
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends
+from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks, Depends, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from typing import List, Dict, Any, Optional
 import asyncio
@@ -562,6 +562,40 @@ async def get_interactive_report(case_id: str):
     except Exception as e:
         logger.error(f"Error generando reporte interactivo: {e}")
         raise HTTPException(status_code=500, detail=f"Error al generar el reporte interactivo: {e}")
+
+@router.get("/reports/{case_id}/feedback", response_class=HTMLResponse)
+async def reports_feedback(case_id: str, request: Request):
+    """
+    Ruta mejorada para el feedback que corrige el enlace del botón 'Validar información'.
+    """
+    try:
+        # Usar el método existente para obtener datos del template
+        from fraud_scorer.pipelines.data_flow import build_docs_for_template_from_db
+        data = build_docs_for_template_from_db(case_id)
+        
+        if not data:
+            raise HTTPException(status_code=404, detail="Caso no encontrado o sin datos procesados.")
+        
+        # Importar y configurar Jinja2Templates
+        from fastapi.templating import Jinja2Templates
+        from pathlib import Path
+        
+        # Obtener la ruta del template
+        project_root = Path(__file__).resolve().parents[4]
+        templates_dir = project_root / "src" / "fraud_scorer" / "templates"
+        templates = Jinja2Templates(directory=str(templates_dir))
+        
+        # Renderizar el template con los datos
+        return templates.TemplateResponse(
+            "report_template_feedback.html",
+            {"request": request, "case_id": case_id, "data": data}
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generando reporte de feedback: {e}")
+        raise HTTPException(status_code=500, detail=f"Error al generar el reporte: {e}")
 
 
 @router.post("/report/{case_id}/submit_feedback")

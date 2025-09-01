@@ -41,7 +41,104 @@ from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.models.extraction import (
     DocumentExtraction,
     ConsolidatedExtraction,
+    ProgressEvent,
 )
+import time
+import os
+
+
+class _ProgressEmitter:
+    """Emisor de eventos de progreso a archivos JSONL para seguimiento en tiempo real"""
+    
+    def __init__(self, case_id: str):
+        self.case_id = case_id
+        self.start_time = time.time()
+        self.stage_times = {}  # Rastrea tiempos para EWMA
+        self.ewma_alpha = 0.25  # Factor de suavizado EWMA
+        self.avg_stage_times = {}  # Promedios móviles
+        
+        # Configurar ruta de salida
+        base = os.getenv("FS_DATA_DIR", "data")
+        self.cache_dir = Path(base) / "temp" / "pipeline_cache"
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.status_file = self.cache_dir / f"{case_id}.status.jsonl"
+        
+    def emit(self, stage: str, status: str, doc_index: int = None, 
+             doc_total: int = None, message: str = None):
+        """Emite un evento de progreso"""
+        current_time = time.time()
+        elapsed_ms = int((current_time - self.start_time) * 1000)
+        
+        # Actualizar EWMA para timing de etapa
+        if status == "done" and stage in self.stage_times:
+            stage_duration = current_time - self.stage_times[stage]
+            if stage in self.avg_stage_times:
+                # Actualización EWMA
+                self.avg_stage_times[stage] = (
+                    self.ewma_alpha * stage_duration + 
+                    (1 - self.ewma_alpha) * self.avg_stage_times[stage]
+                )
+            else:
+                self.avg_stage_times[stage] = stage_duration
+        elif status == "started":
+            self.stage_times[stage] = current_time
+            
+        # Calcular ETA basado en etapas restantes
+        eta_ms = self._calculate_eta(stage, status)
+        
+        event = ProgressEvent(
+            timestamp=current_time,
+            case_id=self.case_id,
+            stage=stage,
+            doc_index=doc_index,
+            doc_total=doc_total,
+            status=status,
+            elapsed_ms=elapsed_ms,
+            avg_stage_ms=int(self.avg_stage_times.get(stage, 0) * 1000) if stage in self.avg_stage_times else None,
+            eta_ms=eta_ms,
+            message=message
+        )
+        
+        # Escribir a JSONL
+        try:
+            with open(self.status_file, "a") as f:
+                f.write(json.dumps(event.model_dump()) + "\n")
+        except Exception as e:
+            logger.warning(f"No se pudo escribir evento de progreso: {e}")
+            
+    def _calculate_eta(self, current_stage: str, status: str) -> Optional[int]:
+        """Calcula tiempo estimado restante basado en EWMA"""
+        stages = ["upload", "ocr", "extract", "consolidate", "analyze", "report"]
+        
+        if status == "done":
+            # Encontrar etapas restantes
+            try:
+                current_idx = stages.index(current_stage)
+                remaining_stages = stages[current_idx + 1:]
+            except ValueError:
+                return None
+        else:
+            # Incluir etapa actual si no está terminada
+            try:
+                current_idx = stages.index(current_stage)
+                remaining_stages = stages[current_idx:]
+            except ValueError:
+                return None
+                
+        # Sumar tiempos estimados para etapas restantes
+        total_remaining = 0
+        for stage in remaining_stages:
+            if stage in self.avg_stage_times:
+                total_remaining += self.avg_stage_times[stage]
+            else:
+                # Estimaciones por defecto en segundos
+                defaults = {
+                    "upload": 2, "ocr": 15, "extract": 10,
+                    "consolidate": 5, "analyze": 8, "report": 5
+                }
+                total_remaining += defaults.get(stage, 5)
+                
+        return int(total_remaining * 1000)  # Convertir a ms
 
 
 class FraudAnalysisSystemV2:
@@ -70,6 +167,7 @@ class FraudAnalysisSystemV2:
         self._cancel_lock = threading.Lock()
         self._cleanup_paths = []
         self.cancellation_check = None
+        self.progress_emitter = None  # Se inicializa por caso
 
     def cancel(self):
         """Señala que el proceso debe cancelarse"""
@@ -215,12 +313,14 @@ class FraudAnalysisSystemV2:
         if folder_path not in self._cleanup_paths:
             self._cleanup_paths.append(folder_path)
 
+        # Inicializar emisor de progreso para este caso
+        self.progress_emitter = _ProgressEmitter(case_id)
+
         # Ejecutar pipeline v2
         return await self._process_with_ai(documents, case_id, output_path)
 
     async def _process_with_ai(
         self,
-        folder_path: Path,
         documents: List[Path],
         case_id: str,
         output_path: Path,
@@ -237,6 +337,10 @@ class FraudAnalysisSystemV2:
         # Notificar inicio de procesamiento
         if self.progress_callback:
             self.progress_callback("Iniciando procesamiento de documentos...", 5)
+        
+        # Emitir evento de inicio de OCR
+        if self.progress_emitter:
+            self.progress_emitter.emit("ocr", "started", message="Iniciando procesamiento de documentos")
         
         # Verificar cancelación
         if self.cancellation_check and await self.cancellation_check():
@@ -286,7 +390,15 @@ class FraudAnalysisSystemV2:
                             doc_path.name
                         )
                     
-                    ocr_result = self.cache_manager.get_cache(doc_path)
+                    # Emitir evento de progreso OCR
+                    if self.progress_emitter:
+                        self.progress_emitter.emit(
+                            "ocr", "running", 
+                            doc_index=idx, doc_total=len(documents),
+                            message=f"Cargando desde cache: {doc_path.name}"
+                        )
+                    
+                    ocr_result = self.cache_manager.get_cache(doc_path, case_id)
                     if ocr_result:
                         ocr_results.append({
                             "filename": doc_path.name,
@@ -314,11 +426,19 @@ class FraudAnalysisSystemV2:
                             progress,
                             doc_path.name
                         )
+                    
+                    # Emitir evento de progreso OCR
+                    if self.progress_emitter:
+                        self.progress_emitter.emit(
+                            "ocr", "running",
+                            doc_index=idx, doc_total=len(documents),
+                            message=f"Procesando: {doc_path.name}"
+                        )
 
                     # Usar cache si existe
                     if self.cache_manager.has_cache(doc_path):
                         logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
-                        ocr_result = self.cache_manager.get_cache(doc_path)
+                        ocr_result = self.cache_manager.get_cache(doc_path, case_id)
                         if ocr_result:
                             cache_files.append(str(doc_path))
                     else:
@@ -363,7 +483,9 @@ class FraudAnalysisSystemV2:
         # Guardar índice del caso para replay
         if self.cache_manager:
             # Extraer información del título del caso
-            case_title = case_title or folder_path.name
+            # Obtener el nombre de la carpeta desde el primer documento
+            folder_name = documents[0].parent.name if documents else "UNKNOWN"
+            case_title = folder_name
             parts = case_title.split(' - ', 1)
             if len(parts) == 2:
                 claim_number = parts[0].strip()
@@ -385,6 +507,10 @@ class FraudAnalysisSystemV2:
                 "status": "processed"
             }
             self.cache_manager.save_case_index(case_id, case_data)
+        
+        # Emitir evento de finalización de OCR (si no se hizo antes)
+        if self.progress_emitter and not all_cached:
+            self.progress_emitter.emit("ocr", "done", message="Procesamiento de documentos completado")
 
         # ============================================
         # FASE 2: Extracción con IA
@@ -400,6 +526,10 @@ class FraudAnalysisSystemV2:
         # Notificar inicio de extracción
         if self.progress_callback:
             self.progress_callback("Extrayendo campos con inteligencia artificial...", 35)
+        
+        # Emitir evento de inicio de extracción
+        if self.progress_emitter:
+            self.progress_emitter.emit("extract", "started", message="Extrayendo campos con IA")
 
         extractions: List[DocumentExtraction] = await self.extractor.extract_from_documents_batch(
             documents=ocr_results,
@@ -411,6 +541,10 @@ class FraudAnalysisSystemV2:
             logger.info(f"  ✓ {extraction.source_document}: {fields_found} campos extraídos")
 
         logger.info(f"✓ Extracción completada: {len(extractions)} documentos procesados")
+        
+        # Emitir evento de finalización de extracción
+        if self.progress_emitter:
+            self.progress_emitter.emit("extract", "done", message="Extracción completada")
 
         # ============================================
         # FASE 3: Consolidación con IA
@@ -426,6 +560,10 @@ class FraudAnalysisSystemV2:
         # Notificar inicio de consolidación
         if self.progress_callback:
             self.progress_callback("Consolidando información con IA...", 55)
+        
+        # Emitir evento de inicio de consolidación
+        if self.progress_emitter:
+            self.progress_emitter.emit("consolidate", "started", message="Consolidando información")
 
         consolidated: ConsolidatedExtraction = await self.consolidator.consolidate_extractions(
             extractions=extractions,
@@ -479,6 +617,10 @@ class FraudAnalysisSystemV2:
         logger.info("📁 Reorganizando estructura de cache...")
         self.cache_manager.reorganize_cache_for_case(case_id, insured_name_from_data, claim_number_from_data)
         logger.info("✓ Cache reorganizado con nomenclatura consistente")
+        
+        # Emitir evento de finalización de consolidación
+        if self.progress_emitter:
+            self.progress_emitter.emit("consolidate", "done", message="Consolidación completada")
 
         # ============================================
         # FASE 4: Análisis de fraude (IA)
@@ -495,11 +637,19 @@ class FraudAnalysisSystemV2:
         if self.progress_callback:
             self.progress_callback("Analizando indicadores de fraude...", 70)
         
+        # Emitir evento de inicio de análisis
+        if self.progress_emitter:
+            self.progress_emitter.emit("analyze", "started", message="Analizando indicadores de fraude")
+        
         ai_analysis = await self._analyze_fraud(consolidated, extractions)
         fraud_score = ai_analysis.get("fraud_score", 0)
         risk_level = "BAJO" if fraud_score < 0.3 else ("MEDIO" if fraud_score < 0.6 else "ALTO")
         logger.info(f"✓ Fraud Score: {fraud_score:.2%}")
         logger.info(f"✓ Nivel de Riesgo: {risk_level}")
+        
+        # Emitir evento de finalización de análisis
+        if self.progress_emitter:
+            self.progress_emitter.emit("analyze", "done", message=f"Análisis completado - Riesgo: {risk_level}")
 
         # ============================================
         # FASE 5: Generación del reporte
@@ -515,6 +665,10 @@ class FraudAnalysisSystemV2:
         # Notificar generación de reporte
         if self.progress_callback:
             self.progress_callback("Generando reporte HTML y PDF...", 85)
+        
+        # Emitir evento de inicio de reporte
+        if self.progress_emitter:
+            self.progress_emitter.emit("report", "started", message="Generando reporte")
 
         output_path.mkdir(parents=True, exist_ok=True)
         
@@ -568,6 +722,10 @@ class FraudAnalysisSystemV2:
         # Notificar finalización
         if self.progress_callback:
             self.progress_callback("Finalizando procesamiento...", 95)
+        
+        # Emitir evento de finalización de reporte
+        if self.progress_emitter:
+            self.progress_emitter.emit("report", "done", message="Reporte generado")
 
         # ============================================
         # FASE 6: Guardar resultados y Organizar archivos
@@ -654,6 +812,10 @@ class FraudAnalysisSystemV2:
         logger.info("\n" + "=" * 60)
         logger.info("✅ PROCESAMIENTO COMPLETADO EXITOSAMENTE")
         logger.info("=" * 60)
+        
+        # Emitir evento final de completado
+        if self.progress_emitter:
+            self.progress_emitter.emit("report", "done", message="Procesamiento completado exitosamente")
 
         return results
 
@@ -685,10 +847,12 @@ class FraudAnalysisSystemV2:
 def parse_args(argv: List[str]) -> argparse.Namespace:
     """Parser de argumentos (sin --use-legacy)."""
     p = argparse.ArgumentParser(description="Fraud Scorer v2.0 - Sistema de Análisis con IA")
-    p.add_argument("folder", type=Path, help="Carpeta con documentos del caso")
+    p.add_argument("folder", type=Path, nargs='?', help="Carpeta con documentos del caso")
     p.add_argument("--out", type=Path, default=Path("data/reports"), help="Carpeta de salida")
     p.add_argument("--title", help="Título del caso")
     p.add_argument("--debug", action="store_true", help="Modo debug con más logging")
+    p.add_argument("--purge-case", metavar="CASE_ID", help="Limpia artefactos del caso especificado")
+    p.add_argument("--purge-orphans", action="store_true", help="Elimina archivos sin entrada en DB")
     return p.parse_args(argv)
 
 
@@ -698,6 +862,34 @@ async def main(argv: List[str]) -> None:
 
     if args.debug:
         logging.getLogger().setLevel(logging.DEBUG)
+    
+    # Manejar operaciones de purga
+    if args.purge_case or args.purge_orphans:
+        from fraud_scorer.services.replay_service import ReplayService
+        replay_service = ReplayService()
+        
+        if args.purge_case:
+            logger.info(f"🧹 Limpiando artefactos del caso {args.purge_case}...")
+            success = await replay_service.purge_case(args.purge_case)
+            if success:
+                logger.info(f"✅ Caso {args.purge_case} limpiado exitosamente")
+            else:
+                logger.error(f"❌ Error limpiando caso {args.purge_case}")
+                sys.exit(1)
+        
+        if args.purge_orphans:
+            logger.info("🧹 Eliminando archivos huérfanos...")
+            count = await replay_service.purge_orphans()
+            logger.info(f"✅ {count} archivos huérfanos eliminados")
+        
+        # Si solo se ejecutaron operaciones de purga, salir
+        if not args.folder:
+            sys.exit(0)
+
+    # Validar que se proporcione una carpeta para procesamiento normal
+    if not args.folder:
+        print("❌ Error: Debe proporcionar una carpeta con documentos o usar --purge-case/--purge-orphans")
+        sys.exit(1)
 
     if not args.folder.is_dir():
         print(f"❌ Error: La carpeta {args.folder} no existe o no es un directorio.")
