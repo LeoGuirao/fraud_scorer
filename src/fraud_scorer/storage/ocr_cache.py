@@ -102,24 +102,64 @@ class OCRCacheManager:
         
         return cache_subdir / f"{file_hash}.json"
     
+    def _find_cache_in_reorganized_structure(self, document_path: Path) -> Optional[Path]:
+        """
+        Busca el archivo de cache en la estructura reorganizada [ASEGURADO] - [SINIESTRO]
+        """
+        doc_name = document_path.name
+        sanitized_stem = self._sanitize_filename(document_path.stem)
+        sanitized_name = self._sanitize_filename(doc_name)
+        
+        # Buscar en todas las carpetas del cache
+        for folder in self.cache_dir.iterdir():
+            if folder.is_dir() and folder.name != "case_index" and "-" in folder.name:
+                # Buscar en subcarpetas
+                for subfolder in folder.iterdir():
+                    if subfolder.is_dir():
+                        # Buscar el archivo JSON
+                        pattern1 = subfolder / f"ocr_results_for_{sanitized_name}.json"
+                        pattern2 = subfolder / f"ocr_results_for_{doc_name}.json"
+                        
+                        if pattern1.exists():
+                            return pattern1
+                        if pattern2.exists():
+                            return pattern2
+        
+        return None
+    
     def has_cache(self, document_path: Path) -> bool:
         """
         Verifica si existe caché para el documento.
+        Busca primero en la estructura de hash, luego en la reorganizada.
         """
+        # Primero intentar estructura de hash
         cache_path = self._get_cache_path(document_path)
-        return cache_path.exists()
+        if cache_path.exists():
+            return True
+        
+        # Si no existe, buscar en estructura reorganizada
+        reorganized_path = self._find_cache_in_reorganized_structure(document_path)
+        return reorganized_path is not None
     
     def get_cache(self, document_path: Path) -> Optional[Dict[str, Any]]:
         """
         Obtiene el resultado de OCR desde el caché.
+        Busca primero en la estructura de hash, luego en la reorganizada.
         """
-        if not self.has_cache(document_path):
-            return None
-        
         try:
+            # Primero intentar estructura de hash
             cache_path = self._get_cache_path(document_path)
-            with open(cache_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
+            if cache_path.exists():
+                with open(cache_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            
+            # Si no existe, buscar en estructura reorganizada
+            reorganized_path = self._find_cache_in_reorganized_structure(document_path)
+            if reorganized_path:
+                with open(reorganized_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            
+            return None
         except Exception as e:
             logger.error(f"Error leyendo caché para {document_path}: {e}")
             return None

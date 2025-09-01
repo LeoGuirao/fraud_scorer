@@ -46,6 +46,10 @@ def get_case_by_path(base_path: str) -> Optional[Row]:
     with get_conn() as conn:
         return conn.execute("SELECT * FROM cases WHERE base_path = ? ORDER BY created_at DESC LIMIT 1", (base_path,)).fetchone()
 
+def get_case_by_title(title: str) -> Optional[Row]:
+    with get_conn() as conn:
+        return conn.execute("SELECT * FROM cases WHERE name = ? ORDER BY created_at DESC LIMIT 1", (title,)).fetchone()
+
 def list_cases(limit: int = 50, status: Optional[str] = None) -> List[Row]:
     with get_conn() as conn:
         if status:

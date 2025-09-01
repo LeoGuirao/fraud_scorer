@@ -1,0 +1,20 @@
+/Users/guiraoleo/Documents/fraud_scorer/venv/lib/python3.13/site-packages/pydantic/_internal/_config.py:345: UserWarning: Valid config keys have changed in V2:
+* 'anystr_strip_whitespace' has been renamed to 'str_strip_whitespace'
+  warnings.warn(message, UserWarning)
+2025-08-30 18:15:40,235 - fraud_scorer.storage.ocr_cache - INFO - OCRCacheManager inicializado con directorio: data/ocr_cache
+/Users/guiraoleo/Documents/fraud_scorer/src/fraud_scorer/api/web_interface.py:83: DeprecationWarning: 
+        on_event is deprecated, use lifespan event handlers instead.
+
+        Read more about it in the
+        [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
+        
+  @app.on_event("startup")
+2025-08-30 18:15:40,249 - fraud_scorer.processors.ocr.azure_ocr - INFO - Cliente Azure OCR inicializado correctamente
+2025-08-30 18:15:40,249 - fraud_scorer.parsers.document_parser - INFO - DocumentParser inicializado con todos los procesadores.
+2025-08-30 18:15:40,249 - fraud_scorer.storage.ocr_cache - INFO - OCRCacheManager inicializado con directorio: data/ocr_cache
+2025-08-30 18:15:40,260 - fraud_scorer.processors.ai.ai_field_extractor - INFO - AIFieldExtractor inicializado
+2025-08-30 18:15:40,264 - fraud_scorer.processors.ai.ai_consolidator - INFO - AIConsolidator inicializado
+2025-08-30 18:15:40,264 - fraud_scorer.templates.ai_report_generator - INFO - AIReportGenerator inicializado con plantillas de /Users/guiraoleo/Documents/fraud_scorer/src/fraud_scorer/templates
+2025-08-30 18:15:40,264 - __main__ - INFO - FraudScorerProcessor inicializado
+2025-08-30 18:15:40,267 - __main__ - INFO - Iniciando servidor en http://0.0.0.0:8000
+WARNING:  You must pass the application as an import string to enable 'reload' or 'workers'.

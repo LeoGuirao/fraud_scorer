@@ -16,3 +16,18 @@ env/
 
 # OS
 .DS_Store
+
+
+# === Agregado por cleanup_temp.py ===
+# Archivos del sistema
+Thumbs.db
+# Directorios temporales
+data/temp/*
+!data/temp/.gitkeep
+data/temp_reports/*
+!data/temp_reports/.gitkeep
+data/feedback_archive/*
+!data/feedback_archive/.gitkeep
+# Cache de pipeline
+data/temp/pipeline_cache/*
+!data/temp/pipeline_cache/.gitkeep

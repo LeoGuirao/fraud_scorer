@@ -350,10 +350,17 @@
             <div style="margin-top: 15px; padding: 10px; background: #f0f8ff; border-radius: 5px; font-size: 14px; color: #555;">
                 <div id="detailedStatus" style="margin-bottom: 5px;"></div>
                 <div id="documentProgress" style="font-weight: bold;"></div>
+                <div id="timeInfo" style="margin-top: 10px; display: flex; justify-content: space-around; font-size: 13px; color: #666;">
+                    <span>⏱️ Tiempo transcurrido: <span id="elapsedTime">0:00</span></span>
+                    <span>⏳ Tiempo estimado: <span id="estimatedTime">calculando...</span></span>
+                </div>
             </div>
-            <button class="btn btn-secondary" id="cancelBtn" onclick="cancelProcess()" style="margin-top: 20px; background: #dc3545; border-color: #dc3545;">
-                ❌ Cancelar Proceso
+            <button class="btn btn-secondary" id="cancelBtn" onclick="cancelProcess()" style="margin-top: 20px; background: #dc3545; border-color: #dc3545;" onmouseover="this.style.backgroundColor='#c82333'" onmouseout="this.style.backgroundColor='#dc3545'">
+                🛑 Cancelar Proceso
             </button>
+            <div id="cancelStatus" style="display:none; margin-top: 10px; padding: 10px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 5px;">
+                <span>🧹 Cancelando y limpiando archivos temporales...</span>
+            </div>
         </div>
 
         <!-- Sección de resultados -->
@@ -510,14 +517,35 @@
         }
         
         let currentProcessId = null;
+        let startTime = null;
+        let progressHistory = [];
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        function estimateRemainingTime(currentProgress, elapsedSeconds) {
+            if (currentProgress <= 0) return 'calculando...';
+            const estimatedTotal = (elapsedSeconds / currentProgress) * 100;
+            const remaining = estimatedTotal - elapsedSeconds;
+            if (remaining < 0 || isNaN(remaining)) return 'calculando...';
+            return formatTime(remaining);
+        }
         
         async function monitorProgress(processId) {
             currentProcessId = processId;
+            startTime = Date.now();
+            progressHistory = [];
+            
             const progressFill = document.getElementById('progressFill');
             const statusMessage = document.getElementById('statusMessage');
             const detailedStatus = document.getElementById('detailedStatus');
             const documentProgress = document.getElementById('documentProgress');
             const cancelBtn = document.getElementById('cancelBtn');
+            const elapsedTimeEl = document.getElementById('elapsedTime');
+            const estimatedTimeEl = document.getElementById('estimatedTime');
             
             const checkStatus = async () => {
                 try {
@@ -525,12 +553,37 @@
                     const status = await response.json();
                     
                     // Actualizar progreso
-                    progressFill.style.width = `${status.progress || 0}%`;
+                    const progress = status.progress || 0;
+                    progressFill.style.width = `${progress}%`;
                     statusMessage.textContent = status.message || 'Procesando...';
+                    
+                    // Calcular y mostrar tiempos
+                    const elapsedSeconds = (Date.now() - startTime) / 1000;
+                    elapsedTimeEl.textContent = formatTime(elapsedSeconds);
+                    
+                    // Estimar tiempo restante
+                    if (progress > 5) {  // Solo estimar después de 5% de progreso
+                        estimatedTimeEl.textContent = estimateRemainingTime(progress, elapsedSeconds);
+                    }
                     
                     // Actualizar estado detallado
                     if (status.current_document && status.total_documents) {
                         documentProgress.textContent = `Documento ${status.current_document} de ${status.total_documents}`;
+                    }
+                    
+                    // Mostrar nombre del documento actual si está disponible
+                    if (status.current_document_name) {
+                        documentProgress.textContent += `: ${status.current_document_name}`;
+                    }
+                    
+                    // Mostrar eventos recientes si están disponibles
+                    if (status.recent_events && status.recent_events.length > 0) {
+                        const latestEvent = status.recent_events[status.recent_events.length - 1];
+                        if (latestEvent.document) {
+                            detailedStatus.textContent = `📄 ${latestEvent.document}`;
+                        } else {
+                            detailedStatus.textContent = latestEvent.message;
+                        }
                     }
                     
                     // Mostrar detalles adicionales según el progreso
@@ -554,8 +607,18 @@
                         cancelBtn.disabled = true;
                         throw new Error(status.message);
                     } else if (status.status === 'cancelled') {
-                        alert('Proceso cancelado exitosamente');
-                        resetForm();
+                        // Mostrar estado de cancelación
+                        cancelBtn.style.display = 'none';
+                        document.getElementById('cancelStatus').style.display = 'block';
+                        progressBar.style.backgroundColor = '#ffc107';
+                        statusText.textContent = 'Proceso cancelado';
+                        detailedStatus.textContent = '🧹 Limpiando archivos temporales...';
+                        
+                        // Esperar un poco antes de resetear
+                        setTimeout(() => {
+                            alert('Proceso cancelado exitosamente');
+                            resetForm();
+                        }, 2000);
                     } else {
                         // Continuar monitoreando
                         setTimeout(checkStatus, 1000);
@@ -573,19 +636,38 @@
         async function cancelProcess() {
             if (!currentProcessId) return;
             
-            if (confirm('¿Está seguro de que desea cancelar el proceso?')) {
+            const confirmMsg = '¿Está seguro de que desea cancelar el proceso?\n' +
+                              'Se detendrá el análisis y se eliminarán los archivos temporales.';
+            
+            if (confirm(confirmMsg)) {
                 try {
+                    // Deshabilitar el botón inmediatamente
+                    const cancelBtn = document.getElementById('cancelBtn');
+                    cancelBtn.disabled = true;
+                    cancelBtn.textContent = '🔄 Cancelando...';
+                    
                     const response = await fetch(`/cancel/${currentProcessId}`, {
                         method: 'POST'
                     });
                     const result = await response.json();
                     
-                    if (!result.success) {
+                    if (result.success) {
+                        // Actualizar UI para mostrar que se está cancelando
+                        document.getElementById('statusText').textContent = 'Cancelando proceso...';
+                        document.getElementById('detailedStatus').textContent = result.cleanup || '🧹 Limpiando archivos temporales...';
+                        
+                        // Cambiar color de la barra de progreso
+                        document.getElementById('progressBar').style.backgroundColor = '#ffc107';
+                    } else {
                         alert('No se pudo cancelar el proceso: ' + result.message);
+                        cancelBtn.disabled = false;
+                        cancelBtn.textContent = '🛑 Cancelar Proceso';
                     }
                 } catch (error) {
                     console.error('Error cancelando proceso:', error);
                     alert('Error al cancelar el proceso');
+                    document.getElementById('cancelBtn').disabled = false;
+                    document.getElementById('cancelBtn').textContent = '🛑 Cancelar Proceso';
                 }
             }
         }
@@ -613,6 +695,27 @@
             document.getElementById('uploadSection').style.display = 'block';
             document.getElementById('processingSection').style.display = 'none';
             document.getElementById('resultSection').style.display = 'none';
+            document.getElementById('cancelStatus').style.display = 'none';
+            
+            // Resetear botón de cancelar
+            const cancelBtn = document.getElementById('cancelBtn');
+            if (cancelBtn) {
+                cancelBtn.disabled = false;
+                cancelBtn.textContent = '🛑 Cancelar Proceso';
+                cancelBtn.style.display = 'block';
+            }
+            
+            // Resetear barra de progreso
+            const progressBar = document.getElementById('progressBar');
+            if (progressBar) {
+                progressBar.style.backgroundColor = '#28a745';
+            }
+            
+            // Resetear variables globales
+            currentProcessId = null;
+            startTime = null;
+            progressHistory = [];
+            
             clearFiles();
         }
     </script>

@@ -60,8 +60,8 @@ class ReplaySystem:
             **options  # Incluir todas las opciones proporcionadas
         }
         
-        # Usar la función centralizada del servicio
-        return await self.replay_service._core_replay_processing(config)
+        # Usar el método público del servicio (igual que el endpoint web)
+        return await self.replay_service.process_replay(config)
 
     async def run_interactive(self):
         """

@@ -290,8 +290,27 @@ class ReplayUI:
                 # Mostrar información real de los resultados
                 if results and results.get('output_path'):
                     output_path = Path(results['output_path'])
-                    html_file = output_path / f"INF-{case_id}.html"
-                    pdf_file = output_path / f"INF-{case_id}.pdf"
+                    
+                    # Buscar archivos con el nuevo formato
+                    import glob
+                    html_pattern = str(output_path / f"INF-*-*.html")
+                    pdf_pattern = str(output_path / f"INF-*-*.pdf")
+                    
+                    html_files = glob.glob(html_pattern)
+                    pdf_files = glob.glob(pdf_pattern)
+                    
+                    # Si hay archivos con el nuevo formato, usar el más reciente
+                    if html_files:
+                        html_file = Path(max(html_files, key=lambda x: Path(x).stat().st_mtime))
+                    else:
+                        # Fallback al formato antiguo
+                        html_file = output_path / f"INF-{case_id}.html"
+                    
+                    if pdf_files:
+                        pdf_file = Path(max(pdf_files, key=lambda x: Path(x).stat().st_mtime))
+                    else:
+                        # Fallback al formato antiguo
+                        pdf_file = output_path / f"INF-{case_id}.pdf"
                     
                     console.print(f"\n[bold]Archivos generados:[/bold]")
                     if html_file.exists():

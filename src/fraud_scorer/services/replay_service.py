@@ -154,8 +154,10 @@ class ReplayService:
             output_path: Directorio donde buscar archivos existentes
         """
         patterns_to_clean = [
-            f"INF-{case_id}.html",
-            f"INF-{case_id}.pdf",
+            f"INF-{case_id}.html",  # Formato antiguo
+            f"INF-{case_id}.pdf",   # Formato antiguo
+            f"INF-*-*.html",        # Formato nuevo
+            f"INF-*-*.pdf",         # Formato nuevo
             f"replay_{case_id}_*.json",
             f"{case_id}_*.html",
             f"{case_id}_*.pdf"
@@ -179,9 +181,21 @@ class ReplayService:
         Procesa con el sistema de IA usando los datos cacheados
         """
         # Asegurar que el directorio de salida existe
-        output_path = Path(options.get('output_dir', 'data/reports'))
+        output_dir = options.get('output_dir')
+        if output_dir is None:
+            output_dir = 'data/reports'
+        output_path = Path(output_dir)
         output_path.mkdir(parents=True, exist_ok=True)
         logger.info(f"Directorio de salida: {output_path.absolute()}")
+        
+        # Obtener información del caso para nomenclatura
+        case_index = self.cache_manager.get_case_index(case_id)
+        if case_index:
+            insured_name = case_index.get('insured_name', 'DESCONOCIDO')
+            claim_number = case_index.get('claim_number', case_id)
+        else:
+            insured_name = 'DESCONOCIDO'
+            claim_number = case_id
         
         # Limpiar archivos existentes antes de generar nuevos
         self._clean_existing_files(case_id, output_path)
@@ -241,7 +255,18 @@ class ReplayService:
         # Fase 4: Generar reporte si se solicita
         if options.get('regenerate_report', True):
             logger.info("Generando reporte...")
-            html_path = output_path / f"INF-{case_id}.html"
+            
+            # Sanitizar nombres para uso en archivos
+            import re
+            def sanitize_filename(name):
+                if not name:
+                    return "SIN_NOMBRE"
+                return re.sub(r'[^a-zA-Z0-9_.-]+', '_', name).strip('_')
+            
+            s_insured = sanitize_filename(insured_name)
+            s_claim = sanitize_filename(claim_number)
+            
+            html_path = output_path / f"INF-{s_insured}-{s_claim}.html"
             html_content = report_generator.generate_report(
                 consolidated_data=consolidated,
                 ai_analysis=ai_analysis,
@@ -249,7 +274,7 @@ class ReplayService:
             )
 
             # Intentar generar PDF
-            pdf_path = output_path / f"INF-{case_id}.pdf"
+            pdf_path = output_path / f"INF-{s_insured}-{s_claim}.pdf"
             report_generator.generate_pdf(html_content, pdf_path)
 
         # Preparar resultados

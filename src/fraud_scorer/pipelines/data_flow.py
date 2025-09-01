@@ -316,12 +316,34 @@ def render_report(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Construir el InformeSiniestro desde docs+AI
-    informe = template_processor.extract_from_documents(docs_for_template, ai_analysis)
-    numero_siniestro = getattr(informe, "numero_siniestro", default_name)
-
-    html_path = output_dir / f"INF-{numero_siniestro}.html"
-    template_processor.generate_report(informe, str(html_path))
+    # NOTA: Este código parece estar incompleto ya que extract_from_documents no existe
+    # Por ahora, usar el nombre por defecto para mantener compatibilidad
+    # TODO: Implementar extracción real de datos cuando se complete el método
+    
+    # Extraer nombre del asegurado y número de siniestro si están disponibles
+    insured_name = "DESCONOCIDO"
+    claim_number = default_name
+    
+    # Buscar en los documentos procesados
+    for doc in docs_for_template:
+        if doc.get("nombre_asegurado"):
+            insured_name = doc["nombre_asegurado"]
+        if doc.get("numero_siniestro"):
+            claim_number = doc["numero_siniestro"]
+    
+    # Sanitizar nombres para el sistema de archivos
+    from fraud_scorer.services.replay_service import sanitize_filename
+    s_insured = sanitize_filename(insured_name)
+    s_claim = sanitize_filename(claim_number)
+    
+    html_path = output_dir / f"INF-{s_insured}-{s_claim}.html"
+    
+    # TODO: Cuando se implemente extract_from_documents, usar:
+    # informe = template_processor.extract_from_documents(docs_for_template, ai_analysis)
+    # template_processor.generate_report(informe, str(html_path))
+    
+    # Por ahora, crear un archivo vacío o usar un template básico
+    html_path.write_text(f"<html><body><h1>Informe {s_claim} - {insured_name}</h1><p>Pendiente implementación completa</p></body></html>")
 
     pdf_path: Optional[Path] = None
     try:

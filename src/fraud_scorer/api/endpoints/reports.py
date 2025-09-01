@@ -175,8 +175,9 @@ async def download_report(process_id: str):
     if not report_path or not Path(report_path).exists():
         raise HTTPException(status_code=404, detail="Archivo de informe no encontrado")
     
-    claim_number = status.get("claim_number", "DESCONOCIDO")
-    filename = f"INF-{claim_number}.html"
+    # Obtener nombre del archivo desde el path
+    import os
+    filename = os.path.basename(report_path)
     
     return FileResponse(
         path=report_path,
@@ -384,17 +385,47 @@ async def _process_documents_and_generate_report(
         processing_status[process_id]["progress"] = 80
         processing_status[process_id]["message"] = "Generando informe..."
         
-        informe = template_processor.extract_from_documents(ocr_results, ai_analysis)
+        # Extraer campos de los resultados OCR y análisis AI
+        from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
+        from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
+        from fraud_scorer.models.extraction import DocumentExtraction, ConsolidatedExtraction
         
-        # Si no se proporcionó número de siniestro, usar el extraído
+        extractor = AIFieldExtractor()
+        consolidator = AIConsolidator()
+        
+        # Extraer campos de cada documento
+        extractions = []
+        for ocr_result in ocr_results:
+            extraction = await extractor.extract_fields(ocr_result)
+            extractions.append(extraction)
+        
+        # Consolidar extracciones
+        consolidated = await consolidator.consolidate_extractions(
+            extractions=extractions,
+            case_id=process_id,
+            use_advanced_reasoning=True
+        )
+        
+        # Obtener datos del asegurado y siniestro
+        insured_name = consolidated.fields.nombre_asegurado or "DESCONOCIDO"
         if not claim_number:
-            claim_number = informe.numero_siniestro
+            claim_number = consolidated.fields.numero_siniestro or process_id
+        
+        # Sanitizar nombres para el sistema de archivos
+        from fraud_scorer.services.replay_service import sanitize_filename
+        s_insured = sanitize_filename(insured_name)
+        s_claim = sanitize_filename(claim_number)
         
         # Generar HTML
-        report_filename = f"INF-{claim_number}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
+        report_filename = f"INF-{s_insured}-{s_claim}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         report_path = REPORTS_DIR / report_filename
         
-        html_content = template_processor.generate_report(informe, str(report_path))
+        # Generar el reporte con los datos consolidados
+        template_processor.generate_report(
+            consolidated_data=consolidated,
+            ai_analysis=ai_analysis,
+            output_path=report_path
+        )
         
         # Actualizar estado final
         processing_status[process_id]["status"] = "completed"
@@ -403,7 +434,7 @@ async def _process_documents_and_generate_report(
         processing_status[process_id]["completed_at"] = datetime.now().isoformat()
         processing_status[process_id]["report_path"] = str(report_path)
         processing_status[process_id]["claim_number"] = claim_number
-        processing_status[process_id]["report_data"] = template_processor._dataclass_to_dict(informe)
+        processing_status[process_id]["report_data"] = template_processor._dataclass_to_dict(consolidated)
         
         # Limpiar archivos temporales
         temp_folder = Path(f"data/temp/{process_id}")
