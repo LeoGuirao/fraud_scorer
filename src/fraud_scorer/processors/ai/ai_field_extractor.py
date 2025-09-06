@@ -523,13 +523,27 @@ class AIFieldExtractor:
         text_lower = (ocr_result.get("text") or "").lower()
         filename_lower = (filename or "").lower()
 
-        # Regla temprana: identificación oficial (evitar falsos positivos como póliza)
-        id_keywords = [
-            "credencial para votar", "instituto nacional electoral", "ine", "ife",
-            "clave de elector", "curp", "identificacion", "identificación"
+        # PRIORIDAD: expediente_de_cobranza por contenido (evitar depender del nombre)
+        cobranza_cues = [
+            "cobranza", "cumplimiento", "recibo", "recibos", "pagado", "pagos",
+            "vigencia", "validación de cobertura", "validez cobertura", "estado de cuenta", "primas"
         ]
-        if any(k in filename_lower for k in ["identificacion", "identificación", "ine", "ife"]) or \
-           any(k in text_lower for k in id_keywords):
+        if any(cue in text_lower for cue in cobranza_cues):
+            return "expediente_de_cobranza"
+
+        # Regla de identificación oficial (más estricta para evitar falsos positivos)
+        id_core = ["instituto nacional electoral", "credencial para votar", "clave de elector"]
+        id_signals = 0
+        if any(k in text_lower for k in id_core):
+            id_signals += 2  # señales fuertes
+        if any(k in text_lower for k in ["ine", "ife", "pasaporte", "cédula", "cedula", "licencia"]):
+            id_signals += 1
+        if any(k in text_lower for k in ["curp", "vigencia", "sexo", "nacionalidad"]):
+            id_signals += 1
+        # También considerar el nombre del archivo, pero no como único criterio
+        if any(k in filename_lower for k in ["identificacion", "identificación", "ine", "ife", "pasaporte", "cedula", "cédula"]):
+            id_signals += 1
+        if id_signals >= 2:
             return "identificacion_oficial"
 
         # Reglas prioritarias por nombre de archivo
@@ -929,11 +943,64 @@ Responde SOLO con el JSON de los campos extraídos.
             }
         )
         
+        # 5.1 Fallback específico: tipo_siniestro en Informe Final (HDI)
+        try:
+            if (
+                (self.policy_context or "") == "HDI_EN_MI_CASA"
+                and document_type == "informe_final_del_ajustador"
+                and (result.extracted_fields.get("tipo_siniestro") in (None, "", "N/A"))
+                and isinstance(content, dict)
+            ):
+                text = (content.get("text") or "")
+                inferred = self._fallback_tipo_siniestro(text)
+                if inferred:
+                    result.extracted_fields["tipo_siniestro"] = inferred
+                    result.extraction_metadata["fallback_tipo_siniestro"] = True
+                    logger.info(f"TIPO_SINIESTRO_FALLBACK: '{inferred}'")
+        except Exception as e:
+            logger.warning(f"Fallback tipo_siniestro falló: {e}")
+        
         # Guardar en cache
         if use_cache:
             self.extraction_cache[cache_key] = result
         
         return result
+
+    def _fallback_tipo_siniestro(self, text: str) -> Optional[str]:
+        """
+        Heurística ligera para extraer 'tipo_siniestro' del texto del Informe Final.
+        Busca patrones comunes (tipo/naturaleza del siniestro) y frases "Daños a ... por ...".
+        """
+        if not text:
+            return None
+        import re as _re
+        sample = text[:6000]  # primeras ~6000 chars para contexto
+        lines = [ln.strip() for ln in sample.split('\n') if ln.strip()]
+
+        # 1) Patrones explícitos
+        patterns = [
+            r"(?i)tipo\s+de\s+siniestro\s*[:\-]\s*(.+)",
+            r"(?i)naturaleza\s+del\s+siniestro\s*[:\-]\s*(.+)",
+        ]
+        for pat in patterns:
+            m = _re.search(pat, sample)
+            if m:
+                val = m.group(1).strip()
+                # Limpiar hasta fin de línea
+                val = val.split('\n')[0].strip()
+                return val[:120]
+
+        # 2) Frases "Daños a ... por ..."
+        for ln in lines[:200]:  # primeras ~200 líneas
+            if _re.search(r"(?i)daños?\s+a\s+.+\s+por\s+.+", ln):
+                return ln[:160]
+
+        # 3) Palabra clave seguida de causa
+        for ln in lines[:200]:
+            if _re.search(r"(?i)(variaci[oó]n|sobre\-?voltaje|inundaci[oó]n|incendio|robo|daños\s+el[eé]ctricos)", ln):
+                return ln[:160]
+
+        return None
     
     async def _extract_direct_ai(
         self, 

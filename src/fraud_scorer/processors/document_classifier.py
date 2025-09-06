@@ -279,11 +279,15 @@ class DocumentClassifier:
             
             DocumentType.EXPEDIENTE_COBRANZA.value: DocumentTypeDefinition(
                 type_name="expediente_de_cobranza",
-                keywords=["cobranza", "recibos pagados", "validez cobertura"],
-                must_have=["cobranza"],
-                may_have=["comunicaciones", "pantallas", "comprobantes", "pago", "vigente"],
-                exclude=[],
-                description="Validación del estado de cobranza de la póliza"
+                keywords=[
+                    "cobranza", "cumplimiento", "recibo", "recibos", "pagado", "pago", "pagos",
+                    "vigencia", "primas", "validación de cobertura", "validez cobertura", "estado de cuenta"
+                ],
+                # No exigir must-have para no bloquear variantes (algunos usan "cumplimiento" sin decir "cobranza")
+                must_have=[],
+                may_have=["RFC", "datos fiscales", "aseguradora", "correo", "comprobante", "confirmación"],
+                exclude=["credencial para votar", "instituto nacional electoral", "ine", "ife"],
+                description="Documento que acredita vigencia en cobranza: comunicaciones, recibos pagados y validación de cobertura"
             ),
             
             DocumentType.CHECKLIST_ANTIFRAUDE.value: DocumentTypeDefinition(
@@ -355,8 +359,8 @@ class DocumentClassifier:
             if destinatario:
                 reasons.append(f"Destinatario detectado: {destinatario}")
         
-        # 3. Si confianza baja y LLM habilitado, usar fallback
-        if confidence < 0.6 and use_llm_fallback and doc_type == DocumentType.OTRO.value:
+        # 3. Si confianza baja y LLM habilitado, usar fallback (aunque haya match heurístico débil)
+        if confidence < 0.6 and use_llm_fallback:
             try:
                 doc_type, confidence, reasons = await self._llm_classify(
                     sample_text[:1500],
@@ -504,9 +508,12 @@ Contenido (muestra):
 {sample_text}
 
 INSTRUCCIONES:
-1. Analiza el contenido y nombre del archivo
-2. Identifica el tipo más apropiado de la lista
-3. Si no encaja claramente en ninguno, usa "otro"
+1. Basa tu decisión principalmente en el CONTENIDO; el nombre del archivo es secundario.
+2. Identifica el tipo más apropiado de la lista según la semántica del documento.
+3. Distingue con cuidado:
+   - expediente_de_cobranza: comunicaciones de aseguradora, recibos/estados de pago, datos fiscales, validación de vigencia/cobertura. Propósito: acreditar COBRANZA/VIGENCIA.
+   - identificacion_oficial: credenciales oficiales (INE/IFE/pasaporte), con campos como "Instituto Nacional Electoral", "Clave de Elector", fotografía, firma, etc. La palabra "identificación" o "RFC/CURP" por sí sola NO es identificación oficial.
+4. Si no encaja claramente en ninguno, usa "otro".
 
 Responde SOLO con JSON válido:
 {{
@@ -565,9 +572,12 @@ Responde SOLO con JSON válido:
         
         for type_name, definition in self.type_definitions.items():
             # Descripción breve con keywords principales
-            keywords = definition.keywords[:3] if definition.keywords else []
+            keywords = ", ".join(definition.keywords[:6]) if definition.keywords else ""
+            must = ", ".join(definition.must_have[:4]) if definition.must_have else "(ninguno)"
+            may = ", ".join(definition.may_have[:4]) if definition.may_have else "(opcionales)"
+            excl = ", ".join(definition.exclude[:4]) if definition.exclude else "(ninguno)"
             guide_lines.append(
-                f"- {type_name}: {definition.description}"
+                f"- {type_name}: {definition.description}. keywords: [{keywords}] | must_have: [{must}] | may_have: [{may}] | exclude: [{excl}]"
             )
         
         guide_lines.append("- otro: documentos que no encajan en las categorías anteriores")
