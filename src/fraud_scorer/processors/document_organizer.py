@@ -92,8 +92,9 @@ class DocumentOrganizer:
             }
         }
         
-        # Agrupar archivos para manejar subnumeración de guias_y_facturas
+        # Agrupar archivos para manejar subnumeración de guias_y_facturas y notas_de_reparacion
         guias_counter = 0
+        notas_rep_counter = 0
         
         for idx, file_path in enumerate(sorted(files), 1):
             try:
@@ -121,7 +122,7 @@ class DocumentOrganizer:
                     classification_time
                 )
                 
-                # Manejar subnumeración para guias_y_facturas
+                # Manejar subnumeración para guias_y_facturas y notas_de_reparacion
                 if doc_type == DocumentType.GUIAS_Y_FACTURAS.value:
                     guias_counter += 1
                     # Detectar destinatario si es posible
@@ -131,6 +132,9 @@ class DocumentOrganizer:
                         reasons.append(f"Destinatario: {destinatario}")
                     else:
                         doc_type_display = f"{doc_type}_{guias_counter}"
+                elif doc_type == DocumentType.NOTAS_DE_REPARACION.value:
+                    notas_rep_counter += 1
+                    doc_type_display = f"{doc_type}_{notas_rep_counter}"
                 else:
                     doc_type_display = doc_type
                 

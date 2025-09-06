@@ -84,6 +84,7 @@ class ExtractionConfig:
             "fecha_ocurrencia",
             "fecha_reclamacion",
             "lugar_hechos",
+            "tipo_siniestro",
             "ajuste",
             "conclusiones"
         ],
@@ -91,6 +92,7 @@ class ExtractionConfig:
         # Documentos de seguro
         "poliza_de_la_aseguradora": [
             "numero_poliza",
+            "nombre_asegurado",
             "vigencia_inicio",
             "vigencia_fin",
             "domicilio_poliza"
@@ -104,22 +106,35 @@ class ExtractionConfig:
         
         # Cartas de reclamación
         "carta_de_reclamacion_formal_a_la_aseguradora": [
+            "numero_siniestro",
             "monto_reclamacion"
         ],
         "carta_de_reclamacion_formal_al_transportista": [
+            "numero_siniestro",
             "monto_reclamacion"
         ],
         
         # Documentos legales
-        "carpeta_de_investigacion": ["tipo_siniestro"],
+        "carpeta_de_investigacion": [
+            "numero_siniestro",
+            "tipo_siniestro",
+            "fecha_ocurrencia",
+            "lugar_hechos"
+        ],
         "acreditacion_de_propiedad_y_representacion": [],
         "narracion_de_hechos": ["tipo_siniestro"],
         "declaracion_del_asegurado": ["tipo_siniestro"],
         
         # Documentos de transporte
-        "guias_y_facturas": [],
+        "guias_y_facturas": [
+            "bien_reclamado",
+            "monto_reclamacion"
+        ],
         "guias_y_facturas_consolidadas": [],
-        "salida_de_almacen": [],
+        "salida_de_almacen": [
+            "bien_reclamado",
+            "monto_reclamacion"
+        ],
         "carta_porte": [],
         
         # Documentos vehiculares
@@ -128,14 +143,43 @@ class ExtractionConfig:
         
         # Documentos de siniestro
         "aviso_de_siniestro_transportista": [
+            "numero_siniestro",
             "fecha_ocurrencia",
-            "lugar_hechos"
+            "lugar_hechos",
+            "tipo_siniestro"
         ],
         "reporte_gps": [],
         
         # Otros
         "otro": []  # Documentos no reconocidos no pueden proveer campos
     }
+
+    # Claves alias adicionales para compatibilidad con detectores no canónicos
+    # (se reutilizan las mismas listas de campos permitidos)
+    DOCUMENT_FIELD_MAPPING.update({
+        # Aliases comunes devueltos por detectores heurísticos
+        "poliza": DOCUMENT_FIELD_MAPPING["poliza_de_la_aseguradora"],
+        "factura": DOCUMENT_FIELD_MAPPING["guias_y_facturas"],
+        # Mapear 'denuncia' a carpeta de investigación (documento de MP)
+        "denuncia": DOCUMENT_FIELD_MAPPING["carpeta_de_investigacion"],
+        
+        # Nuevos tipos (sin extracción de cabecera)
+        "identificacion_oficial": [],
+        "notas_de_reparacion": [],
+        "dictamen_tecnico": [],
+        "comprobante_de_domicilio": [],
+    })
+
+    # Tipos de documento en los que SÍ se debe ejecutar extracción de campos
+    EXTRACTION_TARGET_TYPES = [
+        "informe_preliminar_del_ajustador",
+        "informe_final_del_ajustador",
+        "poliza_de_la_aseguradora",
+        "carta_de_reclamacion_formal_a_la_aseguradora",
+        "carpeta_de_investigacion",
+        "narracion_de_hechos",
+        "declaracion_del_asegurado",
+    ]
     
     # Sinónimos y etiquetas para búsqueda
     FIELD_SYNONYMS = {
@@ -268,6 +312,7 @@ class ExtractionConfig:
     RECOGNIZED_ADJUSTERS = [
         "SINIESCA",
         "PARK PERALES",
+        "NUÑEZ MORA Y ASOCIADOS AJUSTADORES",
         # Agregar más según aparezcan
     ]
     
@@ -299,6 +344,10 @@ class ExtractionConfig:
         "guias_y_facturas_consolidadas": ExtractionRoute.OCR_TEXT,
         "expediente_de_cobranza": ExtractionRoute.OCR_TEXT,
         "checklist_antifraude": ExtractionRoute.OCR_TEXT,
+        "identificacion_oficial": ExtractionRoute.OCR_TEXT,
+        "notas_de_reparacion": ExtractionRoute.OCR_TEXT,
+        "dictamen_tecnico": ExtractionRoute.OCR_TEXT,
+        "comprobante_de_domicilio": ExtractionRoute.OCR_TEXT,
         
         # AI Directo
         "poliza_de_la_aseguradora": ExtractionRoute.DIRECT_AI,
@@ -310,7 +359,7 @@ class ExtractionConfig:
     DOCUMENT_PRIORITIES = {
         "informe_preliminar_del_ajustador": FieldPriority.INFORME_AJUSTADOR,
         "poliza_de_la_aseguradora": FieldPriority.POLIZA,
-        "carta_de_reclamacion_formal_a_la_aseguradra": FieldPriority.CARTA_RECLAMACION,
+        "carta_de_reclamacion_formal_a_la_aseguradora": FieldPriority.CARTA_RECLAMACION,
         "carpeta_de_investigacion": FieldPriority.CARPETA_INVESTIGACION,
         "narracion_de_hechos": FieldPriority.CARPETA_INVESTIGACION,
         "declaracion_del_asegurado": FieldPriority.CARPETA_INVESTIGACION,
@@ -346,7 +395,7 @@ class ExtractionConfig:
     # Configuración de OpenAI
     OPENAI_CONFIG = {
         "temperature": 0.1,  # Muy bajo para consistencia
-        "max_tokens": 2000,
+        "max_completion_tokens": 2000,
         "timeout": 30,
         "max_retries": 3
     }
@@ -381,7 +430,11 @@ class ExtractionConfig:
         "aviso_siniestro": "aviso_de_siniestro_transportista",
         "gps": "reporte_gps",
         "cobranza": "expediente_de_cobranza",
-        "antifraude": "checklist_antifraude"
+        "antifraude": "checklist_antifraude",
+        "id_oficial": "identificacion_oficial",
+        "nota_reparacion": "notas_de_reparacion",
+        "dictamen_tecnico": "dictamen_tecnico",
+        "comp_dom": "comprobante_de_domicilio"
     }
     
     # Invertir el mapeo para obtener alias desde canónico
@@ -405,6 +458,10 @@ class ExtractionConfig:
         "reporte_gps": 14,
         "expediente_de_cobranza": 15,
         "checklist_antifraude": 16,
+        "notas_de_reparacion": 17,
+        "dictamen_tecnico": 18,
+        "identificacion_oficial": 19,
+        "comprobante_de_domicilio": 20,
         "otro": 99
     }
 
@@ -436,7 +493,7 @@ CLASSIFICATION_CONFIG = {
     "sample_text_length": 1500,       # Caracteres para clasificación
     "llm_model": "gpt-4o-mini",       # Modelo económico para clasificación
     "llm_temperature": 0.1,           # Baja temperatura para consistencia
-    "llm_max_tokens": 200             # Límite de tokens para respuesta
+    "llm_max_completion_tokens": 200             # Límite de tokens para respuesta
 }
 
 # Configuración de nombres de archivo
@@ -466,7 +523,20 @@ DOCUMENT_TYPE_ALIASES = {
     "LICENCIA": "licencia_del_operador",
     "TARJETA": "tarjeta_de_circulacion_vehiculo",
     "RECLAMACION": "carta_de_reclamacion_formal_a_la_aseguradora",
+    "RECLAM_TRANS": "carta_de_reclamacion_formal_al_transportista",
+    "GUIAS_CONS": "guias_y_facturas_consolidadas",
+    "SALIDA_ALM": "salida_de_almacen",
+    "AVISO_SINIESTRO": "aviso_de_siniestro_transportista",
+    "CARP_INV": "carpeta_de_investigacion",
+    "ACREDITACION": "acreditacion_de_propiedad_y_representacion",
+    "INF_PRELIM": "informe_preliminar_del_ajustador",
+    "INF_FINAL": "informe_final_del_ajustador",
+    "COBRANZA": "expediente_de_cobranza",
     "CHECKLIST": "checklist_antifraude",
+    "ID": "identificacion_oficial",
+    "NOTA_REP": "notas_de_reparacion",
+    "DICTAMEN": "dictamen_tecnico",
+    "COMP_DOM": "comprobante_de_domicilio",
     "OTROS": "otro"
 }
 
@@ -497,12 +567,11 @@ def get_model_for_task(task: str, route: str = "ocr_text") -> str:
     """
     if task == "extraction":
         if route == "direct_ai":
-            # Para visión: GPT-5 Mini es recomendado específicamente para extraction
-            # y es 95% más económico que GPT-5 estándar
+            # Para visión: GPT-5 Mini (95% más económico)
             return ModelType.GPT5_VISION_MINI.value
         else:
-            # Para OCR + texto: GPT-5 con 272K context tokens para documentos complejos
-            return ModelType.GPT5.value
+            # Para OCR + texto: usar GPT-5 Mini para reducir TPM y costos
+            return ModelType.GPT5_MINI.value
             
     elif task == "consolidation":
         # Para razonamiento complejo: GPT-5 completo

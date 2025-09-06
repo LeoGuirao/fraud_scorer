@@ -232,11 +232,24 @@ class AIReportGenerator:
             elif len(partes) == 1:
                 vig_desde = partes[0]
 
+        # Construir cadena de vigencia unificada (DD/MM/YYYY AL DD/MM/YYYY)
+        vigencia_str = None
+        fd = self._format_date(vig_desde)
+        fh = self._format_date(vig_hasta)
+        if fd != "NO ESPECIFICADO" and fh != "NO ESPECIFICADO":
+            vigencia_str = f"{fd} AL {fh}"
+        elif fd != "NO ESPECIFICADO":
+            vigencia_str = fd
+        elif fh != "NO ESPECIFICADO":
+            vigencia_str = fh
+
         # Mapear campos consolidados a nombres de plantilla (con los mismos keys que ya usabas)
         template_data = {
             "numero_siniestro": fields.get("numero_siniestro", case_id),
             "nombre_asegurado": fields.get("nombre_asegurado", "NO ESPECIFICADO"),
             "numero_poliza": fields.get("numero_poliza", "NO ESPECIFICADO"),
+            # Compatibilidad: exponer vigencia como cadena y también los extremos por separado
+            "vigencia": vigencia_str,
             "vigencia_desde": self._format_date(vig_desde),
             "vigencia_hasta": self._format_date(vig_hasta),
             "domicilio_poliza": fields.get("domicilio_poliza", "NO ESPECIFICADO"),

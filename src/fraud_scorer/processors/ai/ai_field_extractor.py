@@ -17,7 +17,9 @@ from datetime import datetime
 from openai import AsyncOpenAI
 import instructor
 from pydantic import ValidationError
-from tenacity import retry, stop_after_attempt, wait_exponential
+from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type, RetryError
+import random
+import time
 
 from fraud_scorer.settings import ExtractionConfig, ExtractionRoute, get_model_for_task
 from fraud_scorer.models.extraction import DocumentExtraction
@@ -48,6 +50,9 @@ class AIFieldExtractor:
         self.prompt_builder = ExtractionPromptBuilder()
         self.validator = FieldValidator()  # Nuevo validador
         self.extraction_cache: Dict[str, DocumentExtraction] = {}
+        # Contexto de póliza (p. ej., HDI_EN_MI_CASA)
+        self.policy_context: Optional[str] = None
+        self.policy_type_cache: Dict[str, str] = {}
         
         # Configuración de rutas
         self.route_config = self.config.ROUTE_CONFIG
@@ -56,6 +61,63 @@ class AIFieldExtractor:
         self.validation_rules = self.config.FIELD_VALIDATION_RULES
 
         logger.info("AIFieldExtractor inicializado con Sistema de Extracción Guiada")
+
+    def set_policy_context(self, policy_type: str, case_id: Optional[str] = None) -> None:
+        """Establece el contexto de tipo de póliza para todo el proceso de extracción."""
+        self.policy_context = policy_type
+        if case_id:
+            self.policy_type_cache[case_id] = policy_type
+        logger.info(f"Contexto de póliza establecido: {policy_type}")
+
+    def _get_text_content(self, ocr_result: Dict[str, Any]) -> str:
+        """Extrae texto del resultado OCR de manera segura (acepta dict u objeto)."""
+        if isinstance(ocr_result, dict):
+            return ocr_result.get("text", "") or ""
+        if hasattr(ocr_result, "text"):
+            return getattr(ocr_result, "text", "") or ""
+        return ""
+
+    async def detect_policy_type(
+        self,
+        ocr_result: Dict[str, Any],
+        document_type: str
+    ) -> Optional[str]:
+        """Detecta el tipo de póliza. Retorna 'HDI_EN_MI_CASA' o None."""
+        try:
+            if document_type != "poliza_de_la_aseguradora":
+                return None
+            # Normalizar OCR a dict seguro
+            ocr_dict = self._ocr_to_dict_safe(ocr_result)
+            text = (ocr_dict.get("text") or "").upper()
+            kv_pairs = ocr_dict.get("key_value_pairs") or {}
+
+            # Buscar en pares clave-valor
+            for key, value in kv_pairs.items():
+                try:
+                    k = str(key).lower()
+                    v = str(value).upper()
+                except Exception:
+                    continue
+                if ("tipo" in k and "poliza" in k) or ("tipo" in k and "póliza" in k):
+                    if "HDI EN MI CASA" in v:
+                        logger.info(f"Detectado HDI EN MI CASA en KV '{key}'")
+                        return "HDI_EN_MI_CASA"
+
+            # Búsqueda en texto completo con patrones de contexto
+            if "HDI EN MI CASA" in text:
+                patterns = [
+                    r"TIPO\s+DE\s+P[OÓ]LIZA[:\s]+HDI\s+EN\s+MI\s+CASA",
+                    r"P[OÓ]LIZA\s+HDI\s+EN\s+MI\s+CASA",
+                ]
+                for pat in patterns:
+                    if re.search(pat, text, re.IGNORECASE):
+                        logger.info(f"Detectado HDI EN MI CASA por patrón: {pat}")
+                        return "HDI_EN_MI_CASA"
+
+            return None
+        except Exception as e:
+            logger.error(f"Error detectando tipo de póliza: {e}")
+            return None
 
     # =============================================================================
     #   MÉTODO ACTUALIZADO: maneja OCRResult (objeto) y dict + prompt mejorado
@@ -122,7 +184,8 @@ class AIFieldExtractor:
                 document_name=document_name,
                 document_type=document_type,
                 content=prepared_content,
-                route=route.value if isinstance(route, ExtractionRoute) else route
+                route=route.value if isinstance(route, ExtractionRoute) else route,
+                policy_type=self.policy_context
             )
         else:
             # Usar prompt mejorado legacy
@@ -202,7 +265,6 @@ class AIFieldExtractor:
     # =============================================================================
     #   REINTENTO + PARSEO ROBUSTO DE JSON DE CAMPOS
     # =============================================================================
-    @retry(stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10))
     async def _call_ai_with_retry(
         self,
         prompt: str,
@@ -211,71 +273,144 @@ class AIFieldExtractor:
         route: Optional[str] = None,
     ) -> DocumentExtraction:
         """
-        Llama a la API de OpenAI con reintentos automáticos.
-        Acepta que el LLM responda SOLO con el JSON de campos extraídos.
-        Construye un DocumentExtraction válido con esos campos.
+        Llama a la API de OpenAI con reintentos inteligentes.
+        - No reintenta errores 400 (parámetros inválidos)
+        - Reintenta 429 con backoff exponencial + jitter
+        - Reintenta 500+ con backoff
         """
-        try:
-            response = await self.client.chat.completions.create(
-                model=get_model_for_task("extraction", route or "ocr_text"),
-                messages=[
-                    {
-                        "role": "system",
-                        "content": (
-                            "Eres un experto en extracción de datos de documentos de seguros. "
-                            "Responde SOLO con un JSON válido de campos solicitados; no agregues texto extra."
-                        ),
-                    },
-                    {"role": "user", "content": prompt},
-                ],
-                temperature=self.config.OPENAI_CONFIG.get("temperature", 0.1),
-                max_tokens=self.config.OPENAI_CONFIG.get("max_tokens", 1200),
-            )
-
-            content = ""
-            if response and response.choices:
-                content = response.choices[0].message.content or ""
-
-            # Quitar fences si vienen con ```json
-            content = content.strip()
-            if content.startswith("```"):
-                # elimina fences tipo ```json ... ```
-                content = content.strip("`")
-                # si quedó con "json\n{...}", corta a partir de la primera "{"
-                brace_pos = content.find("{")
-                if brace_pos != -1:
-                    content = content[brace_pos:]
-
-            # Intentar parsear JSON
-            fields_dict: Dict[str, Any] = {}
+        max_retries = 3
+        base_delay = 2  # segundos
+        
+        for attempt in range(max_retries):
             try:
-                fields_dict = json.loads(content)
-                if not isinstance(fields_dict, dict):
-                    raise ValueError("La respuesta no es un objeto JSON")
-            except Exception as pe:
-                logger.error(f"No se pudo parsear JSON para {document_name}: {pe}")
-                fields_dict = {}
+                response = await self.client.chat.completions.create(
+                    model=get_model_for_task("extraction", route or "ocr_text"),
+                    messages=[
+                        {
+                            "role": "system",
+                            "content": (
+                                "Eres un experto en extracción de datos de documentos de seguros. "
+                                "Responde SOLO con un JSON válido de campos solicitados; no agregues texto extra."
+                            ),
+                        },
+                        {"role": "user", "content": prompt},
+                    ],
+                    temperature=self.config.OPENAI_CONFIG.get("temperature", 0.1),
+                    max_completion_tokens=self.config.OPENAI_CONFIG.get("max_completion_tokens", 1200),
+                )
+                
+                # Éxito - procesar respuesta
+                content = ""
+                if response and response.choices:
+                    content = response.choices[0].message.content or ""
 
-            # Normalizar: solo mantener campos requeridos y asegurar presencia
-            normalized_fields: Dict[str, Optional[Any]] = {
-                field: fields_dict.get(field, None) for field in self.config.REQUIRED_FIELDS
-            }
+                # Quitar fences si vienen con ```json
+                content = content.strip()
+                if content.startswith("```"):
+                    content = content.strip("`")
+                    brace_pos = content.find("{")
+                    if brace_pos != -1:
+                        content = content[brace_pos:]
 
-            return DocumentExtraction(
-                source_document=document_name,
-                document_type=document_type or "otro",
-                extracted_fields=normalized_fields,
-                extraction_metadata={
-                    "raw_response_len": len(content),
-                    "parsed_ok": bool(fields_dict),
-                },
-            )
+                # Intentar parsear JSON
+                fields_dict: Dict[str, Any] = {}
+                try:
+                    fields_dict = json.loads(content)
+                    if not isinstance(fields_dict, dict):
+                        raise ValueError("La respuesta no es un objeto JSON")
+                except Exception as pe:
+                    logger.error(f"No se pudo parsear JSON para {document_name}: {pe}")
+                    fields_dict = {}
 
-        except Exception as e:
-            # Cualquier error → se reintenta por tenacity
-            logger.error(f"Error llamando a OpenAI para {document_name}: {e}")
-            # En el último reintento fallido, tenacity propagará; captúalo arriba si quieres
-            raise
+                # Normalizar campos
+                normalized_fields: Dict[str, Optional[Any]] = {
+                    field: fields_dict.get(field, None) for field in self.config.REQUIRED_FIELDS
+                }
+
+                return DocumentExtraction(
+                    source_document=document_name,
+                    document_type=document_type or "otro",
+                    extracted_fields=normalized_fields,
+                    extraction_metadata={
+                        "raw_response_len": len(content),
+                        "parsed_ok": bool(fields_dict),
+                        "route_used": route or "ocr_text",
+                        "model_used": get_model_for_task("extraction", route or "ocr_text"),
+                    },
+                )
+                
+            except Exception as e:
+                error_code = getattr(e, 'status_code', None) or getattr(e, 'http_status', None)
+                error_type = getattr(e, 'error_type', None) or type(e).__name__
+                
+                # No reintentar errores 400 (parámetros inválidos)
+                if error_code == 400 or "invalid_request_error" in str(e):
+                    logger.error(f"Error 400 - Parámetros inválidos para {document_name}: {e}")
+                    # Retornar extracción vacía sin reintentar
+                    return DocumentExtraction(
+                        source_document=document_name,
+                        document_type=document_type or "otro",
+                        extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
+                        extraction_metadata={
+                            "error": str(e),
+                            "error_type": "invalid_request",
+                            "route_used": route or "ocr_text",
+                        },
+                    )
+                
+                # Para 429 (rate limit), esperar con backoff + jitter
+                if error_code == 429 or "rate_limit" in str(e).lower():
+                    retry_after = getattr(e, 'retry_after', None)
+                    if retry_after:
+                        delay = float(retry_after)
+                    else:
+                        delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    
+                    logger.warning(f"Rate limit hit para {document_name}. Esperando {delay:.1f}s...")
+                    await asyncio.sleep(delay)
+                    
+                    # Cambiar a modelo más económico si es posible
+                    if attempt >= 1 and route != "direct_ai":
+                        logger.info("Cambiando a gpt-4o-mini para reducir TPM...")
+                        # Forzar modelo económico en siguiente intento
+                        # (necesitaríamos modificar get_model_for_task o usar override)
+                    continue  # Reintentar
+                
+                # Para errores 500+, reintentar con backoff
+                if error_code and error_code >= 500:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Error {error_code} para {document_name}. Reintentando en {delay}s...")
+                    await asyncio.sleep(delay)
+                    continue
+                
+                # Para otros errores en el último intento
+                if attempt == max_retries - 1:
+                    logger.error(f"Fallo tras {max_retries} intentos para {document_name}: {e}")
+                    return DocumentExtraction(
+                        source_document=document_name,
+                        document_type=document_type or "otro",
+                        extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
+                        extraction_metadata={
+                            "error": str(e),
+                            "attempts": attempt + 1,
+                            "route_used": route or "ocr_text",
+                        },
+                    )
+                
+                # Reintentar otros errores
+                await asyncio.sleep(base_delay * (2 ** attempt))
+        
+        # Si llegamos aquí, fallaron todos los intentos
+        logger.error(f"No se pudo procesar {document_name} tras {max_retries} intentos")
+        return DocumentExtraction(
+            source_document=document_name,
+            document_type=document_type or "otro",
+            extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
+            extraction_metadata={
+                "error": "Max retries exceeded",
+                "route_used": route or "ocr_text",
+            },
+        )
 
     # -------------------------------
     # Helpers de pre/post-procesado
@@ -286,12 +421,13 @@ class AIFieldExtractor:
         Prepara y limpia el contenido del OCR/Parser para la IA.
         """
         prepared = {
-            "text": (ocr_result.get("text") or "")[:10000],  # cota dura de texto
+            # Reducir la longitud para bajar TPM
+            "text": (ocr_result.get("text") or "")[:3000],
             "key_value_pairs": ocr_result.get("key_value_pairs") or {},
             "tables": self._simplify_tables(ocr_result.get("tables") or []),
         }
 
-        if len(prepared["text"]) > 5000:
+        if len(prepared["text"]) > 2500:
             prepared["text"] = self._extract_relevant_sections(prepared["text"])
 
         return prepared
@@ -329,22 +465,118 @@ class AIFieldExtractor:
         lines = text.split("\n")
         relevant = [ln for ln in lines if any(kw in ln.lower() for kw in keywords)]
         if len(relevant) > 10:
-            return "\n".join(relevant[:100])
-        return "\n".join(lines[:100])
+            return "\n".join(relevant[:120])
+        return "\n".join(lines[:120])
+
+    def _supports_temperature(self, model: str) -> bool:
+        """Algunos modelos gpt-5 no aceptan temperature distinto al default."""
+        return not (model or "").startswith("gpt-5")
+
+    async def _chat_with_retry(self, *, model: str, messages: List[Dict[str, Any]], max_tokens: int = 2000) -> Any:
+        """
+        Llamada a chat.completions con backoff y compatibilidad de parámetros.
+        - Omite temperature para modelos gpt-5 (evita 400 unsupported_value)
+        - Reintenta 429/5xx con backoff exponencial + jitter
+        - No reintenta 400 invalid_request
+        """
+        max_retries = 3
+        base_delay = 2
+        for attempt in range(max_retries):
+            try:
+                kwargs = {
+                    "model": model,
+                    "messages": messages,
+                    "max_completion_tokens": max_tokens,
+                }
+                if self._supports_temperature(model):
+                    kwargs["temperature"] = self.config.OPENAI_CONFIG.get("temperature", 0.1)
+                # Llamada
+                return await self.client.chat.completions.create(**kwargs)
+            except Exception as e:
+                code = getattr(e, 'status_code', None) or getattr(e, 'http_status', None)
+                msg = str(e).lower()
+                # No reintentar 400 invalid_request
+                if code == 400 or "invalid_request_error" in msg:
+                    logger.error(f"Error 400 (no recuperable): {e}")
+                    raise
+                # 429 backoff
+                if code == 429 or "rate limit" in msg:
+                    delay = base_delay * (2 ** attempt) + (0.5)
+                    logger.warning(f"Rate limit 429, esperando {delay:.1f}s...")
+                    await asyncio.sleep(delay)
+                    continue
+                # 5xx backoff
+                if code and code >= 500:
+                    delay = base_delay * (2 ** attempt)
+                    logger.warning(f"Error {code}, reintento en {delay:.1f}s")
+                    await asyncio.sleep(delay)
+                    continue
+                # Otros errores → no reintentar
+                logger.error(f"Error no recuperable: {e}")
+                raise
 
     def _detect_document_type(self, ocr_result: Dict[str, Any], filename: str) -> str:
         """
         Detecta el tipo de documento basándose en el contenido y nombre.
+        Devuelve SIEMPRE un tipo canónico compatible con DOCUMENT_FIELD_MAPPING.
         """
         text_lower = (ocr_result.get("text") or "").lower()
         filename_lower = (filename or "").lower()
 
+        # Regla temprana: identificación oficial (evitar falsos positivos como póliza)
+        id_keywords = [
+            "credencial para votar", "instituto nacional electoral", "ine", "ife",
+            "clave de elector", "curp", "identificacion", "identificación"
+        ]
+        if any(k in filename_lower for k in ["identificacion", "identificación", "ine", "ife"]) or \
+           any(k in text_lower for k in id_keywords):
+            return "identificacion_oficial"
+
+        # Reglas prioritarias por nombre de archivo
+        if "informe preliminar" in filename_lower or "informe_preliminar" in filename_lower:
+            return "informe_preliminar_del_ajustador"
+        if "informe final" in filename_lower or "informe_final" in filename_lower:
+            return "informe_final_del_ajustador"
+        if "poliza" in filename_lower or "póliza" in filename_lower:
+            return "poliza_de_la_aseguradora"
+        if "cobranza" in filename_lower:
+            return "expediente_de_cobranza"
+        if "acreditacion" in filename_lower or "acreditación" in filename_lower:
+            return "acreditacion_de_propiedad_y_representacion"
+        if "carta" in filename_lower and "reclamacion" in filename_lower:
+            # Detectar aseguradora vs transportista
+            if any(k in filename_lower for k in ["transportista", "transporte", "paqueteria", "paquetería"]):
+                return "carta_de_reclamacion_formal_al_transportista"
+            # Señales de aseguradora (nombres comunes o palabra aseguradora)
+            if any(k in filename_lower for k in ["aseguradora", "hdi", "axa", "qualitas", "gnp", "mapfre", "zurich"]):
+                return "carta_de_reclamacion_formal_a_la_aseguradora"
+            # Por defecto, asumir aseguradora
+            return "carta_de_reclamacion_formal_a_la_aseguradora"
+        if "denuncia" in filename_lower:
+            return "carpeta_de_investigacion"
+        if "aviso de siniestro" in filename_lower or "aviso_de_siniestro" in filename_lower:
+            return "aviso_de_siniestro_transportista"
+        if "checklist" in filename_lower and "antifraude" in filename_lower:
+            return "checklist_antifraude"
+        if "reporte gps" in filename_lower or "gps" in filename_lower:
+            return "reporte_gps"
+        if "salida de almacen" in filename_lower or "salida_de_almacen" in filename_lower:
+            return "salida_de_almacen"
+        if any(x in filename_lower for x in ["guia", "guías", "guias", "factura"]):
+            return "guias_y_facturas"
+
+        # Indicadores básicos (no canónicos)
         type_indicators = {
             "poliza": ["póliza", "poliza", "cobertura", "vigencia", "prima", "asegurado"],
             "factura": ["factura", "cfdi", "subtotal", "iva", "total"],
             "denuncia": ["denuncia", "ministerio", "querella", "declaración", "declaracion"],
-            "peritaje": ["peritaje", "dictamen", "evaluación", "evaluacion", "daños", "danos"],
-            "carta_porte": ["carta porte", "transportista", "remitente", "destinatario"],
+            "informe_preliminar": ["informe preliminar", "estimación inicial", "informe_ajustador"],
+            "informe_final": ["informe final", "conclusión", "recomendación", "ajustador"],
+            "salida_de_almacen": ["salida de almacén", "oc", "orden de salida"],
+            "licencia": ["licencia", "conductor", "operador"],
+            "tarjeta_circulacion": ["tarjeta de circulación", "placas", "niv"],
+            "reporte_gps": ["gps", "reporte gps"],
+            "aviso_siniestro": ["aviso de siniestro", "reporte siniestro", "transportista"],
         }
 
         scores: Dict[str, int] = {}
@@ -353,7 +585,24 @@ class AIFieldExtractor:
             if score:
                 scores[doc_type] = score
 
-        return max(scores, key=scores.get) if scores else "otro"
+        detected = max(scores, key=scores.get) if scores else "otro"
+
+        # Mapear a tipos canónicos
+        synonyms_to_canonical = {
+            "poliza": "poliza_de_la_aseguradora",
+            "factura": "guias_y_facturas",
+            "denuncia": "carpeta_de_investigacion",
+            "informe_preliminar": "informe_preliminar_del_ajustador",
+            "informe_final": "informe_final_del_ajustador",
+            "salida_de_almacen": "salida_de_almacen",
+            "licencia": "licencia_del_operador",
+            "tarjeta_circulacion": "tarjeta_de_circulacion_vehiculo",
+            "reporte_gps": "reporte_gps",
+            "aviso_siniestro": "aviso_de_siniestro_transportista",
+            "otro": "otro",
+        }
+
+        return synonyms_to_canonical.get(detected, "otro")
 
     def _post_process_extraction(self, extraction: DocumentExtraction) -> DocumentExtraction:
         """
@@ -612,9 +861,15 @@ Responde SOLO con el JSON de los campos extraídos.
             f"  Ruta: {route}\n"
             f"  Modelo: {model}"
         )
+        if (self.policy_context or "") == "HDI_EN_MI_CASA":
+            logger.info("HDI_EXTRACTION: contexto activo para extracción guiada")
         
-        # 1. Obtener campos permitidos para este documento
-        allowed_fields = self.field_mapping.get(document_type, [])
+        # 1. Obtener campos permitidos para este documento (con ajuste por contexto HDI)
+        allowed_fields = list(self.field_mapping.get(document_type, []) or [])
+        if (self.policy_context or "") == "HDI_EN_MI_CASA" and document_type == "poliza_de_la_aseguradora":
+            # Permitir 'lugar_hechos' desde póliza específicamente para HDI
+            if "lugar_hechos" not in allowed_fields:
+                allowed_fields.append("lugar_hechos")
         
         if not allowed_fields:
             logger.warning(
@@ -623,12 +878,13 @@ Responde SOLO con el JSON de los campos extraídos.
             )
             return self._create_null_extraction(document_name, document_type)
         
-        # 2. Construir prompt con guía
+        # 2. Construir prompt con guía (inyectar contexto si aplica)
         prompt = self.prompt_builder.build_guided_extraction_prompt(
             document_name=document_name,
             document_type=document_type,
             content=content if route == "ocr_text" else None,
-            route=route
+            route=route,
+            policy_type=self.policy_context
         )
         
         # 3. Ejecutar extracción según ruta
@@ -651,6 +907,12 @@ Responde SOLO con el JSON de los campos extraídos.
         
         # 4. Aplicar máscara y validaciones
         extraction = self._apply_field_mask_dict(raw_extraction, allowed_fields)
+        # Configurar validador con contexto si aplica (HDI)
+        if self.policy_context:
+            try:
+                self.validator.set_policy_type(self.policy_context)
+            except Exception:
+                pass
         extraction = self._validate_and_transform_dict(extraction, document_type)
         
         # 5. Crear resultado
@@ -697,27 +959,23 @@ Responde SOLO con el JSON de los campos extraídos.
         image_b64 = base64.b64encode(image_bytes).decode('utf-8')
         
         try:
-            # Llamada a la API con visión
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {
-                                "type": "image_url",
-                                "image_url": {
-                                    "url": f"data:image/jpeg;base64,{image_b64}",
-                                    "detail": "high"
-                                }
+            # Llamada a la API con visión (usa helper con compatibilidad de temperature)
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:image/jpeg;base64,{image_b64}",
+                                "detail": "high"
                             }
-                        ]
-                    }
-                ],
-                temperature=0.1,
-                max_tokens=2000
-            )
+                        }
+                    ]
+                }
+            ]
+            response = await self._chat_with_retry(model=model, messages=messages, max_tokens=2000)
             
             # Parsear respuesta
             content = response.choices[0].message.content or "{}"
@@ -741,15 +999,9 @@ Responde SOLO con el JSON de los campos extraídos.
         logger.info(f"Iniciando extracción OCR + texto con modelo {model}")
         
         try:
-            # Llamada a la API
-            response = await self.client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,
-                max_tokens=2000
-            )
+            # Llamada a la API (usa helper con compatibilidad de temperature)
+            messages = [{"role": "user", "content": prompt}]
+            response = await self._chat_with_retry(model=model, messages=messages, max_tokens=2000)
             
             # Parsear respuesta
             content = response.choices[0].message.content or "{}"
@@ -789,33 +1041,41 @@ Responde SOLO con el JSON de los campos extraídos.
         """
         Aplica validaciones y transformaciones a un diccionario
         """
+        # Si tenemos validador disponible, usarlo para cada campo (respeta contexto de póliza)
         validated = extraction.copy()
-        
-        for field, value in extraction.items():
-            if value is None:
-                continue
-            
-            rules = self.validation_rules.get(field, {})
-            
-            # Aplicar transformaciones
-            if 'transform' in rules and callable(rules['transform']):
-                try:
-                    validated[field] = rules['transform'](value)
-                except Exception as e:
-                    logger.error(f"Error transformando {field}: {e}")
-            
-            # Validar formato de fecha
-            if rules.get('type') == 'date' and value:
-                validated[field] = self._normalize_date(value)
-            
-            # Validar tipo numérico
-            if rules.get('type') == 'float' and value:
-                try:
-                    validated[field] = float(str(value).replace(',', '').replace('$', ''))
-                except:
-                    logger.error(f"No se pudo convertir {field} a float: {value}")
-        
-        return validated
+        try:
+            for field, value in extraction.items():
+                if value is None:
+                    continue
+                ok, new_value, err = self.validator.validate_field(field, value)
+                if ok:
+                    validated[field] = new_value
+                else:
+                    # Si no es válido, mantener original pero registrar error
+                    logger.debug(f"Validación fallida {field}: {err}")
+                    validated[field] = value
+            return validated
+        except Exception as e:
+            logger.warning(f"Fallo validando con FieldValidator, usando reglas locales: {e}")
+            # Fallback a reglas locales
+            validated = extraction.copy()
+            for field, value in extraction.items():
+                if value is None:
+                    continue
+                rules = self.validation_rules.get(field, {})
+                if 'transform' in rules and callable(rules['transform']):
+                    try:
+                        validated[field] = rules['transform'](value)
+                    except Exception as ex:
+                        logger.error(f"Error transformando {field}: {ex}")
+                if rules.get('type') == 'date' and value:
+                    validated[field] = self._normalize_date(value)
+                if rules.get('type') == 'float' and value:
+                    try:
+                        validated[field] = float(str(value).replace(',', '').replace('$', ''))
+                    except Exception:
+                        logger.error(f"No se pudo convertir {field} a float: {value}")
+            return validated
     
     def _normalize_date(self, date_str: str) -> Optional[str]:
         """
@@ -848,7 +1108,7 @@ Responde SOLO con el JSON de los campos extraídos.
         
         return date_str
     
-    def _create_null_extraction(self, document_name: str, document_type: str) -> DocumentExtraction:
+    def _create_null_extraction(self, document_name: str, document_type: Optional[str]) -> DocumentExtraction:
         """
         Crea una extracción con todos los campos en null
         """
@@ -856,7 +1116,7 @@ Responde SOLO con el JSON de los campos extraídos.
         
         return DocumentExtraction(
             source_document=document_name,
-            document_type=document_type,
+            document_type=document_type or "otro",
             extracted_fields=null_fields,
             extraction_metadata={
                 "route": "null",

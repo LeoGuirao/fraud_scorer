@@ -143,7 +143,7 @@ class AIDocumentAnalyzer:
             ],
             response_format={"type": "json_object"},
             temperature=self.temperature,
-            max_tokens=1200,
+            max_completion_tokens=1200,
         )
 
         # Robustez en el parseo
@@ -246,7 +246,7 @@ class AIDocumentAnalyzer:
                     }
                 ],
                 temperature=self.temperature,
-                max_tokens=1000
+                max_completion_tokens=1000
             )
             analysis_text = response.choices[0].message.content if response.choices else ""
         except Exception as e:
@@ -331,7 +331,7 @@ class AIDocumentAnalyzer:
                 {"role": "user", "content": prompt}
             ],
             temperature=min(max(self.temperature, 0.0), 1.0),
-            max_tokens=500
+            max_completion_tokens=500
         )
         
         return response.choices[0].message.content if response.choices else ""

@@ -1,0 +1,1236 @@
+{
+  "text": "www. siniesca.com\nSINIESCA\n®\nProfessional Insurance Adjusters\nINFORME PRELIMINAR\nAseguradora:\nHDI SEGUROS S.A. de C.V.\nAnalista:\nCecy Sandoval\nPóliza:\n429 - 175-1\nRamo:\nTransportes\nSiniestro:\n20240000009149\nReporte:\n4692744\nRef. Ajustador:\nSCA-0639-24\nCobertura:\nRobo de Bulto por Entero\nDJ/ DATOS GENERALES DEL ASEGURADO\nAsegurado:\nDISTRIBUIDORA DE AUTOPARTES PESCADOR, S.A. DE C.V.\nBeneficiario Preferente:\nEl Mismo Asegurado\nDomicilio:\nJUAN DE DIOS PEZA No. Ext. SN , LA JUNGLA, C.P.93620, SAN RAFAEL, VERACRUZ\nContacto:\nLuis Gerardo carrera Ramos Tel 99 3119 9410\nGiro Asegurado:\nAUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA\nTipo de Póliza:\nPÓLIZA ANUAL DE PRONÓSTICO DE EMBARQUES\nVigencia de la póliza: (Día Mes Año)\n13/ENE/2024\nal\n13/ENE/2025\nMoneda: USD/MXN/EUR\nPesos\nDATOS DEL SINIESTRO\nFecha y hora de ocurrido:\n08-OCT-2024\nFecha de Reporte:\n09-OCT-2024\nBienes afectados:\nREFACCIONES AUTOMOTRICES\nCausa directa del daño:\nROBO DE BULTO POR ENTERO\nUbicación del siniestro:\nTRAYECTO: SAN JUAN HUILULCO, EDO DE MEXICO-HUAQUECHULA, PUEBLA.\nCalzada circunvalación Oriente 1729, int. 6 Col. Ciudad Granja, Zapopan Jalisco, CP. 45010\nwww. siniesca.com\nDescripción de los Hechos:\nEl día de siniestro el Asegurado fue informado por medio de la línea de paquetería, que el transportista sufrió el robo de la unidad con la paquetería que llevaba a destino, por lo que el Asegurado acude ante la Cía. de Seguros\nAnálisis de la Póliza\nValor para el seguro:\nSCA PRI\nPara embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos de exportación y demás gastos inherentes al transporte de los bienes, si los hubiere.\nGiro:\nAUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA\nTerritorialidad:\nVENTAS DE IMPORTACION, VENTAS NACIONALES,\nOrigen:\nSAN JUAN HUILULCO, EDO DE MEXICO\nDestino:\nHUAQUECHULA, PUEBLA.\nLímite máximo por embarque:\n10'000,000.00 m.n.\nCobertura Afectada:\nROBO DE BULTO POR ENTERO\nGarantías de cobertura:\nYa se solicita soporte.\n®\nESTIMACIÓN DE PÉRDIDA\nMXN ( X )\nUSD ( )\nCoberturas Afectadas:\nROBO DE BULTO POR ENTERO\nSuma Asegurada:\n$3'500,000.00\nImporte de Reclamación:\n$76,000.00\nEstimación del Ajustador:\n$76,000.00\nDeducible (25% SVTE):\n$19,000.00\nEstimación NETA:\n$57,000.00\nObservaciones: Deducible 25% Sobre El Valor Total de Cada Embarque.\nSe está considerando el deducible de Robo de Bulto por Entero.\nSALVAMENTO\nDescripción:\nNO EXISTE, DEBIDO A LA NATURALEZA DEL SINIESTRO.\nEstado del salvamento:\nValor estimado:\nCalzada circunvalación Oriente 1729, int. 6 Col. Ciudad Granja, Zapopan Jalisco, CP. 45010 :selected: :unselected:\nwww. siniesca.com\nPersona a contactar:\nDomicilio, teléfono, correo electrónico de contacto:\nObservaciones:\nSUBROGACIÓN\nResponsable:\nDe acuerdo a los términos de ley, contra el transportista :\nPersona a contactar:\nDomicilio, teléfono, correo electrónico de contacto:\nObservaciones:\nNo se cuenta con los datos del transportista, ya se solicitan.\nNo detectados hasta el momento.\nINDICADORES DE FRAUDE\nAD//\nOBSERVACIONES FINALES\nHemos contactado al Asegurado y le hemos enviado la CSD con lo necesario para dar sustento a la presente reclamación, daremos seguimiento mediante recordatorios periódicos hasta contar con la documentación.\nER\nYa se solicita evidencia.\nFOTOGRAFIAS\n®\nSin más por el momento, se entrega el presente informe para los fines que la compañía de seguros requiera, quedando a sus órdenes por cualquier duda o aclaración.\nZapopan, Jal. a 12 de octubre de 2024\nFrancisco Morales Ajustado Cédula CNSF# V19682 SINIESCA Professiona Claims Adjusters S.C.\nC. c. Cecy Sandoval C. c. p. Expediente\nCalzada circunvalación Oriente 1729, int. 6 Col. Ciudad Granja, Zapopan Jalisco, CP. 45010",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 4,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Aseguradora:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "HDI SEGUROS S.A. de C.V.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Analista:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Cecy Sandoval",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Póliza:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "429 - 175-1",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Ramo:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Transportes",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Aseguradora:",
+        "HDI SEGUROS S.A. de C.V."
+      ],
+      "data_rows": [
+        [
+          "Analista:",
+          "Cecy Sandoval"
+        ],
+        [
+          "Póliza:",
+          "429 - 175-1"
+        ],
+        [
+          "Ramo:",
+          "Transportes"
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "row_count": 3,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Siniestro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "20240000009149",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Reporte:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "4692744",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Ref. Ajustador:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "SCA-0639-24",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Siniestro:",
+        "20240000009149"
+      ],
+      "data_rows": [
+        [
+          "Reporte:",
+          "4692744"
+        ],
+        [
+          "Ref. Ajustador:",
+          "SCA-0639-24"
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "row_count": 9,
+      "column_count": 6,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "DJ/ DATOS GENERALES DEL ASEGURADO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Asegurado:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "DISTRIBUIDORA DE AUTOPARTES PESCADOR, S.A. DE C.V.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Beneficiario Preferente:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "El Mismo Asegurado",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Domicilio:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "JUAN DE DIOS PEZA No. Ext. SN , LA JUNGLA, C.P.93620, SAN RAFAEL, VERACRUZ",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Contacto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "Luis Gerardo carrera Ramos Tel 99 3119 9410",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Giro Asegurado:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "AUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "Tipo de Póliza:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "PÓLIZA ANUAL DE PRONÓSTICO DE EMBARQUES",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "Vigencia de la póliza: (Día Mes Año)",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 0
+        },
+        {
+          "text": "13/ENE/2024",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 1
+        },
+        {
+          "text": "al",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 2
+        },
+        {
+          "text": "13/ENE/2025",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 3
+        },
+        {
+          "text": "Moneda: USD/MXN/EUR",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 4
+        },
+        {
+          "text": "Pesos",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 5
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 0
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 4
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        "DJ/ DATOS GENERALES DEL ASEGURADO",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Asegurado:",
+          "DISTRIBUIDORA DE AUTOPARTES PESCADOR, S.A. DE C.V.",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Beneficiario Preferente:",
+          "El Mismo Asegurado",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Domicilio:",
+          "JUAN DE DIOS PEZA No. Ext. SN , LA JUNGLA, C.P.93620, SAN RAFAEL, VERACRUZ",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Contacto:",
+          "Luis Gerardo carrera Ramos Tel 99 3119 9410",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Giro Asegurado:",
+          "AUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Tipo de Póliza:",
+          "PÓLIZA ANUAL DE PRONÓSTICO DE EMBARQUES",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Vigencia de la póliza: (Día Mes Año)",
+          "13/ENE/2024",
+          "al",
+          "13/ENE/2025",
+          "Moneda: USD/MXN/EUR",
+          "Pesos"
+        ],
+        [
+          "",
+          "",
+          "",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "row_count": 6,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "DATOS DEL SINIESTRO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Fecha y hora de ocurrido:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "08-OCT-2024",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Fecha de Reporte:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "09-OCT-2024",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Bienes afectados:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "REFACCIONES AUTOMOTRICES",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Causa directa del daño:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "ROBO DE BULTO POR ENTERO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Ubicación del siniestro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "TRAYECTO: SAN JUAN HUILULCO, EDO DE MEXICO-HUAQUECHULA, PUEBLA.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        "DATOS DEL SINIESTRO"
+      ],
+      "data_rows": [
+        [
+          "Fecha y hora de ocurrido:",
+          "08-OCT-2024"
+        ],
+        [
+          "Fecha de Reporte:",
+          "09-OCT-2024"
+        ],
+        [
+          "Bienes afectados:",
+          "REFACCIONES AUTOMOTRICES"
+        ],
+        [
+          "Causa directa del daño:",
+          "ROBO DE BULTO POR ENTERO"
+        ],
+        [
+          "Ubicación del siniestro:",
+          "TRAYECTO: SAN JUAN HUILULCO, EDO DE MEXICO-HUAQUECHULA, PUEBLA."
+        ]
+      ]
+    },
+    {
+      "id": 4,
+      "row_count": 9,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Análisis de la Póliza",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Valor para el seguro:\nPRI",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Para embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos de exportación y demás gastos inherentes al transporte de los bienes, si los hubiere.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "SCA\nGiro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "AUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Territorialidad:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "VENTAS DE IMPORTACION, VENTAS NACIONALES,",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Origen:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "SAN JUAN HUILULCO, EDO DE MEXICO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Destino:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "HUAQUECHULA, PUEBLA.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "Límite máximo por embarque:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "10'000,000.00 m.n.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "Cobertura Afectada:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 0
+        },
+        {
+          "text": "ROBO DE BULTO POR ENTERO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 1
+        },
+        {
+          "text": "Garantías de cobertura:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 0
+        },
+        {
+          "text": "Ya se solicita soporte.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        "Análisis de la Póliza"
+      ],
+      "data_rows": [
+        [
+          "Valor para el seguro:\nPRI",
+          "Para embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos de exportación y demás gastos inherentes al transporte de los bienes, si los hubiere."
+        ],
+        [
+          "SCA\nGiro:",
+          "AUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA"
+        ],
+        [
+          "Territorialidad:",
+          "VENTAS DE IMPORTACION, VENTAS NACIONALES,"
+        ],
+        [
+          "Origen:",
+          "SAN JUAN HUILULCO, EDO DE MEXICO"
+        ],
+        [
+          "Destino:",
+          "HUAQUECHULA, PUEBLA."
+        ],
+        [
+          "Límite máximo por embarque:",
+          "10'000,000.00 m.n."
+        ],
+        [
+          "Cobertura Afectada:",
+          "ROBO DE BULTO POR ENTERO"
+        ],
+        [
+          "Garantías de cobertura:",
+          "Ya se solicita soporte."
+        ]
+      ]
+    },
+    {
+      "id": 5,
+      "row_count": 7,
+      "column_count": 5,
+      "cells": [
+        {
+          "text": "ESTIMACIÓN DE PÉRDIDA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "MXN ( X )\n:selected:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "USD ( )\n:unselected:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 4
+        },
+        {
+          "text": "Coberturas Afectadas:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "ROBO DE BULTO POR ENTERO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 4
+        },
+        {
+          "text": "Suma Asegurada:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "$3'500,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 4
+        },
+        {
+          "text": "Importe de Reclamación:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "$76,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 4
+        },
+        {
+          "text": "Estimación del Ajustador:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "$76,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 4
+        },
+        {
+          "text": "Deducible (25% SVTE):",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "$19,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 4
+        },
+        {
+          "text": "Estimación NETA:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "$57,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 4
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "ESTIMACIÓN DE PÉRDIDA",
+        "",
+        "MXN ( X )\n:selected:",
+        "",
+        "USD ( )\n:unselected:"
+      ],
+      "data_rows": [
+        [
+          "Coberturas Afectadas:",
+          "ROBO DE BULTO POR ENTERO",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Suma Asegurada:",
+          "$3'500,000.00",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Importe de Reclamación:",
+          "$76,000.00",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Estimación del Ajustador:",
+          "$76,000.00",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Deducible (25% SVTE):",
+          "$19,000.00",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Estimación NETA:",
+          "$57,000.00",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 6,
+      "row_count": 3,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "SALVAMENTO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Descripción:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "NO EXISTE, DEBIDO A LA NATURALEZA DEL SINIESTRO.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Estado del salvamento:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "Valor estimado:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        "SALVAMENTO"
+      ],
+      "data_rows": [
+        [
+          "Descripción:",
+          "NO EXISTE, DEBIDO A LA NATURALEZA DEL SINIESTRO."
+        ],
+        [
+          "Estado del salvamento:",
+          "Valor estimado:"
+        ]
+      ]
+    },
+    {
+      "id": 7,
+      "row_count": 2,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "Persona a contactar:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Domicilio, teléfono, correo electrónico de contacto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 3
+        },
+        {
+          "text": "Observaciones:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Persona a contactar:",
+        "",
+        "Domicilio, teléfono, correo electrónico de contacto:",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Observaciones:",
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 8,
+      "row_count": 4,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "SUBROGACIÓN",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Responsable:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "De acuerdo a los términos de ley, contra el transportista :",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Persona a contactar:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "Domicilio, teléfono, correo electrónico de contacto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Observaciones:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "No se cuenta con los datos del transportista, ya se solicitan.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "SUBROGACIÓN",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Responsable:",
+          "De acuerdo a los términos de ley, contra el transportista :"
+        ],
+        [
+          "Persona a contactar:",
+          "Domicilio, teléfono, correo electrónico de contacto:"
+        ],
+        [
+          "Observaciones:",
+          "No se cuenta con los datos del transportista, ya se solicitan."
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "aseguradora": "HDI SEGUROS S.A. de C.V.",
+    "analista": "Cecy Sandoval",
+    "póliza": "429 - 175-1",
+    "ramo": "Transportes",
+    "siniestro": "20240000009149",
+    "reporte": "4692744",
+    "ref._ajustador": "SCA-0639-24",
+    "cobertura": "Robo de Bulto por Entero",
+    "asegurado": "DISTRIBUIDORA DE AUTOPARTES PESCADOR, S.A. DE C.V.",
+    "beneficiario_preferente": "El Mismo Asegurado JUNGLA,",
+    "domicilio": "JUAN DE DIOS PEZA No. Ext. SN , LA C.P.93620, SAN RAFAEL, VERACRUZ",
+    "contacto": "Luis Gerardo carrera Ramos",
+    "tel": "99 3119 9410 AUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ.",
+    "giro_asegurado": "AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA",
+    "tipo_de_póliza": "PÓLIZA ANUAL DE PRONÓSTICO DE EMBARQUES",
+    "vigencia_de_la_póliza": "13/ENE/2024 al 13/ENE/2025 Moneda: Pesos",
+    "(día_mes_año)": "USD/MXN/EUR",
+    "fecha_y_hora_de_ocurrido": "08-OCT-2024",
+    "fecha_de_reporte": "09-OCT-2024",
+    "bienes_afectados": "REFACCIONES AUTOMOTRICES",
+    "causa_directa_del_daño": "ROBO DE BULTO POR ENTERO",
+    "ubicación_del_siniestro": "PUEBLA.",
+    "trayecto": "SAN JUAN HUILULCO, EDO DE MEXICO-HUAQUECHULA,",
+    "giro": "AUTOBUSES, AUTOMÓVILES, AVIONES, BICICLETAS, CAMIONES, MAQ. AGRÍCOLA, MAQ. DE CONSTRUCCIÓN Y MOTOCICLETAS, SALA DE EXHIBICIÓN, PATIOS, BODEGA O TIENDA",
+    "territorialidad": "VENTAS DE IMPORTACION, VENTAS NACIONALES,",
+    "origen": "SAN JUAN HUILULCO, EDO DE MEXICO",
+    "destino": "HUAQUECHULA, PUEBLA.",
+    "límite_máximo_por_embarque": "10'000,000.00 m.n.",
+    "cobertura_afectada": "ROBO DE BULTO POR ENTERO",
+    "garantías_de_cobertura": "Ya se solicita soporte. ®",
+    "coberturas_afectadas": "ROBO DE BULTO POR ENTERO",
+    "suma_asegurada": "$3'500,000.00",
+    "importe_de_reclamación": "$76,000.00",
+    "estimación_del_ajustador": "$76,000.00",
+    "deducible_(25%_svte)": "$19,000.00",
+    "estimación_neta": "$57,000.00",
+    "descripción": "SALVAMENTO"
+  },
+  "metadata": {
+    "file_name": "Informe Preliminar (1).pdf",
+    "file_size": 767319,
+    "model_used": "prebuilt-document",
+    "page_count": 3,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

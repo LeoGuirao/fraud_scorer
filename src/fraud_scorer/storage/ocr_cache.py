@@ -122,57 +122,173 @@ class OCRCacheManager:
         
         return cache_subdir / f"{file_hash}.json"
     
-    def _find_cache_in_reorganized_structure(self, document_path: Path) -> Optional[Path]:
+    def _find_cache_in_reorganized_structure(self, document_path: Path, case_id: Optional[str] = None) -> Optional[Path]:
         """
         Busca el archivo de cache en la estructura reorganizada [ASEGURADO] - [SINIESTRO]
+        Restringe la búsqueda al caso actual si case_id está disponible.
         """
-        doc_name = document_path.name
-        sanitized_stem = self._sanitize_filename(document_path.stem)
-        sanitized_name = self._sanitize_filename(doc_name)
-        
-        # Buscar en todas las carpetas del cache
-        for folder in self.cache_dir.iterdir():
-            if folder.is_dir() and folder.name != "case_index" and "-" in folder.name:
-                # Buscar en subcarpetas
-                for subfolder in folder.iterdir():
-                    if subfolder.is_dir():
-                        # Buscar el archivo JSON
-                        pattern1 = subfolder / f"ocr_results_for_{sanitized_name}.json"
-                        pattern2 = subfolder / f"ocr_results_for_{doc_name}.json"
-                        
-                        if pattern1.exists():
-                            return pattern1
-                        if pattern2.exists():
-                            return pattern2
-        
-        return None
+        try:
+            import unicodedata
+            doc_name = document_path.name
+            # Normalizar diacríticos para evitar discrepancias Póliza vs Póliza
+            stem = document_path.stem
+            stem_norm = ''.join(c for c in unicodedata.normalize('NFKD', stem) if not unicodedata.combining(c))
+            sanitized_stem = self._sanitize_filename(stem)
+            sanitized_stem_norm = self._sanitize_filename(stem_norm)
+            sanitized_name = self._sanitize_filename(doc_name)
+
+            # Si no hay case_id, no buscar globalmente por nombre (evita falsos positivos entre casos)
+            if not case_id:
+                return None
+
+            # Cargar el índice del caso para obtener carpeta exacta
+            index_path = self.index_dir / f"{case_id}.json"
+            if not index_path.exists():
+                return None
+            with open(index_path, 'r', encoding='utf-8') as f:
+                case_data = json.load(f)
+            insured = case_data.get('insured_name') or "SIN_NOMBRE"
+            claim_raw = case_data.get('claim_number') or case_id
+            sanitized_claim = self._sanitize_filename(claim_raw)
+            case_folder = self.cache_dir / f"{self._sanitize_filename(insured)} - {sanitized_claim}"
+            # Construir candidatos de carpeta de caso: actual y otras que compartan el mismo reclamo
+            case_candidates = []
+            if case_folder.exists():
+                case_candidates.append(case_folder)
+            try:
+                # Buscar otras carpetas con el mismo sufijo de reclamo
+                suffix = f" - {sanitized_claim}"
+                for sub in self.cache_dir.iterdir():
+                    if not sub.is_dir():
+                        continue
+                    if sub == case_folder:
+                        continue
+                    if sub.name.endswith(suffix):
+                        case_candidates.append(sub)
+            except Exception:
+                pass
+
+            # Buscar dentro de todas las carpetas candidatas del caso
+            candidates = []
+            for case_dir in case_candidates:
+                for folder_name in {sanitized_stem, sanitized_stem_norm}:
+                    if not folder_name:
+                        continue
+                    df = case_dir / folder_name
+                    if df.exists() and df.is_dir():
+                        candidates.append(df)
+
+            # Fallback: intentar localizar carpeta por prefijo aproximado
+            if not candidates:
+                try:
+                    for sub in case_folder.iterdir():
+                        if not sub.is_dir():
+                            continue
+                        # Coincidencia laxa: quitar guiones bajos repetidos y comparar inicios
+                        def _canon(s: str) -> str:
+                            s = ''.join(c for c in unicodedata.normalize('NFKD', s) if not unicodedata.combining(c))
+                            s = self._sanitize_filename(s)
+                            return s.replace('__', '_')
+                        if _canon(sub.name).startswith(_canon(stem)[:8]):  # 8 chars de margen
+                            candidates.append(sub)
+                except Exception:
+                    pass
+
+            # Inspeccionar candidatos
+            for doc_folder in candidates:
+                pattern1 = doc_folder / f"ocr_results_for_{sanitized_name}.json"
+                pattern2 = doc_folder / f"ocr_results_for_{doc_name}.json"
+                if pattern1.exists():
+                    return pattern1
+                if pattern2.exists():
+                    return pattern2
+                # Último recurso: cualquier json de ocr_results dentro
+                for p in doc_folder.glob('ocr_results_for_*.json'):
+                    return p
+            return None
+        except Exception as e:
+            logger.error(f"Error buscando caché reorganizado: {e}")
+            return None
     
-    def has_cache(self, document_path: Path) -> bool:
+    def has_cache(self, document_path: Path, case_id: Optional[str] = None) -> bool:
         """
         Verifica si existe caché para el documento.
-        Busca primero en la estructura de hash, luego en la reorganizada.
+        Si se proporciona case_id, busca primero en la estructura reorganizada de ese caso.
+        En cualquier caso, verifica también por hash (shards) para coincidencia exacta de contenido.
         """
-        # Primero intentar estructura de hash
+        debug = os.getenv("OCR_CACHE_DEBUG", "false").lower() == "true"
+        # 1) Vista humana del caso (opcional)
+        if case_id:
+            reorganized_path = self._find_cache_in_reorganized_structure(document_path, case_id=case_id)
+            if reorganized_path is not None:
+                if debug:
+                    logger.debug(f"OCR_CACHE_DEBUG: hit vista humana: {reorganized_path}")
+                return True
+
+        # 2) Shards por hash
         cache_path = self._get_cache_path(document_path)
         if cache_path.exists():
+            if debug:
+                logger.debug(f"OCR_CACHE_DEBUG: hit shard: {cache_path}")
             return True
-        
-        # Si no existe, buscar en estructura reorganizada
-        reorganized_path = self._find_cache_in_reorganized_structure(document_path)
-        return reorganized_path is not None
+
+        # 3) Fallback robusto: buscar en DB por hash global (si existe OCR previo)
+        try:
+            file_hash = sha256_of_file(document_path)
+            any_ocr = get_any_ocr_by_hash(file_hash)
+            if any_ocr:
+                if debug:
+                    logger.debug(f"OCR_CACHE_DEBUG: hit DB por hash: {file_hash}")
+                return True
+            elif debug:
+                logger.debug(f"OCR_CACHE_DEBUG: miss DB por hash: {file_hash}")
+        except Exception:
+            pass
+
+        return False
     
     def get_cache(self, document_path: Path, case_id: str = None) -> Optional[Dict[str, Any]]:
         """
         Obtiene el resultado de OCR desde el caché.
-        Busca primero en la estructura de hash, luego en la reorganizada.
+        Busca primero en la estructura reorganizada (vista humana), luego en hash (shards).
         """
         try:
+            debug = os.getenv("OCR_CACHE_DEBUG", "false").lower() == "true"
             start_time = time.time()
-            # Primero intentar estructura de hash
+            # 1) Vista humana primero
+            reorganized_path = self._find_cache_in_reorganized_structure(document_path, case_id=case_id)
+            if reorganized_path:
+                with open(reorganized_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                if debug:
+                    logger.debug(f"OCR_CACHE_DEBUG: lectura desde vista humana: {reorganized_path}")
+                # Registrar hit de caché
+                elapsed_ms = int((time.time() - start_time) * 1000)
+                increment_cache_stats('global', 'ocr_hits')
+                increment_cache_stats('global', 'ms_saved', elapsed_ms)
+                if case_id:
+                    increment_cache_stats(case_id, 'ocr_hits')
+                    increment_cache_stats(case_id, 'ms_saved', elapsed_ms)
+                # Estimar bytes ahorrados
+                bytes_saved = reorganized_path.stat().st_size
+                increment_cache_stats('global', 'bytes_saved', bytes_saved)
+                if case_id:
+                    increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
+                # Persistir en DB para habilitar futuras búsquedas por hash
+                try:
+                    doc_id, _ = ensure_document_registered(case_id or 'unknown', str(document_path))
+                    persist_ocr(doc_id, data, "azure", "full")
+                except Exception:
+                    pass
+                return data
+
+            # 2) Shards por hash
             cache_path = self._get_cache_path(document_path)
             if cache_path.exists():
                 with open(cache_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
+                if debug:
+                    logger.debug(f"OCR_CACHE_DEBUG: lectura desde shard: {cache_path}")
                 # Registrar hit de caché
                 elapsed_ms = int((time.time() - start_time) * 1000)
                 increment_cache_stats('global', 'ocr_hits')
@@ -187,43 +303,69 @@ class OCRCacheManager:
                     increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
                 return data
             
-            # Si no existe, buscar en estructura reorganizada
-            reorganized_path = self._find_cache_in_reorganized_structure(document_path)
-            if reorganized_path:
-                with open(reorganized_path, 'r', encoding='utf-8') as f:
-                    data = json.load(f)
-                # Registrar hit de caché
-                elapsed_ms = int((time.time() - start_time) * 1000)
-                increment_cache_stats('global', 'ocr_hits')
-                increment_cache_stats('global', 'ms_saved', elapsed_ms)
-                if case_id:
-                    increment_cache_stats(case_id, 'ocr_hits')
-                    increment_cache_stats(case_id, 'ms_saved', elapsed_ms)
-                # Estimar bytes ahorrados
-                bytes_saved = reorganized_path.stat().st_size
-                increment_cache_stats('global', 'bytes_saved', bytes_saved)
-                if case_id:
-                    increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
-                return data
-            
             # Cache miss
             increment_cache_stats('global', 'ocr_misses')
             if case_id:
                 increment_cache_stats(case_id, 'ocr_misses')
+            # 3) Fallback a DB: intentar por hash global y/o por documento registrado
+            try:
+                # Registrar/asegurar documento y obtener hash
+                doc_id, file_hash = ensure_document_registered(case_id or 'unknown', str(document_path))
+                cached = try_get_cached_ocr(doc_id, file_hash, allow_global=True, case_id=case_id)
+                if cached:
+                    if debug:
+                        logger.debug(f"OCR_CACHE_DEBUG: lectura desde DB por hash: {file_hash} -> doc_id {doc_id}")
+                    return cached
+            except Exception as e:
+                logger.debug(f"Fallback DB cache fallo para {document_path}: {e}")
             return None
         except Exception as e:
             logger.error(f"Error leyendo caché para {document_path}: {e}")
             return None
     
-    def save_cache(self, document_path: Path, ocr_result: Dict[str, Any]) -> None:
+    def save_cache(self, document_path: Path, ocr_result: Dict[str, Any], case_id: Optional[str] = None) -> None:
         """
         Guarda el resultado de OCR en el caché.
         """
         try:
+            # Si conocemos el caso y su carpeta con nombre, guardar directo en vista humana
+            if case_id:
+                index_path = self.index_dir / f"{case_id}.json"
+                if index_path.exists():
+                    try:
+                        with open(index_path, 'r', encoding='utf-8') as f:
+                            case_data = json.load(f)
+                        insured = case_data.get('insured_name') or "SIN_NOMBRE"
+                        claim = case_data.get('claim_number') or case_id
+                        folder_name = f"{self._sanitize_filename(insured)} - {self._sanitize_filename(claim)}"
+                        doc_folder = self._sanitize_filename(document_path.stem)
+                        dest_dir = self.cache_dir / folder_name / doc_folder
+                        dest_dir.mkdir(parents=True, exist_ok=True)
+                        dest_path = dest_dir / f"ocr_results_for_{self._sanitize_filename(document_path.name)}.json"
+                        with open(dest_path, 'w', encoding='utf-8') as f:
+                            json.dump(ocr_result, f, ensure_ascii=False, indent=2, default=str)
+                        logger.debug(f"Caché guardado (vista humana) para {document_path.name}: {dest_path}")
+                        # Persistir también en DB (para fallback robusto por hash)
+                        try:
+                            doc_id, _ = ensure_document_registered(case_id, str(document_path))
+                            persist_ocr(doc_id, ocr_result, "azure", "full")
+                        except Exception:
+                            pass
+                        return
+                    except Exception as e:
+                        logger.warning(f"Fallo guardando en vista humana; guardando en shard. Detalle: {e}")
+
+            # Fallback a shards por hash
             cache_path = self._get_cache_path(document_path)
             with open(cache_path, 'w', encoding='utf-8') as f:
                 json.dump(ocr_result, f, ensure_ascii=False, indent=2, default=str)
-            logger.debug(f"Caché guardado para {document_path.name}: {cache_path}")
+            logger.debug(f"Caché guardado (shard) para {document_path.name}: {cache_path}")
+            # Persistir en DB aunque no exista índice aún
+            try:
+                doc_id, _ = ensure_document_registered(case_id or 'unknown', str(document_path))
+                persist_ocr(doc_id, ocr_result, "azure", "full")
+            except Exception:
+                pass
         except Exception as e:
             logger.error(f"Error guardando caché para {document_path}: {e}")
     
@@ -282,8 +424,23 @@ class OCRCacheManager:
         hash_folders_to_clean = set()
         
         # 3. Mover cada archivo de caché a su nueva ubicación
-        if "cache_files" in case_data:
-            for original_doc_path_str in case_data["cache_files"]:
+        #    Tomar rutas de 'cache_files' y asegurar con 'documents' (por si falta alguno)
+        original_paths: list[str] = []
+        try:
+            if "cache_files" in case_data and isinstance(case_data["cache_files"], list):
+                original_paths.extend([str(p) for p in case_data["cache_files"]])
+        except Exception:
+            pass
+        try:
+            if "documents" in case_data and isinstance(case_data["documents"], list):
+                for p in case_data["documents"]:
+                    sp = str(p)
+                    if sp not in original_paths:
+                        original_paths.append(sp)
+        except Exception:
+            pass
+
+        for original_doc_path_str in original_paths:
                 original_doc_path = Path(original_doc_path_str)
                 cache_path = self._get_cache_path(original_doc_path)
 
@@ -312,18 +469,82 @@ class OCRCacheManager:
                         
                     except Exception as e:
                         logger.error(f"No se pudo mover el archivo de caché {cache_path}: {e}")
+                else:
+                    # Si no hay shard, verificar si ya existe en vista humana; de estar en ambos, eliminar shard duplicado
+                    doc_folder_name = self._sanitize_filename(original_doc_path.stem)
+                    candidate = new_case_path / doc_folder_name / f"ocr_results_for_{self._sanitize_filename(original_doc_path.name)}.json"
+                    if candidate.exists():
+                        # Nada que mover
+                        continue
         
-        # 4. Limpiar carpetas de hash vacías
+        # 4. Fusionar carpeta placeholder "SIN_NOMBRE - SIN_NOMBRE" en la carpeta con nombre real (si existe)
+        try:
+            placeholder_folder = self.cache_dir / "SIN_NOMBRE - SIN_NOMBRE"
+            if placeholder_folder.exists() and placeholder_folder.is_dir() and placeholder_folder != new_case_path:
+                for sub in list(placeholder_folder.iterdir()):
+                    if not sub.is_dir():
+                        continue
+                    dest_sub = new_case_path / sub.name
+                    dest_sub.mkdir(parents=True, exist_ok=True)
+                    for item in list(sub.iterdir()):
+                        target = dest_sub / item.name
+                        try:
+                            if not target.exists():
+                                shutil.move(str(item), str(target))
+                        except Exception as e:
+                            logger.warning(f"No se pudo mover {item} -> {target}: {e}")
+                    # Intentar borrar subcarpeta si quedó vacía (limpiar .DS_Store)
+                    ds = sub / ".DS_Store"
+                    if ds.exists():
+                        try:
+                            ds.unlink()
+                        except Exception:
+                            pass
+                    try:
+                        sub.rmdir()
+                    except OSError:
+                        pass
+                # Intentar borrar carpeta placeholder
+                ds = placeholder_folder / ".DS_Store"
+                if ds.exists():
+                    try:
+                        ds.unlink()
+                    except Exception:
+                        pass
+                try:
+                    placeholder_folder.rmdir()
+                except OSError:
+                    pass
+        except Exception as e:
+            logger.error(f"Error fusionando carpeta placeholder: {e}")
+
+        # 5. Limpiar carpetas de hash vacías (ignorando .DS_Store)
         for hash_folder in hash_folders_to_clean:
             try:
                 if hash_folder.exists() and hash_folder.is_dir():
-                    # Verificar si la carpeta está vacía
+                    # Eliminar .DS_Store si existe
+                    ds = hash_folder / ".DS_Store"
+                    if ds.exists():
+                        try:
+                            ds.unlink()
+                        except Exception:
+                            pass
+                    # Verificar si la carpeta quedó vacía
                     if not any(hash_folder.iterdir()):
-                        hash_folder.rmdir()
-                        logger.debug(f"Carpeta de hash vacía eliminada: {hash_folder}")
+                        try:
+                            hash_folder.rmdir()
+                            logger.debug(f"Carpeta de hash vacía eliminada: {hash_folder}")
+                        except Exception as ex:
+                            logger.warning(f"No se pudo eliminar carpeta vacía {hash_folder}: {ex}")
             except Exception as e:
                 logger.warning(f"No se pudo eliminar la carpeta de hash {hash_folder}: {e}")
         
+        # 6. Limpieza global de shards vacíos
+        try:
+            self.cleanup_shards()
+        except Exception as e:
+            logger.warning(f"cleanup_shards falló: {e}")
+
         logger.info(f"Reorganización del caché completada para el caso {case_id} en: {new_case_path}")
     
     def get_cache_stats(self) -> Dict[str, Any]:
@@ -473,3 +694,28 @@ class OCRCacheManager:
         except Exception as e:
             logger.error(f"Error leyendo índice del caso {case_id}: {e}")
             return None
+
+    # Utilidad pública: limpieza manual de shards
+    def cleanup_shards(self) -> None:
+        """Elimina .DS_Store y borra shards vacíos (subcarpetas de 2 hex)."""
+        try:
+            for entry in self.cache_dir.iterdir():
+                if not entry.is_dir():
+                    continue
+                name = entry.name
+                if len(name) == 2 and all(c in '0123456789abcdef' for c in name.lower()):
+                    # Borrar .DS_Store si está
+                    ds = entry / '.DS_Store'
+                    if ds.exists():
+                        try:
+                            ds.unlink()
+                        except Exception:
+                            pass
+                    # Borrar shard si quedó vacío
+                    try:
+                        if not any(entry.iterdir()):
+                            entry.rmdir()
+                    except OSError:
+                        pass
+        except Exception as e:
+            logger.error(f"Error durante cleanup_shards: {e}")

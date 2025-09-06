@@ -15,7 +15,7 @@ from openai import AsyncOpenAI
 import instructor
 from pydantic import BaseModel, Field
 
-from fraud_scorer.settings import ExtractionConfig, FieldPriority  # FieldPriority puede usarse en reglas
+from fraud_scorer.settings import ExtractionConfig, FieldPriority, get_model_for_task  # FieldPriority puede usarse en reglas
 from fraud_scorer.models.extraction import (
     DocumentExtraction,
     ConsolidatedExtraction,
@@ -74,8 +74,23 @@ class AIConsolidator:
         # Configuración del sistema de extracción guiada
         self.field_mapping = self.config.DOCUMENT_FIELD_MAPPING
         self.document_priorities = self.config.DOCUMENT_PRIORITIES
+        # Contexto de póliza y prioridades personalizadas
+        self.policy_context: Optional[str] = None
+        self.custom_priorities: Dict[str, List[str]] = {}
         
         logger.info("AIConsolidator inicializado con Sistema de Extracción Guiada")
+
+    def set_policy_context(self, policy_type: str) -> None:
+        """Establece contexto de tipo de póliza y ajusta prioridades si aplica."""
+        self.policy_context = policy_type
+        if policy_type == "HDI_EN_MI_CASA":
+            # Para HDI: tipo_siniestro desde informe final; lugar_hechos puede venir de póliza
+            self.custom_priorities = {
+                "tipo_siniestro": ["informe_final_del_ajustador"],
+                "lugar_hechos": ["poliza_de_la_aseguradora", "informe_preliminar_del_ajustador"],
+                "nombre_asegurado": ["poliza_de_la_aseguradora", "informe_preliminar_del_ajustador", "informe_final_del_ajustador"],
+            }
+            logger.info("Prioridades personalizadas activadas para HDI EN MI CASA")
 
     # ---------- API principal ----------
 
@@ -129,6 +144,22 @@ class AIConsolidator:
                 consolidated_fields_dict[field_name] = None
                 confidence_scores[field_name] = 0.0
                 continue
+
+            # Aplicar prioridades personalizadas si están configuradas
+            if self.custom_priorities and field_name in self.custom_priorities:
+                preferred_docs = self.custom_priorities[field_name]
+                for doc_type in preferred_docs:
+                    for opt in options:
+                        if opt.get("document_type") == doc_type and opt.get("value") is not None:
+                            consolidated_fields_dict[field_name] = opt["value"]
+                            consolidation_sources[field_name] = f"Prioridad por contexto ({doc_type})"
+                            confidence_scores[field_name] = 0.95
+                            # Pasar a siguiente campo (omitimos resolución de conflicto)
+                            break
+                    if field_name in consolidated_fields_dict and consolidated_fields_dict[field_name] is not None:
+                        break
+                if field_name in consolidated_fields_dict and consolidated_fields_dict[field_name] is not None:
+                    continue
 
             if len(options) == 1:
                 # Única opción
@@ -272,9 +303,10 @@ class AIConsolidator:
         )
 
         try:
-            response: ConsolidationDecision = await self.client.chat.completions.create(
-                model=self.config.get_model_for_task("consolidation"),
-                messages=[
+            model_name = get_model_for_task("consolidation")
+            kwargs = {
+                "model": model_name,
+                "messages": [
                     {
                         "role": "system",
                         "content": (
@@ -284,10 +316,12 @@ class AIConsolidator:
                     },
                     {"role": "user", "content": prompt},
                 ],
-                response_model=ConsolidationDecision,
-                temperature=0.1,
-                max_tokens=1000,
-            )
+                "response_model": ConsolidationDecision,
+                "max_completion_tokens": 1000,
+            }
+            if not (model_name or "").startswith("gpt-5"):
+                kwargs["temperature"] = 0.1
+            response: ConsolidationDecision = await self.client.chat.completions.create(**kwargs)
             return response
 
         except Exception as e:
@@ -378,9 +412,10 @@ class AIConsolidator:
         full_prompt = f"{guardrails}\n\n{prompt}"
 
         try:
-            response: ValidationResponse = await self.client.chat.completions.create(
-                model=self.config.get_model_for_task("consolidation"),
-                messages=[
+            model_name = get_model_for_task("consolidation")
+            kwargs = {
+                "model": model_name,
+                "messages": [
                     {
                         "role": "system",
                         "content": (
@@ -390,10 +425,13 @@ class AIConsolidator:
                     },
                     {"role": "user", "content": full_prompt},
                 ],
-                response_model=ValidationResponse,
-                temperature=0.0,
-                max_tokens=1200,
-            )
+                "response_model": ValidationResponse,
+                "max_completion_tokens": 1200,
+            }
+            # Para gpt-5, omitir temperature; para otros, usar 0.0
+            if not (model_name or "").startswith("gpt-5"):
+                kwargs["temperature"] = 0.0
+            response: ValidationResponse = await self.client.chat.completions.create(**kwargs)
 
             adjustments = response.adjustments or {}
             if not adjustments:
@@ -467,7 +505,16 @@ class AIConsolidator:
         Menor número = mayor prioridad.
         """
         if doc_type in self.document_priorities:
-            return self.document_priorities[doc_type].value
+            val = self.document_priorities[doc_type]
+            try:
+                # Si es un Enum (FieldPriority), usar .value
+                return val.value  # type: ignore[attr-defined]
+            except Exception:
+                # Si ya es un int, devolver directo
+                if isinstance(val, int):
+                    return val
+                # Cualquier otro caso, prioridad baja
+                return 99
         return 99  # Prioridad más baja para documentos desconocidos
 
     def _build_context(self, extractions: List[DocumentExtraction]) -> str:

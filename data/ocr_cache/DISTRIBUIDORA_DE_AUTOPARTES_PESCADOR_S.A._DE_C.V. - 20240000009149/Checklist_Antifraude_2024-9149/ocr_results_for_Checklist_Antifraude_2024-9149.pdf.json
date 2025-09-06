@@ -1,0 +1,530 @@
+{
+  "text": "Fecha: 16/10/2024 05:07 PM\nAsegurado: DISTRIBUIDORA DE AUTOPARTES PESCADOR, S.A. DE C.V. No. de Siniestro: 20240000009149 No. Póliza: 175 F. de Ocurrencia: 08/10/2024 11:50 AM Tipo/Ramo: Daños Ajustador: SINIESCA PROFESSIONAL CLAIMS ADJUSTERS\nPonderación\nPremisa\nAplica (Si/No)\nA El siniestro ocurre dentro de los 30 primeros días de inicio de vigencia o dentro de los 30 días de término de vigencia para pólizas nuevas. :unselected:\nB\nEl siniestro ocurre 30 días después de una adición de cobertura a la póliza. :unselected:\nCrítico C\nExisten incongruencias en fechas y horas de reclamo. :unselected:\nD\nLos hechos reportados originalmente difieren a los inspeccionados / verificados por el ajustador. :unselected:\nE\nUn departamento interno de HDI solicita la investigación. :unselected:\nPonderación\nPremisa\nAplica (Si/No)\nF\nPólizas pagadas inmediatamente después de ocurrido el siniestro. :unselected:\nG\nExisten varios reclamos del mismo Asegurado en el mismo mes. :unselected:\nH\nEl Asegurado reclama la suma total o superior a la cobertura señalada en póliza. :unselected:\nNo Crítico I\nEl aviso a las autoridades ocurre después de 5 días de ocurrido el siniestro. :unselected:\nJ\nEl siniestro fue reportado de manera extemporánea. (X>30 días). :unselected:\nK Actitud exigente y demandante del Asegurado, Agente, presión en redes sociales, quejas infundadas, solicitando el pago inmediato del siniestro. :unselected:\nEl presente siniestro ha sido definido como:\nSi el siniestro tiene identificado cualquiera de los factores \"Críticos\" antes referidos, deberá turnarse de manera inmediata a \"investigación\"; en contraste en caso de ser definido como \"No Crítico\", se deberá incluir en comentarios el racional de dicha conclusión. (POL-SI-04).\nComentarios\nNO SE MARCA NINGUN PARAMETRO EN EL CHECK LIST ANTI FRADE, PERO SE TRATA DE UN ROBO DE TRANPSORTE DE MERCANCIAS, SE SOLICITA VERIFICA\nElaboró:\nSandoval Navarro Ericka Cecilia\nRevisó:\nSalas Cuevas Luis Javier\nPuesto:\nAnalista\nPuesto:\nSupervisor\nFecha:\n16/10/2024 05:03 PM\nFecha:\n16/10/2024 05:07 PM\nFirma:\nFirma:",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 6,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "Ponderación",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Premisa",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Aplica (Si/No)",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "A El siniestro ocurre dentro de los 30 primeros días de inicio de vigencia o dentro de los 30 días de término de vigencia para pólizas nuevas.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "B",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "El siniestro ocurre 30 días después de una adición de cobertura a la póliza.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "Crítico C",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Existen incongruencias en fechas y horas de reclamo.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "D",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "Los hechos reportados originalmente difieren a los inspeccionados / verificados por el ajustador.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "E",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "Un departamento interno de HDI solicita la investigación.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Ponderación",
+        "Premisa",
+        "Aplica (Si/No)"
+      ],
+      "data_rows": [
+        [
+          "A El siniestro ocurre dentro de los 30 primeros días de inicio de vigencia o dentro de los 30 días de término de vigencia para pólizas nuevas.",
+          "",
+          ":unselected:"
+        ],
+        [
+          "B",
+          "El siniestro ocurre 30 días después de una adición de cobertura a la póliza.",
+          ":unselected:"
+        ],
+        [
+          "Crítico C",
+          "Existen incongruencias en fechas y horas de reclamo.",
+          ":unselected:"
+        ],
+        [
+          "D",
+          "Los hechos reportados originalmente difieren a los inspeccionados / verificados por el ajustador.",
+          ":unselected:"
+        ],
+        [
+          "E",
+          "Un departamento interno de HDI solicita la investigación.",
+          ":unselected:"
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "row_count": 8,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "Ponderación",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Premisa",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Aplica (Si/No)",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "F",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Pólizas pagadas inmediatamente después de ocurrido el siniestro.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "G",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "Existen varios reclamos del mismo Asegurado en el mismo mes.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "H",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "El Asegurado reclama la suma total o superior a la cobertura señalada en póliza.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "No Crítico I",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "El aviso a las autoridades ocurre después de 5 días de ocurrido el siniestro.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "J",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "El siniestro fue reportado de manera extemporánea. (X>30 días).",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        },
+        {
+          "text": "K Actitud exigente y demandante del Asegurado, Agente, presión en redes sociales, quejas infundadas, solicitando el pago inmediato del siniestro.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 0
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Ponderación",
+        "Premisa",
+        "Aplica (Si/No)"
+      ],
+      "data_rows": [
+        [
+          "F",
+          "Pólizas pagadas inmediatamente después de ocurrido el siniestro.",
+          ":unselected:"
+        ],
+        [
+          "G",
+          "Existen varios reclamos del mismo Asegurado en el mismo mes.",
+          ":unselected:"
+        ],
+        [
+          "H",
+          "El Asegurado reclama la suma total o superior a la cobertura señalada en póliza.",
+          ":unselected:"
+        ],
+        [
+          "No Crítico I",
+          "El aviso a las autoridades ocurre después de 5 días de ocurrido el siniestro.",
+          ":unselected:"
+        ],
+        [
+          "J",
+          "El siniestro fue reportado de manera extemporánea. (X>30 días).",
+          ":unselected:"
+        ],
+        [
+          "K Actitud exigente y demandante del Asegurado, Agente, presión en redes sociales, quejas infundadas, solicitando el pago inmediato del siniestro.",
+          "",
+          ":unselected:"
+        ],
+        [
+          "",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "row_count": 3,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "Elaboró:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Sandoval Navarro Ericka Cecilia",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Revisó:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "Salas Cuevas Luis Javier",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 3
+        },
+        {
+          "text": "Puesto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Analista",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Puesto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "Supervisor",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "Fecha:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "16/10/2024 05:03 PM",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Fecha:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "16/10/2024 05:07 PM",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Elaboró:",
+        "Sandoval Navarro Ericka Cecilia",
+        "Revisó:",
+        "Salas Cuevas Luis Javier"
+      ],
+      "data_rows": [
+        [
+          "Puesto:",
+          "Analista",
+          "Puesto:",
+          "Supervisor"
+        ],
+        [
+          "Fecha:",
+          "16/10/2024 05:03 PM",
+          "Fecha:",
+          "16/10/2024 05:07 PM"
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "fecha": "16/10/2024 05:07 PM",
+    "asegurado": "DISTRIBUIDORA DE AUTOPARTES PESCADOR, S.A. DE C.V.",
+    "no._de_siniestro": "20240000009149",
+    "no._póliza": "175",
+    "f._de_ocurrencia": "08/10/2024 11:50 AM",
+    "tipo/ramo": "Daños",
+    "ajustador": "SINIESCA PROFESSIONAL CLAIMS ADJUSTERS",
+    "el_siniestro_ocurre_dentro_de_los_30_primeros_días_de_inicio_de_vigencia_o_dentro_de_los_30_días_de_término_de_vigencia_para_pólizas_nuevas.": ":unselected:",
+    "el_siniestro_ocurre_30_días_después_de_una_adición_de_cobertura_a_la_póliza.": ":unselected:",
+    "existen_incongruencias_en_fechas_y_horas_de_reclamo.": ":unselected:",
+    "los_hechos_reportados_originalmente_difieren_a_los_inspeccionados_/_verificados_por_el_ajustador.": ":unselected:",
+    "un_departamento_interno_de_hdi_solicita_la_investigación.": ":unselected:",
+    "pólizas_pagadas_inmediatamente_después_de_ocurrido_el_siniestro.": ":unselected:",
+    "existen_varios_reclamos_del_mismo_asegurado_en_el_mismo_mes.": ":unselected:",
+    "el_asegurado_reclama_la_suma_total_o_superior_a_la_cobertura_señalada_en_póliza.": ":unselected:",
+    "el_aviso_a_las_autoridades_ocurre_después_de_5_días_de_ocurrido_el_siniestro.": ":unselected:",
+    "el_siniestro_fue_reportado_de_manera_extemporánea._(x>30_días).": ":unselected:",
+    "actitud_exigente_y_demandante_del_asegurado,_agente,_presión_en_redes_sociales,_quejas_infundadas,_solicitando_el_pago_inmediato_del_siniestro.": ":unselected:",
+    "elaboró": "Sandoval Navarro Ericka Cecilia",
+    "revisó": "Salas Cuevas Luis Javier",
+    "puesto": "Analista"
+  },
+  "metadata": {
+    "file_name": "Checklist Antifraude 2024-9149.pdf",
+    "file_size": 880169,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

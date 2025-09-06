@@ -1,6 +1,6 @@
 # src/fraud_scorer/pipelines/canonical.py
 from typing import Optional, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
 Risk = Literal["bajo", "medio", "alto"]
 
@@ -19,5 +19,5 @@ class CanonicalFields(BaseModel):
     fecha_reclamacion: Optional[str] = None
     incident_location: Optional[str] = None
 
-    class Config:
-        extra = "allow"
+    # Pydantic v2 configuration
+    model_config = ConfigDict(extra="allow")

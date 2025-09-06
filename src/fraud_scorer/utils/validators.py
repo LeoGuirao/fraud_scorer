@@ -172,6 +172,11 @@ class FieldValidator:
         self.validation_rules = self.config.FIELD_VALIDATION_RULES
         self.field_mapping = self.config.DOCUMENT_FIELD_MAPPING
         self.siniestro_types = self.config.SINIESTRO_TYPES
+        self.policy_type: Optional[str] = None
+
+    def set_policy_type(self, policy_type: Optional[str]):
+        """Establece el contexto de tipo de póliza para validaciones condicionales."""
+        self.policy_type = policy_type
     
     def validate_field(self, field_name: str, value: Any) -> Tuple[bool, Any, Optional[str]]:
         """
@@ -183,6 +188,17 @@ class FieldValidator:
         if value is None:
             return True, None, None
         
+        # Normalización previa específica por campo
+        if field_name == "numero_poliza":
+            try:
+                value = self._normalize_policy_number(value)
+            except Exception:
+                pass
+        
+        # Reglas condicionales por tipo de póliza (HDI EN MI CASA)
+        if field_name == "numero_siniestro" and (self.policy_type or "") == "HDI_EN_MI_CASA":
+            return self.validate_numero_siniestro_flexible(value)
+
         # Obtener reglas para este campo
         rules = self.validation_rules.get(field_name, {})
         
@@ -229,6 +245,37 @@ class FieldValidator:
                 value = ' '.join(words[:rules['max_words']])
         
         return True, value, None
+
+    def validate_numero_siniestro_flexible(self, value: Any) -> Tuple[bool, Any, Optional[str]]:
+        """
+        Validación flexible para números de siniestro de pólizas HDI EN MI CASA.
+        Acepta formatos como: "3925/25 R - 4735611" (variaciones de espacios y guiones).
+        """
+        if value is None:
+            return False, value, "Número de siniestro vacío"
+        s = str(value).strip()
+        if not s:
+            return False, value, "Número de siniestro vacío"
+        # Normalizar espacios múltiples y guiones unicode
+        import re as _re
+        cleaned = " ".join(s.split())
+        std = _re.sub(r"[–—]", "-", cleaned)
+        # Patrones razonables: 1-4 dígitos / 2 dígitos [Letra opcional] - 6-9 dígitos
+        pattern_main = r"^\d{1,4}/\d{2}\s*[A-Z]?\s*-\s*\d{6,9}$"
+        if _re.match(pattern_main, std):
+            return True, std, None
+        return False, value, f"Formato inválido para HDI EN MI CASA: {value}"
+
+    def _normalize_policy_number(self, value: Any) -> str:
+        """Normaliza 'numero_poliza' eliminando sufijos como 'Inciso:...' y etiquetas tipo 'No. de Póliza'."""
+        s = str(value or "").strip()
+        # Quitar etiqueta iniciales comunes
+        s = re.sub(r"(?i)\b(no\.?\s*de\s*)?p[óo]liza\s*(no\.?\s*)?:?\s*", "", s).strip()
+        # Eliminar 'Inciso: ...' y lo que siga
+        s = re.sub(r"(?i)\binciso\b.*$", "", s).strip()
+        # Limpiar separadores múltiples
+        s = re.sub(r"\s{2,}", " ", s)
+        return s
     
     def _validate_date(self, value: Any, rules: Dict) -> Tuple[bool, Optional[str]]:
         """Valida campos de fecha"""

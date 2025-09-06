@@ -1,0 +1,16 @@
+{
+  "text": "",
+  "tables": [],
+  "key_value_pairs": {},
+  "metadata": {
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Error HTTP 200: (InvalidRequest) Invalid request.\nCode: InvalidRequest\nMessage: Invalid request.\nException Details:\t(UnsupportedContent) Content is not supported: Failed to load PDF page 1-1\n\tCode: UnsupportedContent\n\tMessage: Content is not supported: Failed to load PDF page 1-1\n\tTarget: 0"
+    ],
+    "confidence": {
+      "overall": 0.0
+    }
+  }
+}

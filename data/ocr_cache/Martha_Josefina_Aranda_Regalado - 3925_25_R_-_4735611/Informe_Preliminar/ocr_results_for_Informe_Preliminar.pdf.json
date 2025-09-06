@@ -1,0 +1,626 @@
+{
+  "text": "NUÑEZ MORA Y ASOCIADOS AJUSTADORES, S.A. DE C.V.\nINFORME PRELIMINAR\nAT'N:\nSINIESTRO\nN/REF.\nFECHA\nLuz Ramírez\n3925/25 R - 4735611\n6446/25-L\n28-may-25\nNOS REPORTO EL SINIESTRO\nFECHA REPORTE\nFECHA DE ATENCIÓN\nFrida García\n13-may-25\n13-may-25\nDATOS DE LA PÓLIZA:\nPÓLIZA\nTIPO DE PÓLIZA\nVIGENCIA\n958 - 39\nHDI EN MI CASA\n17/MAY/2024 al 17/MAY/2025\nNOMBRE DEL ASEGURADO\nREPRESENTANTE Y PUESTO\nARANDA REGALADO MARTHA JOSEFINA\nSra. Martha Josefina Aranda Regalado\nDIRECCIÓN\nCOLONIA\nENTIDAD\nCircuito Diamante No. 227\nResidencial Camino Viejo\nSan Francisco del Rincón, Gto.\nGIRO DEL ASEGURADO:\nUnifamiliar\nDATOS DEL SINIESTRO:\nFECHA DEL SINIESTRO\nHORA\ndomingo, 27 de abril de 2025\n04:00:00 p. m.\nUBICACIÓN DEL RIESGO:\nCOLONIA\nENTIDAD\nEn el interior de su casa ubicada en Circuito Diamante No. 227 Col. Residencial Camino Viejo en San Francisco del Rincón, Gto.\nNATURALEZA DEL SINIESTRO: Daños a refrigerador por variación de voltaje.\nCAUSA DETALLADA:\nComenta la Sra. Aranda, que el pasado 27 de abril de 2025 noto que su refrigerador no estaba enfriando adecuadamente por lo que llamo a servicio técnico para que lo revisaran y determinaron que se trato de una falla por variación de voltaje.\nPosteriormente dio aviso a la Cía. aseguradora.\nM\nBIENES AFECTADOS:\nRefrigerador LG modelo GF22WGS con numero de serie 104MRYA2X066\nDEDUCIBLE:\nSin deducible\nESTIMACIONES:\nM.N. ( X )\nU.S. Cy. ( )\nCOBERTURAS AFECTADAS:\nCOBERTURA ELECTRODOMESTICOS\nSUMA ASEGURADA\n$ 36,484.16\nRECLAMACIÓN\n$ 9,400.00\nESTIMACIÓN AJUSTADOR\n$ 9,400.00\nDEDUCIBLE\n$ -\nESTIMACIÓN\n$ 9,400.00\nSALVAMENTO:\nNo existe\nRECUPERACIÓN:\nNo aplica\nOBSERVACIONES\nAtentamente\nCessação\nNÚÑEZMORA Y ASOCIADOS AJUSTADORES, S.A. DE C.V. Brenda Mariana Tapia Guevara C32329\nM :selected: :unselected:",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 2,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "AT'N:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "SINIESTRO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "N/REF.",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "FECHA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 3
+        },
+        {
+          "text": "Luz Ramírez",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "3925/25 R - 4735611",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "6446/25-L",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "28-may-25",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 3
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "AT'N:",
+        "SINIESTRO",
+        "N/REF.",
+        "FECHA"
+      ],
+      "data_rows": [
+        [
+          "Luz Ramírez",
+          "3925/25 R - 4735611",
+          "6446/25-L",
+          "28-may-25"
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "row_count": 2,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "NOS REPORTO EL SINIESTRO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "FECHA REPORTE",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "FECHA DE ATENCIÓN",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "Frida García",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "13-may-25",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "13-may-25",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "NOS REPORTO EL SINIESTRO",
+        "FECHA REPORTE",
+        "FECHA DE ATENCIÓN"
+      ],
+      "data_rows": [
+        [
+          "Frida García",
+          "13-may-25",
+          "13-may-25"
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "row_count": 2,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "PÓLIZA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "TIPO DE PÓLIZA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "VIGENCIA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "958 - 39",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "HDI EN MI CASA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "17/MAY/2024 al 17/MAY/2025",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "PÓLIZA",
+        "TIPO DE PÓLIZA",
+        "VIGENCIA"
+      ],
+      "data_rows": [
+        [
+          "958 - 39",
+          "HDI EN MI CASA",
+          "17/MAY/2024 al 17/MAY/2025"
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "row_count": 2,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "NOMBRE DEL ASEGURADO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "REPRESENTANTE Y PUESTO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "ARANDA REGALADO MARTHA JOSEFINA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Sra. Martha Josefina Aranda Regalado",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "NOMBRE DEL ASEGURADO",
+        "REPRESENTANTE Y PUESTO"
+      ],
+      "data_rows": [
+        [
+          "ARANDA REGALADO MARTHA JOSEFINA",
+          "Sra. Martha Josefina Aranda Regalado"
+        ]
+      ]
+    },
+    {
+      "id": 4,
+      "row_count": 2,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "DIRECCIÓN",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "COLONIA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "ENTIDAD",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "Circuito Diamante No. 227",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Residencial Camino Viejo",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "San Francisco del Rincón, Gto.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "DIRECCIÓN",
+        "COLONIA",
+        "ENTIDAD"
+      ],
+      "data_rows": [
+        [
+          "Circuito Diamante No. 227",
+          "Residencial Camino Viejo",
+          "San Francisco del Rincón, Gto."
+        ]
+      ]
+    },
+    {
+      "id": 5,
+      "row_count": 2,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "FECHA DEL SINIESTRO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "HORA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "domingo, 27 de abril de 2025",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "04:00:00 p. m.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "FECHA DEL SINIESTRO",
+        "HORA"
+      ],
+      "data_rows": [
+        [
+          "domingo, 27 de abril de 2025",
+          "04:00:00 p. m."
+        ]
+      ]
+    },
+    {
+      "id": 6,
+      "row_count": 2,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "UBICACIÓN DEL RIESGO:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "COLONIA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "ENTIDAD",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "En el interior de su casa ubicada en Circuito Diamante No. 227 Col. Residencial Camino Viejo en San Francisco del Rincón, Gto.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "UBICACIÓN DEL RIESGO:",
+        "COLONIA",
+        "ENTIDAD"
+      ],
+      "data_rows": [
+        [
+          "En el interior de su casa ubicada en Circuito Diamante No. 227 Col. Residencial Camino Viejo en San Francisco del Rincón, Gto.",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 7,
+      "row_count": 6,
+      "column_count": 3,
+      "cells": [
+        {
+          "text": "COBERTURAS AFECTADAS:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "COBERTURA ELECTRODOMESTICOS",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "SUMA ASEGURADA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "$ 36,484.16",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "RECLAMACIÓN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "$ 9,400.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "ESTIMACIÓN AJUSTADOR",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "$ 9,400.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "DEDUCIBLE",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "$ -",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "ESTIMACIÓN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "$ 9,400.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "COBERTURAS AFECTADAS:",
+        "COBERTURA ELECTRODOMESTICOS",
+        ""
+      ],
+      "data_rows": [
+        [
+          "SUMA ASEGURADA",
+          "$ 36,484.16",
+          ""
+        ],
+        [
+          "RECLAMACIÓN",
+          "$ 9,400.00",
+          ""
+        ],
+        [
+          "ESTIMACIÓN AJUSTADOR",
+          "$ 9,400.00",
+          ""
+        ],
+        [
+          "DEDUCIBLE",
+          "$ -",
+          ""
+        ],
+        [
+          "ESTIMACIÓN",
+          "$ 9,400.00",
+          ""
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "at'n": "Luz Ramírez",
+    "siniestro": "3925/25 R - 4735611",
+    "n/ref.": "6446/25-L",
+    "fecha": "28-may-25",
+    "nos_reporto_el_siniestro": "Frida García",
+    "fecha_reporte": "13-may-25",
+    "fecha_de_atención": "13-may-25",
+    "póliza": "958 - 39",
+    "tipo_de_póliza": "HDI EN MI CASA",
+    "vigencia": "17/MAY/2024 al 17/MAY/2025",
+    "representante_y_puesto": "Sra. Martha Josefina Aranda Regalado",
+    "aranda_regalado": "MARTHA JOSEFINA",
+    "dirección": "Circuito Diamante No. 227",
+    "entidad": "San Francisco del Rincón, Gto.",
+    "giro_del_asegurado": "Unifamiliar",
+    "datos_del_siniestro": "27",
+    "del": "domingo, de abril de 2025",
+    "naturaleza_del_siniestro": "Daños a refrigerador por variación de voltaje.",
+    "refrigerador_lg_modelo": "GF22WGS",
+    "con_numero_de_serie": "104MRYA2X066",
+    "m.n.": ":selected:",
+    "coberturas_afectadas": "ELECTRODOMESTICOS",
+    "suma_asegurada": "$ 36,484.16",
+    "reclamación": "$ 9,400.00",
+    "estimación_ajustador": "$ 9,400.00",
+    "deducible": "$ -",
+    "estimación": "$ 9,400.00",
+    "salvamento": "No existe",
+    "recuperación": "No aplica"
+  },
+  "metadata": {
+    "file_name": "Informe Preliminar.pdf",
+    "file_size": 387073,
+    "model_used": "prebuilt-document",
+    "page_count": 5,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

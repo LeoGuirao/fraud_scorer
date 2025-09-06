@@ -118,7 +118,7 @@ class ReplayService:
         ocr_results = []
         for doc_path in case_index.get('documents', []):
             doc_path = Path(doc_path)
-            if self.cache_manager.has_cache(doc_path):
+            if self.cache_manager.has_cache(doc_path, case_id=None):
                 ocr_result = self.cache_manager.get_cache(doc_path)
                 ocr_results.append({
                     'filename': doc_path.name,

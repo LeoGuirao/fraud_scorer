@@ -4,8 +4,8 @@ Modelos Pydantic para validación y consolidación de datos extraídos.
 Incluye compatibilidad Pydantic v1/v2 y la clase ConsolidatedFields.
 """
 
-from typing import Optional, Dict, List, Any
-from pydantic import BaseModel, Field, validator
+from typing import Optional, Dict, List, Any, Union
+from pydantic import BaseModel, Field, validator, ConfigDict
 from datetime import datetime
 import re
 import json
@@ -109,8 +109,11 @@ class ConsolidatedFields(BaseModelCompat):
     """
     numero_siniestro: Optional[str] = None
     nombre_asegurado: Optional[str] = None
-    monto_reclamacion: Optional[str] = None   # string para facilitar formateo en template
+    monto_reclamacion: Optional[Union[str, float]] = None   # aceptar numérico o string
     numero_poliza: Optional[str] = None
+    # Compatibilidad: mantener campos separados y cadena agregada
+    vigencia_inicio: Optional[str] = None
+    vigencia_fin: Optional[str] = None
     vigencia: Optional[str] = None
     domicilio_poliza: Optional[str] = None
     tipo_siniestro: Optional[str] = None
@@ -121,11 +124,8 @@ class ConsolidatedFields(BaseModelCompat):
     ajuste: Optional[str] = None
     conclusiones: Optional[str] = None  # aparece en JSON aunque no siempre en HTML
 
-    class Config:
-        anystr_strip_whitespace = True  # Pydantic v1
-    # En Pydantic v2 podrías usar:
-    # from pydantic import ConfigDict
-    # model_config = ConfigDict(str_strip_whitespace=True)
+    # Pydantic v2 configuration
+    model_config = ConfigDict(str_strip_whitespace=True)
 
 
 class ConsolidatedExtraction(BaseModelCompat):

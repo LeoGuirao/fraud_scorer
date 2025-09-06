@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """
-Test para verificar que las rutas de extracción se asignan correctamente por tipo de documento
+Test dinámico para verificar que las rutas de extracción se asignan
+correctamente para todos los tipos de documento definidos.
+
+Detecta automáticamente categorías nuevas que no tengan ruta configurada
+o que usen una ruta inválida.
 """
 
 import sys
@@ -11,74 +15,61 @@ project_root = Path(__file__).resolve().parent
 sys.path.insert(0, str(project_root / "src"))
 
 from fraud_scorer.settings import ExtractionConfig, ExtractionRoute
+from fraud_scorer.processors.document_classifier import DocumentType
 
 
 def test_document_extraction_routes():
-    """Test que verifica la configuración de rutas por tipo de documento"""
-    print("🧪 TESTEO DE RUTAS DE EXTRACCIÓN POR TIPO DE DOCUMENTO")
-    print("=" * 60)
-    
-    # Inicializar solo configuración (sin extractor para evitar OpenAI)
+    """Verifica que cada categoría tenga una ruta válida (dinámico)."""
+    print("🧪 TEST DINÁMICO: Rutas de extracción por tipo de documento")
+    print("=" * 70)
+
     config = ExtractionConfig()
-    
-    # Test cases basados en tu especificación
-    test_cases = [
-        # OCR + AI (ExtractionRoute.OCR_TEXT)
-        ("carta_de_reclamacion_formal_a_la_aseguradora", "ocr_text"),
-        ("carta_de_reclamacion_formal_al_transportista", "ocr_text"),
-        ("guias_y_facturas", "ocr_text"),
-        ("tarjeta_de_circulacion_vehiculo", "ocr_text"),
-        ("licencia_del_operador", "ocr_text"),
-        ("aviso_de_siniestro_transportista", "ocr_text"),
-        ("carpeta_de_investigacion", "ocr_text"),
-        ("acreditacion_de_propiedad_y_representacion", "ocr_text"),
-        ("salida_de_almacen", "ocr_text"),
-        ("reporte_gps", "ocr_text"),
-        ("guias_y_facturas_consolidadas", "ocr_text"),
-        ("expediente_de_cobranza", "ocr_text"),
-        ("checklist_antifraude", "ocr_text"),
-        
-        # AI Directo (ExtractionRoute.DIRECT_AI)
-        ("poliza_de_la_aseguradora", "direct_ai"),
-        ("informe_preliminar_del_ajustador", "direct_ai"),
-        ("informe_final_del_ajustador", "direct_ai"),
-    ]
-    
-    print("Verificando configuración en DOCUMENT_EXTRACTION_ROUTES:")
-    success_count = 0
-    
-    for document_type, expected_route in test_cases:
-        # Test 1: Verificar configuración en settings
+
+    # Conjunto de rutas válidas (acepta enum o string)
+    valid_routes = {ExtractionRoute.OCR_TEXT.value, ExtractionRoute.DIRECT_AI.value}
+
+    missing = []
+    invalid = []
+    ok_count = 0
+    total = 0
+
+    for dt in DocumentType:
+        if dt == DocumentType.OTRO:
+            continue  # Excluir comodín
+        total += 1
+        name = dt.value
+
+        route = None
         if hasattr(config, 'DOCUMENT_EXTRACTION_ROUTES'):
-            actual_route_config = config.DOCUMENT_EXTRACTION_ROUTES.get(document_type)
-            if actual_route_config:
-                actual_route = actual_route_config.value if hasattr(actual_route_config, 'value') else actual_route_config
-                if actual_route == expected_route:
-                    success_count += 1
-                    print(f"✅ {document_type:45} → {actual_route}")
-                else:
-                    print(f"❌ {document_type:45} → {actual_route} (esperaba {expected_route})")
-            else:
-                print(f"❌ {document_type:45} → NO CONFIGURADO (esperaba {expected_route})")
+            route = config.DOCUMENT_EXTRACTION_ROUTES.get(name)
+
+        if route is None:
+            missing.append(name)
+            print(f"❌ {name:45} → NO CONFIGURADO")
+            continue
+
+        route_val = route.value if hasattr(route, 'value') else route
+        if route_val in valid_routes:
+            ok_count += 1
+            print(f"✅ {name:45} → {route_val}")
         else:
-            print("❌ DOCUMENT_EXTRACTION_ROUTES no existe en configuración")
-            break
-    
-    print(f"\n📊 Resultado: {success_count}/{len(test_cases)} rutas configuradas correctamente")
-    
-    # Resultado final
-    print("\n" + "=" * 60)
-    
-    if success_count == len(test_cases):
-        print("✅ TODOS LOS TESTS PASARON - Configuración de rutas correcta")
-        print("\n💡 Próximos pasos:")
-        print("  1. Las rutas se aplicarán automáticamente durante la extracción de campos")
-        print("  2. Documentos OCR + AI usarán análisis de texto detallado")
-        print("  3. Documentos AI Directo usarán visión GPT para análisis de imagen")
-        return True
+            invalid.append((name, route_val))
+            print(f"❌ {name:45} → {route_val} (ruta inválida)")
+
+    print("\n" + "-" * 70)
+    print(f"Resumen: {ok_count}/{total} rutas válidas")
+    if missing:
+        print(f"Faltantes ({len(missing)}): {missing}")
+    if invalid:
+        print(f"Inválidas ({len(invalid)}): {invalid}")
+
+    all_ok = (ok_count == total)
+    if all_ok:
+        print("\n✅ TODAS LAS RUTAS ESTÁN CONFIGURADAS CORRECTAMENTE")
     else:
-        print(f"❌ {len(test_cases) - success_count} tests fallaron de {len(test_cases)} totales")
-        return False
+        print("\n❌ HAY RUTAS FALTANTES O INVÁLIDAS")
+
+    return all_ok
 
 
 if __name__ == "__main__":

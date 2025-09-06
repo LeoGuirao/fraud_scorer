@@ -49,6 +49,12 @@ class DocumentType(Enum):
     EXPEDIENTE_COBRANZA = "expediente_de_cobranza"
     CHECKLIST_ANTIFRAUDE = "checklist_antifraude"
     
+    # Nuevos documentos generales
+    IDENTIFICACION_OFICIAL = "identificacion_oficial"
+    NOTAS_DE_REPARACION = "notas_de_reparacion"
+    DICTAMEN_TECNICO = "dictamen_tecnico"
+    COMPROBANTE_DOMICILIO = "comprobante_de_domicilio"
+    
     # Otros
     OTRO = "otro"
 
@@ -288,6 +294,40 @@ class DocumentClassifier:
                 exclude=[],
                 description="Formato de evaluación de riesgo de fraude"
             ),
+            
+            # ---- Nuevos documentos generales ----
+            DocumentType.IDENTIFICACION_OFICIAL.value: DocumentTypeDefinition(
+                type_name="identificacion_oficial",
+                keywords=["ine", "ife", "credencial", "pasaporte", "cédula", "cedula", "licencia", "curp", "fotografía", "foto"],
+                must_have=[],
+                may_have=["curp", "clave de elector", "vigencia", "sexo", "nacionalidad"],
+                exclude=["póliza", "poliza", "siniestro", "vehículo", "tarjeta de circulación"],
+                description="Identificación oficial de persona (INE/IFE, pasaporte, cédula, licencia)"
+            ),
+            DocumentType.NOTAS_DE_REPARACION.value: DocumentTypeDefinition(
+                type_name="notas_de_reparacion",
+                keywords=["nota de reparación", "nota de reparacion", "nota de servicio", "servicio técnico", "refacciones", "mano de obra", "importe", "total"],
+                must_have=["nota"],
+                may_have=["servicio", "reparación", "taller", "cliente", "firma", "responsable"],
+                exclude=["cfdi", "factura electrónica", "xml"],
+                description="Comprobante interno de servicio/reparación (no CFDI)"
+            ),
+            DocumentType.DICTAMEN_TECNICO.value: DocumentTypeDefinition(
+                type_name="dictamen_tecnico",
+                keywords=["dictamen técnico", "dictamen tecnico", "diagnóstico", "diagnostico", "causa raíz", "falla", "peritaje", "evaluación técnica"],
+                must_have=["dictamen"],
+                may_have=["diagnóstico", "causas", "pruebas", "procedimiento", "resultado"],
+                exclude=["nota de reparación", "cfdi"],
+                description="Informe técnico con diagnóstico y justificación de intervención"
+            ),
+            DocumentType.COMPROBANTE_DOMICILIO.value: DocumentTypeDefinition(
+                type_name="comprobante_de_domicilio",
+                keywords=["comprobante de domicilio", "cfe", "agua", "luz", "teléfono", "telefono", "número de servicio", "periodo facturado"],
+                must_have=["domicilio"],
+                may_have=["colonia", "cp", "código postal", "titular", "periodo", "importe"],
+                exclude=["póliza", "poliza", "siniestro"],
+                description="Recibo oficial para acreditar domicilio (CFE/agua/teléfono)"
+            ),
         }
         
         return definitions
@@ -332,7 +372,82 @@ class DocumentClassifier:
         self, text: str, filename: str
     ) -> Tuple[str, float, List[str]]:
         """Clasificación basada en heurísticas y keywords"""
+        import unicodedata
         
+        # Primero, verificar reglas estrictas por nombre de archivo (normalizando acentos)
+        filename_lower = (filename or "").lower()
+        # Normalizar para remover diacríticos (p.ej., "Póliza" => "poliza")
+        filename_norm = unicodedata.normalize('NFKD', filename_lower)
+        filename_norm = ''.join(c for c in filename_norm if not unicodedata.combining(c))
+        
+        # Reglas prioritarias por nombre (retornan tipos canónicos existentes)
+        if "informe preliminar" in filename_norm or "informe_preliminar" in filename_norm:
+            return DocumentType.INFORME_PRELIMINAR_AJUSTADOR.value, 0.95, [
+                "Nombre del archivo contiene 'Informe Preliminar'"
+            ]
+
+        if "informe final" in filename_norm or "informe_final" in filename_norm:
+            return DocumentType.INFORME_FINAL_AJUSTADOR.value, 0.95, [
+                "Nombre del archivo contiene 'Informe Final'"
+            ]
+
+        if "poliza" in filename_norm or "póliza" in filename_norm:
+            return DocumentType.POLIZA_ASEGURADORA.value, 0.90, [
+                "Nombre del archivo contiene 'Póliza'"
+            ]
+
+        if "carta_reclamacion" in filename_norm or "carta reclamacion" in filename_norm:
+            # Distinguir entre aseguradora y transportista
+            if "transportista" in filename_norm:
+                return DocumentType.CARTA_RECLAMACION_TRANSPORTISTA.value, 0.90, [
+                    "Nombre del archivo indica carta a transportista"
+                ]
+            else:
+                return DocumentType.CARTA_RECLAMACION_ASEGURADORA.value, 0.90, [
+                    "Nombre del archivo indica carta de reclamación"
+                ]
+
+        if "denuncia" in filename_norm:
+            return DocumentType.CARPETA_INVESTIGACION.value, 0.85, [
+                "Nombre del archivo contiene 'Denuncia'"
+            ]
+
+        if "checklist" in filename_lower and "antifraude" in filename_lower:
+            return DocumentType.CHECKLIST_ANTIFRAUDE.value, 0.95, [
+                "Nombre indica Checklist Antifraude"
+            ]
+
+        if "reporte gps" in filename_lower or "gps" in filename_lower:
+            return DocumentType.REPORTE_GPS.value, 0.90, ["Nombre indica Reporte GPS"]
+
+        if "salida de almacen" in filename_lower or "salida_de_almacen" in filename_lower:
+            return DocumentType.SALIDA_DE_ALMACEN.value, 0.90, ["Nombre indica Salida de Almacén"]
+
+        if "licencia" in filename_lower and ("chofer" in filename_lower or "operador" in filename_lower or True):
+            return DocumentType.LICENCIA_OPERADOR.value, 0.85, ["Nombre indica Licencia de Operador"]
+
+        if "tarjeta" in filename_lower and "circulacion" in filename_lower:
+            return DocumentType.TARJETA_CIRCULACION.value, 0.85, ["Nombre indica Tarjeta de Circulación"]
+
+        if "guia" in filename_lower or "guias" in filename_lower or "factura" in filename_lower:
+            return DocumentType.GUIAS_Y_FACTURAS.value, 0.90, ["Nombre indica Guías y/o Facturas"]
+
+        # Nuevos tipos por nombre de archivo
+        if any(x in filename_lower for x in ["identificacion", "identificación", "ine", "ife", "pasaporte", "cedula", "cédula"]) or (
+            "licencia" in filename_lower and "operador" not in filename_lower and "chofer" not in filename_lower
+        ):
+            return DocumentType.IDENTIFICACION_OFICIAL.value, 0.9, ["Nombre indica Identificación Oficial"]
+
+        if "nota" in filename_lower and ("reparacion" in filename_lower or "reparación" in filename_lower or "servicio" in filename_lower):
+            return DocumentType.NOTAS_DE_REPARACION.value, 0.9, ["Nombre indica Nota de Reparación/Servicio"]
+
+        if "dictamen" in filename_lower or "diagnostico" in filename_lower or "diagnóstico" in filename_lower:
+            return DocumentType.DICTAMEN_TECNICO.value, 0.85, ["Nombre indica Dictamen/Diagnóstico Técnico"]
+
+        if "comprobante de domicilio" in filename_lower or any(x in filename_lower for x in ["cfe", "agua", "luz", "teléfono", "telefono"]):
+            return DocumentType.COMPROBANTE_DOMICILIO.value, 0.8, ["Nombre indica Comprobante de Domicilio"]
+        
+        # Si no hay coincidencia directa en el nombre, usar la lógica existente
         best_match = None
         best_confidence = 0.0
         best_reasons = []
@@ -401,15 +516,20 @@ Responde SOLO con JSON válido:
 }}"""
 
         try:
+            from fraud_scorer.settings import CLASSIFICATION_CONFIG
+            model = CLASSIFICATION_CONFIG.get("llm_model", "gpt-4o-mini")
+            temperature = float(CLASSIFICATION_CONFIG.get("llm_temperature", 0.1))
+            max_tokens = int(CLASSIFICATION_CONFIG.get("llm_max_completion_tokens", 200))
+
             client = AsyncOpenAI()
             response = await client.chat.completions.create(
-                model="gpt-4o-mini",
+                model=model,
                 messages=[
                     {"role": "system", "content": "Eres un experto en clasificación de documentos de seguros. Responde solo con JSON válido."},
                     {"role": "user", "content": prompt}
                 ],
-                temperature=0.1,
-                max_tokens=200
+                temperature=temperature,
+                max_completion_tokens=max_tokens
             )
             
             # Parsear respuesta
@@ -474,6 +594,10 @@ Responde SOLO con JSON válido:
             DocumentType.REPORTE_GPS.value: 14,
             DocumentType.EXPEDIENTE_COBRANZA.value: 15,
             DocumentType.CHECKLIST_ANTIFRAUDE.value: 16,
+            DocumentType.NOTAS_DE_REPARACION.value: 17,
+            DocumentType.DICTAMEN_TECNICO.value: 18,
+            DocumentType.IDENTIFICACION_OFICIAL.value: 19,
+            DocumentType.COMPROBANTE_DOMICILIO.value: 20,
             DocumentType.OTRO.value: 99
         }
         

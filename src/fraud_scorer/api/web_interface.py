@@ -141,14 +141,15 @@ class FraudScorerProcessor:
                 logger.info(f"Procesando: {file_path.name}")
                 
                 # Verificar cache
-                if self.cache_manager.has_cache(file_path):
+                if self.cache_manager.has_cache(file_path, case_id=None):
                     logger.info(f"Usando cache para: {file_path.name}")
-                    ocr_result = self.cache_manager.get_cache(file_path)
+                    ocr_result = self.cache_manager.get_cache(file_path, case_id)
                 else:
                     # Procesar con OCR/Parser
                     ocr_result = self.document_parser.parse_document(file_path)
                     if ocr_result:
-                        self.cache_manager.save_cache(file_path, ocr_result)
+                        # Guardar directo en vista humana usando case_id
+                        self.cache_manager.save_cache(file_path, ocr_result, case_id)
                 
                 if ocr_result:
                     ocr_results.append({
@@ -195,6 +196,12 @@ class FraudScorerProcessor:
                 ai_analysis=ai_analysis,
                 output_path=html_path
             )
+            
+            # Limpieza global de shards antiguos tras finalizar
+            try:
+                self.cache_manager.cleanup_shards()
+            except Exception as e:
+                logger.warning(f"cleanup_shards falló: {e}")
             
             return {
                 "success": True,

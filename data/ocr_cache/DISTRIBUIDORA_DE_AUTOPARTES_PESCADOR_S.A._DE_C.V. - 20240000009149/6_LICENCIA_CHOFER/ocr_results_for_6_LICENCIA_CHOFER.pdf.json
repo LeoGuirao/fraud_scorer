@@ -1,0 +1,35 @@
+{
+  "text": "Gobierno de Puebla Hacer historie Hacer futura\nESTADOS UNIDOS MEXICANOS GOBIERNO DEL ESTADO DE PUEBLA\nJOSE ALBERTO MATIAS MORALES\nTRANSPORTE MERCANTIL\nRFC O CURP MAMAB/1204HPLTRLØG\nMAMA871204HPLTRL00\n10C797171\nFECHA DIE NACIMIENTO I DOR FECHA DE EMISIÓN J ISSUED 10/06/2022\n04/12/1987\nFECHA DE WINCHEENTO EXPIRES OW\n10/06/2025\n10C797171\nLICENCIA PARA CONDUCIR / DRIVER'S LICENSE\nGobierno de Puebla Hacer historia. Hacer futuro.\nANTIGÜEDAD FEYOVER SPICE 06/04/2019 NO. DE EXPEDENTE I FILE: 40000772937 DONADOR VOLUNTARIO DE ÓRGANOS Y TEJIDOS? ORILAN DONOR: NO\nNACIONALIDAD / NATIONALITY: MEXICANA\nRESTRICCIONES / RESTRICTIONS SIN RESTRICCIONES\nMARÍA TERESA CASTRO CORRO SECRETARIA DE PLANEACIÓN Y FINANZAS\nHacer historia. Hacer futuro.\nPU\n2010208",
+  "tables": [],
+  "key_value_pairs": {
+    "rfc_o_curp": "MAMAB/1204HPLTRLØG MAMA871204HPLTRL00",
+    "fecha_die_nacimiento_i_dor": "04/12/1987",
+    "fecha_de_emisión_j_issued": "10/06/2022",
+    "fecha_de_wincheento_expires_ow": "10/06/2025 10C797171",
+    "donador_voluntario_de_órganos_y_tejidos?": "40000772937",
+    "orilan_donor": "ALBERTO",
+    "nacionalidad_/_nationality": "MEXICANA",
+    "restricciones_/_restrictions_sin_restricciones": "MARÍA TERESA CASTRO CORRO",
+    "secretaria_de_planeación_y_finanzas": "2010208"
+  },
+  "metadata": {
+    "file_name": "6 LICENCIA CHOFER.pdf",
+    "file_size": 213415,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.7,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

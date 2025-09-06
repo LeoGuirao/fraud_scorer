@@ -874,7 +874,9 @@ python scripts/run_report.py --folder ./documentos
 - `test_organizer_e2e.py` ✅ - Tests end-to-end del sistema completo
 - `test_classification.py` ✅ - Tests unitarios del clasificador
 - `test_document_routes.py` ✅ - Tests de configuración de rutas
+  - Nota: Recorre dinámicamente todas las categorías y falla si alguna no tiene ruta válida
 - `test_optimal_models.py` ✅ - Tests de selección de modelos GPT-5
+- `test_categories_consistency.py` ✅ - Test de consistencia de categorías (dinámico)
 
 ### 🔧 **Archivos Modificados:**
 - `src/fraud_scorer/settings.py` ✅ - Configuración completa con rutas y modelos optimizados
@@ -971,6 +973,9 @@ python test_document_routes.py
 
 # Test modelos GPT-5 optimizados
 python test_optimal_models.py
+
+# Test consistencia de categorías (dinámico)
+python test_categories_consistency.py
 ```
 
 ## 🚀 VENTAJAS DE LA IMPLEMENTACIÓN FINAL
@@ -1025,3 +1030,39 @@ python test_optimal_models.py
 El Sistema de Organización de Documentos está **100% implementado y listo para producción**. Todos los tests pasan, la configuración está optimizada según investigación 2025, y el sistema maneja robustamente todos los casos de uso identificados.
 
 **🎯 Resultado Final:** Un sistema que transforma carpetas desorganizadas en estructuras perfectamente clasificadas y nombradas, preparadas para extracción de campos de alta precisión con los mejores modelos disponibles.
+
+#### Nuevos Tipos Añadidos (clasificación y renombrado)
+
+- identificacion_oficial
+  - Descripción: Documento oficial para acreditar identidad (INE/IFE, pasaporte, cédula profesional, licencia de conducir). Contiene fotografía, datos personales y claves oficiales. No está relacionado con el vehículo, póliza o siniestro en sí.
+  - Heurística (nombre): "identificacion", "ine", "ife", "pasaporte", "cedula/cédula" o "licencia" (cuando no es la licencia del operador del vehículo).
+  - Heurística (contenido): menciones de CURP, clave de elector, fotografía, nacionalidad; exclusiones: "póliza", "siniestro", "vehículo".
+  - Extracción: no aplica (no aporta campos de cabecera). Sólo se organiza/renombra.
+
+- notas_de_reparacion
+  - Descripción: Comprobantes internos de servicio o reparación emitidos por talleres (no CFDI). Incluyen descripción del problema, refacciones, mano de obra, importes y firmas.
+  - Heurística (nombre): "nota de reparación", "nota de servicio", "servicio".
+  - Heurística (contenido): "servicio técnico", "refacciones", "mano de obra", "importe/total"; exclusiones: "CFDI", "factura electrónica", "XML".
+  - Subnumeración: igual que `guias_y_facturas`.
+    - notas_de_reparacion_1 → Nota de reparación No. 0428 (cliente X)
+    - notas_de_reparacion_2 → Nota de reparación No. 0439 (cliente X)
+    - …
+  - Extracción: no aplica.
+
+- dictamen_tecnico
+  - Descripción: Diagnóstico técnico emitido por perito o proveedor, con causas de daño y justificación de la intervención. A diferencia de la nota de reparación, es explicativo/técnico.
+  - Heurística (nombre): "dictamen técnico", "dictamen", "diagnóstico/diagnostico".
+  - Heurística (contenido): "causa raíz", "pruebas", "evaluación técnica"; exclusiones: "nota de reparación", "CFDI".
+  - Extracción: no aplica.
+
+- comprobante_de_domicilio
+  - Descripción: Recibo oficial (CFE, agua, teléfono) para acreditar domicilio. Contiene nombre del titular, dirección, número de servicio, periodo facturado y monto a pagar.
+  - Heurística (nombre): "comprobante de domicilio", o presencia de "CFE", "AGUA", "LUZ", "TELÉFONO" en el nombre.
+  - Heurística (contenido): "No. de servicio", "periodo facturado"; exclusiones: "póliza", "siniestro".
+  - Extracción: no aplica.
+
+Alias sugeridos (settings):
+- id_oficial → identificacion_oficial
+- nota_reparacion → notas_de_reparacion
+- dictamen_tecnico → dictamen_tecnico
+- comp_dom → comprobante_de_domicilio

@@ -43,6 +43,7 @@ from fraud_scorer.models.extraction import (
     ConsolidatedExtraction,
     ProgressEvent,
 )
+from fraud_scorer.processors.document_classifier import DocumentClassifier
 from fraud_scorer.processors.document_organizer import DocumentOrganizer
 import time
 import os
@@ -359,7 +360,7 @@ class FraudAnalysisSystemV2:
         cached_count = 0
         if self.cache_manager:
             for doc_path in documents:
-                if self.cache_manager.has_cache(doc_path):
+                if self.cache_manager.has_cache(doc_path, case_id=case_id):
                     cached_count += 1
                 else:
                     all_cached = False
@@ -440,7 +441,7 @@ class FraudAnalysisSystemV2:
                         )
 
                     # Usar cache si existe
-                    if self.cache_manager.has_cache(doc_path):
+                    if self.cache_manager.has_cache(doc_path, case_id=case_id):
                         logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
                         ocr_result = self.cache_manager.get_cache(doc_path, case_id)
                         if ocr_result:
@@ -451,7 +452,7 @@ class FraudAnalysisSystemV2:
                         try:
                             ocr_result = self.document_parser.parse_document(doc_path)
                             if self.cache_manager and ocr_result:
-                                self.cache_manager.save_cache(doc_path, ocr_result)
+                                self.cache_manager.save_cache(doc_path, ocr_result, case_id)
                         except Exception as e:
                             logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
                             continue
@@ -486,26 +487,32 @@ class FraudAnalysisSystemV2:
 
         # Guardar índice del caso para replay
         if self.cache_manager:
-            # Extraer información del título del caso
-            # Obtener el nombre de la carpeta desde el primer documento
+            # Extraer información del título del caso (solo como fallback)
             folder_name = documents[0].parent.name if documents else "UNKNOWN"
             case_title = folder_name
             parts = case_title.split(' - ', 1)
-            if len(parts) == 2:
-                claim_number = parts[0].strip()
-                insured_name = parts[1].strip()
-            else:
-                claim_number = ""
-                insured_name = case_title
+            fallback_claim_number = parts[0].strip() if len(parts) == 2 else ""
+            fallback_insured_name = parts[1].strip() if len(parts) == 2 else case_title
+
+            # Si ya existe índice, preservar insured_name/claim_number reales
+            existing = self.cache_manager.get_case_index(case_id) or {}
+            insured_name = existing.get("insured_name") or fallback_insured_name
+            claim_number = existing.get("claim_number") or fallback_claim_number
+
+            # Unir listas sin duplicados
+            existing_docs = set(existing.get("documents") or [])
+            merged_docs = list(existing_docs.union({str(d) for d in documents}))
+            existing_cache_files = set(existing.get("cache_files") or [])
+            merged_cache = list(existing_cache_files.union(set(cache_files)))
             
             case_data = {
                 "case_id": case_id,
                 "case_title": case_title,
                 "insured_name": insured_name,
                 "claim_number": claim_number,
-                "total_documents": len(documents),
-                "documents": [str(d) for d in documents],
-                "cache_files": cache_files,
+                "total_documents": len(merged_docs) or len(documents),
+                "documents": merged_docs if merged_docs else [str(d) for d in documents],
+                "cache_files": merged_cache,
                 "folder_path": str(documents[0].parent) if documents else "",
                 "processed_at": datetime.now().isoformat(),
                 "status": "processed"
@@ -515,6 +522,168 @@ class FraudAnalysisSystemV2:
         # Emitir evento de finalización de OCR (si no se hizo antes)
         if self.progress_emitter and not all_cached:
             self.progress_emitter.emit("ocr", "done", message="Procesamiento de documentos completado")
+
+        # ============================================
+        # FASE 1.4: CLASIFICACIÓN DE DOCUMENTOS (LLM + heurística)
+        # ============================================
+        logger.info("\n🧾 FASE 1.4: Clasificación de documentos")
+        logger.info("-" * 40)
+
+        use_llm_cls = os.getenv("USE_LLM_DOC_CLASSIFIER", "true").lower() == "true"
+        # Config desde settings
+        from fraud_scorer.settings import CLASSIFICATION_CONFIG
+        min_conf = CLASSIFICATION_CONFIG.get("min_confidence_threshold", 0.6)
+        sample_len = CLASSIFICATION_CONFIG.get("sample_text_length", 1500)
+
+        classifier = DocumentClassifier()
+
+        # Clasificar en paralelo de forma moderada
+        import asyncio as _asyncio
+        sem = _asyncio.Semaphore(4)
+
+        async def _classify_doc(doc_data: Dict[str, Any]) -> None:
+            async with sem:
+                try:
+                    ocr = doc_data.get("ocr_result") or {}
+                    text = ""
+                    if isinstance(ocr, dict):
+                        text = (ocr.get("text") or "")[:sample_len]
+                    else:
+                        text = (getattr(ocr, "text", "") or "")[:sample_len]
+
+                    # LLM + heurística (fallback ya incluido en la clase)
+                    doc_type, conf, reasons = await classifier.classify(
+                        sample_text=text,
+                        filename=doc_data.get("filename", ""),
+                        use_llm_fallback=use_llm_cls,
+                    )
+
+                    # Umbral de aceptación; fallback a heurística del extractor si muy bajo
+                    if conf < min_conf:
+                        try:
+                            detected = self.extractor._detect_document_type(
+                                self.extractor._ocr_to_dict_safe(ocr),
+                                doc_data.get("filename", "")
+                            )
+                            logger.info(
+                                f"  ⚠️ Baja confianza LLM ({conf:.2f}) para {doc_data.get('filename')}. "
+                                f"Usando heurística: {detected}"
+                            )
+                            doc_data["document_type"] = detected
+                        except Exception:
+                            doc_data["document_type"] = doc_type
+                    else:
+                        doc_data["document_type"] = doc_type
+
+                    logger.info(
+                        f"  📄 {doc_data.get('filename')}: tipo={doc_data.get('document_type')} "
+                        f"(conf={conf:.2f})"
+                    )
+                except Exception as e:
+                    logger.warning(f"  ❌ Error clasificando {doc_data.get('filename')}: {e}")
+                    # Fallback total a heurística del extractor
+                    try:
+                        ocr = doc_data.get("ocr_result") or {}
+                        detected = self.extractor._detect_document_type(
+                            self.extractor._ocr_to_dict_safe(ocr),
+                            doc_data.get("filename", "")
+                        )
+                        doc_data["document_type"] = detected
+                    except Exception:
+                        doc_data["document_type"] = "otro"
+
+        await _asyncio.gather(*[_classify_doc(d) for d in ocr_results])
+
+        # Opcional: persistir mapping de tipos en el índice del caso
+        try:
+            if self.cache_manager:
+                index_path = self.cache_manager.index_dir / f"{case_id}.json"
+                if index_path.exists():
+                    import json as _json
+                    with open(index_path, 'r', encoding='utf-8') as f:
+                        case_data = _json.load(f)
+                    case_data["classified_types"] = [
+                        {
+                            "filename": d.get("filename"),
+                            "document_type": d.get("document_type")
+                        } for d in ocr_results
+                    ]
+                    self.cache_manager.save_case_index(case_id, case_data)
+        except Exception as e:
+            logger.warning(f"No se pudo persistir mapping de tipos: {e}")
+
+        # ============================================
+        # FASE 1.5: DETECCIÓN DE TIPO DE PÓLIZA (HDI)
+        # ============================================
+        logger.info("\n🔎 FASE 1.5: Detección de tipo de póliza")
+        logger.info("-" * 40)
+
+        policy_type = None
+        policy_document = None
+
+        if os.getenv("ENABLE_HDI_SPECIAL_RULES", "true").lower() == "true":
+            import unicodedata
+
+            def _normalize(s: str) -> str:
+                try:
+                    s = unicodedata.normalize('NFKD', s)
+                    return ''.join(c for c in s if not unicodedata.combining(c)).lower()
+                except Exception:
+                    return (s or "").lower()
+
+            for doc_data in ocr_results:
+                filename = doc_data.get("filename", "")
+                filename_norm = _normalize(filename)
+
+                # Determinar tipo canónico usando heurísticas existentes
+                try:
+                    ocr_dict = self.extractor._ocr_to_dict_safe(doc_data.get("ocr_result", {}))
+                    detected_type = self.extractor._detect_document_type(ocr_dict, filename)
+                except Exception:
+                    detected_type = None
+
+                is_policy_candidate = (
+                    (detected_type == "poliza_de_la_aseguradora") or ("poliza" in filename_norm) or ("policy" in filename_norm)
+                )
+                if not is_policy_candidate:
+                    continue
+
+                logger.info(f"  📋 Analizando póliza: {filename}")
+                try:
+                    policy_type = await self.extractor.detect_policy_type(
+                        doc_data.get("ocr_result", {}),
+                        "poliza_de_la_aseguradora"
+                    )
+                    if policy_type == "HDI_EN_MI_CASA":
+                        logger.info("  🏠 HDI EN MI CASA detectado")
+                        policy_document = filename
+                        break
+                except Exception as e:
+                    logger.error(f"  ❌ Error detectando tipo de póliza: {e}")
+                    policy_type = None
+
+            if policy_type == "HDI_EN_MI_CASA":
+                logger.info("  ⚡ Configurando reglas especiales para HDI EN MI CASA")
+                if hasattr(self.extractor, "set_policy_context"):
+                    self.extractor.set_policy_context(policy_type, case_id=case_id)
+                if hasattr(self.consolidator, "set_policy_context"):
+                    self.consolidator.set_policy_context(policy_type)
+                # Forzar tipo de documento 'poliza_de_la_aseguradora' al archivo detectado para no omitirlo en FASE 2
+                try:
+                    if policy_document:
+                        for d in ocr_results:
+                            if d.get("filename") == policy_document:
+                                prev = d.get("document_type")
+                                d["document_type"] = "poliza_de_la_aseguradora"
+                                logger.info(f"  🔧 Ajuste de tipo: '{policy_document}': {prev} -> poliza_de_la_aseguradora")
+                                break
+                except Exception:
+                    pass
+                logger.info("HDI_DETECTION: Policy type detected: HDI_EN_MI_CASA")
+            else:
+                logger.info("  ✓ Póliza estándar o no detectada; reglas estándar")
+        else:
+            logger.info("  ℹ️ Detección HDI deshabilitada por feature flag")
 
         # ============================================
         # FASE 2: Extracción con IA
@@ -539,10 +708,30 @@ class FraudAnalysisSystemV2:
         if self.guided_mode:
             logger.info("  🛡️ Usando extracción guiada con restricciones documento-campo")
             extractions: List[DocumentExtraction] = []
+            from fraud_scorer.settings import ExtractionConfig
+            target_types = set(ExtractionConfig.EXTRACTION_TARGET_TYPES)
+
             for doc_data in ocr_results:
+                # Intentar detectar el tipo de documento desde el nombre del archivo
+                doc_type = doc_data.get("document_type")
+                if not doc_type and hasattr(self.extractor, '_detect_document_type'):
+                    # _detect_document_type espera (ocr_result dict, filename)
+                    doc_type = self.extractor._detect_document_type(
+                        doc_data.get("ocr_result", {}),
+                        doc_data["filename"]
+                    )
+
+                # Saltar documentos que no están en la lista objetivo
+                canonical_type = doc_type or "otro"
+                if canonical_type not in target_types:
+                    logger.info(f"  ⏭️  Omitido (no objetivo): {doc_data['filename']} (tipo: {canonical_type})")
+                    continue
+                
                 extraction = await self.extractor.extract_from_document_guided(
-                    document_data=doc_data,
-                    mode=self.extraction_mode
+                    content=doc_data["ocr_result"],
+                    document_name=doc_data["filename"],
+                    document_type=doc_type or "otro",
+                    route=self.extraction_mode if self.extraction_mode != "auto" else "ocr_text"
                 )
                 if extraction:
                     extractions.append(extraction)
@@ -611,8 +800,8 @@ class FraudAnalysisSystemV2:
         # --- OBTENER DATOS PARA NOMBRAR ARCHIVOS ---
         # Extraemos los datos del objeto `consolidated`. 
         # Asegúrate de que los nombres de los campos coincidan con los de tu modelo `ConsolidatedFields`
-        insured_name_from_data = fields_dict.get("nombre_asegurado", "Desconocido")
-        claim_number_from_data = fields_dict.get("numero_siniestro", f"SINIESTRO_{case_id}")
+        insured_name_from_data = fields_dict.get("nombre_asegurado") or "Desconocido"
+        claim_number_from_data = fields_dict.get("numero_siniestro") or f"SINIESTRO_{case_id}"
         logger.info(f"✓ Datos para organización: {insured_name_from_data} - {claim_number_from_data}")
         
         # Actualizar el índice del caso con los datos reales extraídos
@@ -634,6 +823,11 @@ class FraudAnalysisSystemV2:
         logger.info("📁 Reorganizando estructura de cache...")
         self.cache_manager.reorganize_cache_for_case(case_id, insured_name_from_data, claim_number_from_data)
         logger.info("✓ Cache reorganizado con nomenclatura consistente")
+        # Limpieza global de shards viejos (segura e idempotente)
+        try:
+            self.cache_manager.cleanup_shards()
+        except Exception as e:
+            logger.warning(f"cleanup_shards falló: {e}")
         
         # Emitir evento de finalización de consolidación
         if self.progress_emitter:
@@ -801,6 +995,7 @@ class FraudAnalysisSystemV2:
             "case_id": case_id,
             "processing_date": datetime.now().isoformat(),
             "documents_processed": len(documents),
+            "policy_type": getattr(self.extractor, "policy_context", None),
             "extraction_results": [e.model_dump() for e in extractions],
             "consolidated_data": consolidated.model_dump(),
             "fraud_analysis": ai_analysis,
@@ -811,6 +1006,10 @@ class FraudAnalysisSystemV2:
                 "conflicts_resolved": len(consolidated.conflicts_resolved),
                 "average_confidence": avg_confidence,
             },
+            "report_path": str(html_path),  # Ruta del reporte HTML
+            "pdf_path": str(pdf_path),      # Ruta del PDF
+            "fraud_score": ai_analysis.get("fraud_score", 0) if ai_analysis else 0,
+            "risk_level": risk_level,
         }
 
         # Guardamos el reporte completo de resultados (que incluye métricas, etc.) con nombre mejorado
@@ -868,7 +1067,7 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
     p.add_argument("--out", type=Path, default=Path("data/reports"), help="Carpeta de salida")
     p.add_argument("--title", help="Título del caso")
     p.add_argument("--debug", action="store_true", help="Modo debug con más logging")
-    p.add_argument("--guided", action="store_true", help="Activar modo guiado con restricciones documento-campo")
+    p.add_argument("--guided", action="store_true", default=True, help="Activar modo guiado con restricciones documento-campo (activado por defecto)")
     p.add_argument("--mode", choices=["direct_ai", "ocr", "auto"], default="auto",
                   help="Modo de extracción: direct_ai (IA directa), ocr (OCR primero), auto (automático)")
     p.add_argument("--purge-case", metavar="CASE_ID", help="Limpia artefactos del caso especificado")
@@ -1016,7 +1215,7 @@ async def main(argv: List[str]) -> None:
     args.out.mkdir(parents=True, exist_ok=True)
 
     system = FraudAnalysisSystemV2(
-        guided_mode=args.guided if hasattr(args, 'guided') else True,
+        guided_mode=args.guided,  # Ya tiene default=True en argparse
         extraction_mode=args.mode if hasattr(args, 'mode') else "auto"
     )
 

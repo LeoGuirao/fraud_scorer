@@ -1,0 +1,270 @@
+{
+  "text": "FRANFFER MEXICANA PENDIENTE\nNo. DENUNCIA\nFICHA DE SINIESTRO\nFECHA DE\nSINIESTRO\n08/10/2024\nHORA DEL\nSINIESTRO\n11:50\nLUGAR DEL SINIESTRO\nMOVING\nFOLIO: 05 / PUE / 2024\nPACK\nFORMA DE RUTA\nTIPO DE RUTA\nLOCAL FORANEA\nPEATONAL\nMOTO\nUNIDAD\nCARRETERA DE SAN JUAN HUILUCO A HUAQUECHULA PUEBLA. X\nX\nRUTA\nATLIXCO\nOPERADOR\nALBERTO MATIAS MORALES\nDATOS DE LA UNIDAD\nMARCA\nCHEVROLET\nNo. SERIE\nLZWNNNGM8PC872459\nTIPO\nTORNADO VAN\nCOLOR\nBLANCO\nMODELO\n2023\nNo. MOTOR\nHECHO EN CHINA\nPLACAS\nSP88095\nGPS\nE-TRACKER\nTIPO DE SINIESTRO\nAUTORIDADES QUE INTERVINIERON\nACCIDENTE\nASALTO ×\nROBO DE UNIDAD\nPENDIENTE\nRESEÑA DEL EVENTO:\nEL DIA DE HOY TERMINE MIS ENTREGAS EN ATLIXCO DE MANERA NORMAL, Y ME DIRIGI A MIS SIGUIENTES DESTINOS, SIGUIENDO HUAQUECHULA. TOME LA CARRETERA A IZUCAR DE MATAMOROS Y AL LLEGAR A SAN JUAN HUILUCO TOME A LA DERECHA RUMBO A HUAQUECHULA. COMO UNOS 10 KM ANTES DE LLEGAR A HUAQUECHULA SIENDO APROXIMADAMENTE LAS 11:50 HORAS UNA CAMIONETA TIPO EXPLORER COLOR VINO ME DA ALCANCE A TODA VELOCIDAD Y SIN DARME TIEMPO A NADA ME CIERRA EL PASO Y DESCIENDE UN SUJETO CON PISTOLA APUNTANDOME Y DICIENDOME QUE ME BAJARA DE MI UNIDAD Y ME CUSTODIO A UN LADO DEL CAMINO APUNTANDOME, MIENTRAS OTROS 2 SUJETOS ABRIERON MI UNIDAD Y EMPEZARON A PASAR LOS PAQUETES A SU CAMIONETA, NO ALCANZANDO A VER MAS YA QUE EL SUJETO QUE ME APUNTABA ME DIJO QUE VOLTEARA HACIA OTRO LADO. NO PASARON MAS DE 5 MINUTOS EN QUE YA HABIAN CARGADO EN SU CAMIONETA LA PAQUETERIA. LOS 2 SUJETOS SUBEN A SU CAMIONETA Y SE RETIRAN Y LE DICEN AL QUE ME APUNTA QUE ME LLEVE A BOTAR. ME HACE QUE ME SUBA A MI UNIDAD Y SE SUBE DE COPILOTO ME DA INDICACIONES DE POR DONDE IR CONDUCIENDO HASTA QUE ME DEJA EN UN LUGAR QUE NO HAY NADA ALREDEDOR ME DICE QUE CAMINE HACIA ADELANTE Y QUE NO VOLTEE QUE SIGA EL CAMINO. Y YO CAMINO COMO 10 MINUTOS HASTA QUE ME ENCUENTRO UNA CASA DONDE ESTABAN TRABAJANDO 2 PERSONAS A LAS CUALES LES DIJE QUE ME HABIAN ASALTADO Y QUE SI TENDRIAN ALGUN TELEFONO PARA REPORTARME A LA EMPRESA YA QUE ME HABIAN QUITADO TODAS MIS PERTENENCIAS. UNO DE ELLOS ME DICE QUE PEDIRIA AYUDA A LA POLICIA Y SI LLEGO COMO EN UNOS 10 A 15 MINUTOS LA PATRULLA. ME LLEVARON EN DIRECCION A DONDE ME HABIA BAJADO DE LA CAMIONETA, PERCATANDONOS QUE LA UNIDAD ESTABA VACIA Y NO SE ENCONTRABAN LAS LLAVES DE LA MISMA. YA AHI DE LA ROTULACION DE LA UNIDAD TOME EL NUMERO TELEFONICO Y EL OFICIAL ME COMUNICO A LA EMPRESA CON MI JEFE INMEDIATO DANDO PARTE DE LO SUCEDIDO, MI JEFE ME COMENTO QUE SI HABIAN DETECTADO QUE ME PARE EN UN LUGAR NO AUTORIZADO Y QUE AL REALIZARME LLAMADAS Y NO ENTRABAN DECIDIERON HACER EL PARO DE MOTOR DE LA UNIDAD DESDE LAS 12:08 HORAS. ME DIJO MI JEFE QUE AHI ESPERARA AGRADECIO A LOS POLICIAS POR EL APOYO Y MANDO UNA UNIDAD DE PUEBLA CON EL DUPLICADO DE LAS LLAVES. DESPUES DE ESTO NOS DIRIGIMOS A PUEBLA A NUESTRA BODEGA.\nMEXICANA\nPACK :selected: :selected: :selected:",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 7,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "DATOS DE LA UNIDAD",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "MARCA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "CHEVROLET",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "No. SERIE",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "LZWNNNGM8PC872459",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "TIPO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "TORNADO VAN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "COLOR",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "BLANCO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 3
+        },
+        {
+          "text": "MODELO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "2023",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "No. MOTOR",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "HECHO EN CHINA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 3
+        },
+        {
+          "text": "PLACAS",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "SP88095",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 3
+        },
+        {
+          "text": "GPS",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "E-TRACKER",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 3
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "DATOS DE LA UNIDAD",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "MARCA",
+          "CHEVROLET",
+          "No. SERIE",
+          "LZWNNNGM8PC872459"
+        ],
+        [
+          "TIPO",
+          "TORNADO VAN",
+          "",
+          ""
+        ],
+        [
+          "COLOR",
+          "BLANCO",
+          "",
+          ""
+        ],
+        [
+          "MODELO",
+          "2023",
+          "No. MOTOR",
+          "HECHO EN CHINA"
+        ],
+        [
+          "PLACAS",
+          "SP88095",
+          "",
+          ""
+        ],
+        [
+          "GPS",
+          "E-TRACKER",
+          "",
+          ""
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "fecha_de\nsiniestro": "08/10/2024",
+    "hora_del\nsiniestro": "11:50",
+    "lugar_del_siniestro": "CARRETERA DE SAN JUAN HUILUCO A",
+    "folio": "05 / PUE / 2024",
+    "unidad": ":selected:",
+    "ruta": "ATLIXCO",
+    "operador": "ALBERTO MATIAS MORALES",
+    "marca": "CHEVROLET",
+    "no._serie": "LZWNNNGM8PC872459",
+    "tipo": "TORNADO VAN",
+    "color": "BLANCO",
+    "modelo": "2023",
+    "no._motor": "HECHO EN CHINA",
+    "placas": "SP88095",
+    "gps": "E-TRACKER",
+    "asalto": ":selected:"
+  },
+  "metadata": {
+    "file_name": "4 AVISO DE SINIESTRO PAQUETERIA.pdf",
+    "file_size": 844807,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

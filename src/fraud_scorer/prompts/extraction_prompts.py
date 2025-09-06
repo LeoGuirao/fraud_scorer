@@ -144,35 +144,62 @@ Eres un asistente experto en la extracción de datos de documentos de siniestros
     
     def _format_ocr_content(self, ocr_content: Dict[str, Any]) -> str:
         """
-        Formatea el contenido del OCR de manera estructurada
+        Formatea el contenido del OCR de manera estructurada, controlando tamaño.
+        - Texto: truncado a ~4000 chars
+        - KV pairs: hasta 40 entradas
+        - Tablas: hasta 8 tablas, 3 filas por tabla (muestra representativa)
         """
-        sections = []
-        
-        # Texto principal
-        if ocr_content.get("text"):
+        sections: list[str] = []
+
+        # Texto principal (truncado)
+        text = (ocr_content or {}).get("text") or ""
+        if text:
+            max_chars = 4000
+            if len(text) > max_chars:
+                text = text[:max_chars] + "\n...[texto truncado]"
             sections.append("TEXTO EXTRAÍDO:")
-            sections.append(ocr_content["text"])
+            sections.append(text)
             sections.append("")
-        
-        # Pares clave-valor
-        if ocr_content.get("key_value_pairs"):
+
+        # Pares clave-valor (limitado)
+        kv = (ocr_content or {}).get("key_value_pairs") or {}
+        if kv:
             sections.append("CAMPOS DETECTADOS:")
-            for key, value in ocr_content["key_value_pairs"].items():
+            for i, (key, value) in enumerate(kv.items()):
+                if i >= 40:
+                    sections.append("  ...[kv truncados]")
+                    break
                 sections.append(f"  {key}: {value}")
             sections.append("")
-        
-        # Tablas
-        if ocr_content.get("tables"):
+
+        # Tablas (limitadas)
+        tables = (ocr_content or {}).get("tables") or []
+        if tables:
             sections.append("TABLAS ENCONTRADAS:")
-            for i, table in enumerate(ocr_content["tables"], 1):
+            table_limit = 8
+            row_limit = 3
+            for i, table in enumerate(tables, 1):
+                if i > table_limit:
+                    sections.append("...[tablas truncadas]")
+                    break
                 sections.append(f"\nTabla {i}:")
-                if table.get("headers"):
-                    sections.append(f"  Encabezados: {', '.join(table['headers'])}")
-                if table.get("rows"):
+                headers = table.get("headers") or []
+                if headers:
+                    # Limitar headers si son demasiados
+                    hdrs = headers[:15]
+                    if len(headers) > 15:
+                        hdrs.append("...[cols truncadas]")
+                    sections.append(f"  Encabezados: {', '.join(str(h) for h in hdrs)}")
+                # Compatibilidad: algunas fuentes usan 'rows' y otras 'data_rows'
+                rows = table.get("rows") or table.get("data_rows") or []
+                if rows:
                     sections.append("  Primeras filas:")
-                    for row in table["rows"][:3]:
-                        sections.append(f"    {' | '.join(str(cell) for cell in row)}")
-        
+                    for row in rows[:row_limit]:
+                        try:
+                            sections.append(f"    {' | '.join(str(cell) for cell in row)}")
+                        except Exception:
+                            sections.append(f"    {row}")
+
         return "\n".join(sections)
     
     def _load_base_template(self) -> str:
@@ -221,7 +248,8 @@ Eres un asistente experto en la extracción de datos de documentos de siniestros
         document_name: str,
         document_type: str,
         content: Optional[Dict[str, Any]] = None,
-        route: str = "ocr_text"
+        route: str = "ocr_text",
+        policy_type: Optional[str] = None
     ) -> str:
         """
         Construye prompt con Sistema de Extracción Guiada
@@ -236,6 +264,40 @@ Eres un asistente experto en la extracción de datos de documentos de siniestros
         
         # 3. Construir sección de guía
         guide_section = self._build_extraction_guide(document_type, allowed_fields)
+
+        # 3.1 Instrucciones especiales por tipo de póliza (HDI EN MI CASA)
+        if (policy_type or "") == "HDI_EN_MI_CASA":
+            guide_section += """
+INSTRUCCIONES ESPECIALES (HDI EN MI CASA):
+- NÚMERO DE SINIESTRO no es de 14 dígitos; puede ser como "3925/25 R - 4735611". Mantén el formato completo.
+- LUGAR DE LOS HECHOS: en póliza, prioriza el campo "UBICACIÓN DEL RIESGO".
+- INFORME FINAL DEL AJUSTADOR: el tipo de siniestro puede venir en texto narrativo; extráelo si aparece.
+"""
+            # En informe final, reforzar búsqueda exhaustiva y patrones del dominio hogar
+            if document_type == "informe_final_del_ajustador":
+                guide_section += """
+- Buscar en todo el documento (encabezados, narrativa y secciones como: NATURALEZA DEL SINIESTRO, HECHOS, DESCRIPCIÓN DE LOS HECHOS, CRITERIO SOBRE PROCEDENCIA, RESUMEN).
+- Patrones útiles (ejemplos reales):
+  • "Siniestro de [TIPO]"
+  • "Naturaleza del siniestro: [TIPO]"
+  • "Daños a [OBJETO] por [CAUSA]"
+  • "Pérdidas por [CAUSA]"
+  • "Reclamación por [CAUSA]"
+- Palabras clave frecuentes en hogar (no exhaustivo):
+  • Incendio, Explosión, Humo
+  • Robo (con/sin violencia) en Casa Habitación, Allanamiento
+  • Fenómenos Hidrometeorológicos (Viento, Granizo, Lluvia, Inundación)
+  • Variación/Sobre-voltaje, Daños Eléctricos, Corto circuito
+  • Daños por Agua, Fuga de Agua, Rotura de Tubería
+  • Rotura de Cristales/Vidrios
+  • Vandalismo/Actos malintencionados
+  • Impacto de Vehículo, Caída de Árbol, Colapso estructural
+- Regla de precisión:
+  1) Prefiere la frase exacta que describe el evento (p. ej., "Daños a Equipo Electrónico por Variación de Voltaje").
+  2) Si hay varias, elige la más específica y directamente atribuida a la causa del daño.
+  3) No confundas listados de coberturas o condiciones generales con el evento ocurrido.
+  4) Si no hay mención clara, deja tipo_siniestro como null (NO inventes).
+"""
         
         # 4. Construir prompt según ruta
         if route == "direct_ai":
@@ -252,10 +314,14 @@ Eres un asistente experto en la extracción de datos de documentos de siniestros
         doc_type_readable = {
             "informe_preliminar_del_ajustador": "Informe Preliminar del Ajustador",
             "poliza_de_la_aseguradora": "Póliza de la Aseguradora",
-            "carta_de_reclamacion_formal_a_la_aseguradra": "Carta de Reclamación Formal",
+            "carta_de_reclamacion_formal_a_la_aseguradora": "Carta de Reclamación Formal",
             "carpeta_de_investigacion": "Carpeta de Investigación",
             "narracion_de_hechos": "Narración de Hechos",
-            "declaracion_del_asegurado": "Declaración del Asegurado"
+            "declaracion_del_asegurado": "Declaración del Asegurado",
+            "identificacion_oficial": "Identificación Oficial",
+            "notas_de_reparacion": "Notas de Reparación",
+            "dictamen_tecnico": "Dictamen Técnico",
+            "comprobante_de_domicilio": "Comprobante de Domicilio"
         }.get(document_type, document_type)
         
         guide = f"""
@@ -348,7 +414,7 @@ DETALLES POR CAMPO PERMITIDO:
 - El domicilio fiscal es la dirección completa del asegurado
 - El número de póliza puede tener guiones o espacios
 """
-        elif document_type == "carta_de_reclamacion_formal_a_la_aseguradra":
+        elif document_type == "carta_de_reclamacion_formal_a_la_aseguradora":
             instructions += """
 - Buscar el monto TOTAL reclamado, no parciales
 - Puede aparecer como "valor estimado" o "suma reclamada"

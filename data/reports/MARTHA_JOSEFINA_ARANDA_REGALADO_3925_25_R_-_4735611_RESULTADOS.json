@@ -1,0 +1,304 @@
+{
+  "case_id": "CASE-2025-0025",
+  "processing_date": "2025-09-06T16:33:51.473787",
+  "documents_processed": 10,
+  "policy_type": "HDI_EN_MI_CASA",
+  "extraction_results": [
+    {
+      "source_document": "Informe Preliminar.pdf",
+      "document_type": "informe_preliminar_del_ajustador",
+      "extracted_fields": {
+        "numero_siniestro": "3925/25 R - 4735611",
+        "nombre_asegurado": "ARANDA REGALADO MARTHA JOSEFINA",
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": "Refrigerador LG modelo GF22WGS",
+        "monto_reclamacion": null,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": "27/04/2025",
+        "fecha_reclamacion": "13/05/2025",
+        "lugar_hechos": "En el interior de su casa ubicada en Circuito Diamante No. 227 Col. Residencial Camino Viejo en San Francisco del Rincón, Gto.",
+        "ajuste": "NUÑEZ MORA Y ASOCIADOS AJUSTADORES",
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "nombre_asegurado",
+          "bien_reclamado",
+          "fecha_ocurrencia",
+          "fecha_reclamacion",
+          "lugar_hechos",
+          "ajuste"
+        ],
+        "timestamp": "2025-09-06T16:32:13.509273"
+      }
+    },
+    {
+      "source_document": "CARTA RECLAMACION.pdf",
+      "document_type": "carta_de_reclamacion_formal_a_la_aseguradora",
+      "extracted_fields": {
+        "numero_siniestro": "1",
+        "nombre_asegurado": null,
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": null,
+        "monto_reclamacion": 9680.0,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": null,
+        "fecha_reclamacion": null,
+        "lugar_hechos": null,
+        "ajuste": null,
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "monto_reclamacion"
+        ],
+        "timestamp": "2025-09-06T16:32:29.608516"
+      }
+    },
+    {
+      "source_document": "Póliza (1).pdf",
+      "document_type": "poliza_de_la_aseguradora",
+      "extracted_fields": {
+        "numero_siniestro": null,
+        "nombre_asegurado": "MARTHA JOSEFINA ARANDA REGALADO",
+        "numero_poliza": "958 - 39",
+        "vigencia_inicio": "17/05/2024",
+        "vigencia_fin": "17/05/2025",
+        "domicilio_poliza": "VENUSTIANO CARRANZA OTE No. Ext. 403 , SAN FRANCISCO DEL RINCON CENTRO, C.P.36300. SAN FRANCISCO DEL RINCON. GUANAJUATO",
+        "bien_reclamado": null,
+        "monto_reclamacion": null,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": null,
+        "fecha_reclamacion": null,
+        "lugar_hechos": null,
+        "ajuste": null,
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_poliza",
+          "nombre_asegurado",
+          "vigencia_inicio",
+          "vigencia_fin",
+          "domicilio_poliza",
+          "lugar_hechos"
+        ],
+        "timestamp": "2025-09-06T16:32:44.974977"
+      }
+    },
+    {
+      "source_document": "Informe Final (1).pdf",
+      "document_type": "informe_final_del_ajustador",
+      "extracted_fields": {
+        "numero_siniestro": null,
+        "nombre_asegurado": null,
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": null,
+        "monto_reclamacion": null,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": null,
+        "fecha_reclamacion": null,
+        "lugar_hechos": null,
+        "ajuste": null,
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "nombre_asegurado",
+          "bien_reclamado",
+          "fecha_ocurrencia",
+          "fecha_reclamacion",
+          "lugar_hechos",
+          "tipo_siniestro",
+          "ajuste",
+          "conclusiones"
+        ],
+        "timestamp": "2025-09-06T16:33:10.335520"
+      }
+    }
+  ],
+  "consolidated_data": {
+    "case_id": "CASE-2025-0025",
+    "consolidated_fields": {
+      "numero_siniestro": "3925/25 R - 4735611",
+      "nombre_asegurado": "MARTHA JOSEFINA ARANDA REGALADO",
+      "monto_reclamacion": 9680.0,
+      "numero_poliza": "958 - 39",
+      "vigencia_inicio": "17/05/2024",
+      "vigencia_fin": "17/05/2025",
+      "vigencia": null,
+      "domicilio_poliza": "VENUSTIANO CARRANZA OTE No. Ext. 403 , SAN FRANCISCO DEL RINCON CENTRO, C.P.36300. SAN FRANCISCO DEL RINCON. GUANAJUATO",
+      "tipo_siniestro": null,
+      "fecha_ocurrencia": "27/04/2025",
+      "fecha_reclamacion": "13/05/2025",
+      "lugar_hechos": "En el interior de su casa ubicada en Circuito Diamante No. 227 Col. Residencial Camino Viejo en San Francisco del Rincón, Gto.",
+      "bien_reclamado": "Refrigerador LG modelo GF22WGS",
+      "ajuste": "NUÑEZ MORA Y ASOCIADOS AJUSTADORES",
+      "conclusiones": null
+    },
+    "consolidation_sources": {
+      "numero_siniestro": "Seleccionado de Informe Preliminar.pdf (informe_preliminar_del_ajustador) por mayor prioridad",
+      "nombre_asegurado": "Prioridad por contexto (poliza_de_la_aseguradora)",
+      "monto_reclamacion": "Único valor de CARTA RECLAMACION.pdf",
+      "numero_poliza": "Único valor de Póliza (1).pdf",
+      "vigencia_inicio": "Único valor de Póliza (1).pdf",
+      "vigencia_fin": "Único valor de Póliza (1).pdf",
+      "domicilio_poliza": "Único valor de Póliza (1).pdf",
+      "fecha_ocurrencia": "Único valor de Informe Preliminar.pdf",
+      "fecha_reclamacion": "Único valor de Informe Preliminar.pdf",
+      "lugar_hechos": "Prioridad por contexto (informe_preliminar_del_ajustador)",
+      "bien_reclamado": "Único valor de Informe Preliminar.pdf",
+      "ajuste": "Único valor de Informe Preliminar.pdf"
+    },
+    "conflicts_resolved": [
+      {
+        "field": "numero_siniestro",
+        "options": [
+          {
+            "value": "3925/25 R - 4735611",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "1",
+            "source": "CARTA RECLAMACION.pdf",
+            "document_type": "carta_de_reclamacion_formal_a_la_aseguradora",
+            "priority": 5
+          }
+        ],
+        "selected": "3925/25 R - 4735611",
+        "reasoning": "Seleccionado de Informe Preliminar.pdf (informe_preliminar_del_ajustador) por mayor prioridad"
+      }
+    ],
+    "confidence_scores": {
+      "numero_siniestro": 0.9,
+      "nombre_asegurado": 0.95,
+      "monto_reclamacion": 1.0,
+      "numero_poliza": 1.0,
+      "vigencia_inicio": 1.0,
+      "vigencia_fin": 1.0,
+      "vigencia": 0.0,
+      "domicilio_poliza": 1.0,
+      "tipo_siniestro": 0.0,
+      "fecha_ocurrencia": 1.0,
+      "fecha_reclamacion": 1.0,
+      "lugar_hechos": 0.95,
+      "bien_reclamado": 1.0,
+      "ajuste": 1.0,
+      "conclusiones": 0.0
+    }
+  },
+  "fraud_analysis": {
+    "fraud_score": 0.7,
+    "fraud_indicators": [
+      {
+        "description": "Inconsistencia en el nombre del asegurado entre documentos",
+        "weight": 0.8,
+        "doc_refs": [
+          0,
+          2
+        ]
+      },
+      {
+        "description": "Monto de reclamación elevado sin justificación clara",
+        "weight": 0.6,
+        "doc_refs": [
+          1
+        ]
+      },
+      {
+        "description": "Falta de información en documentos clave",
+        "weight": 0.5,
+        "doc_refs": [
+          3
+        ]
+      }
+    ],
+    "inconsistencies": [
+      {
+        "field": "nombre_asegurado",
+        "value_a": "ARANDA REGALADO MARTHA JOSEFINA",
+        "value_b": "MARTHA JOSEFINA ARANDA REGALADO",
+        "severity": "alta",
+        "affected_docs": [
+          0,
+          2
+        ]
+      },
+      {
+        "field": "numero_siniestro",
+        "value_a": "3925/25 R - 4735611",
+        "value_b": "1",
+        "severity": "media",
+        "affected_docs": [
+          0,
+          1
+        ]
+      },
+      {
+        "field": "vigencia_inicio",
+        "value_a": null,
+        "value_b": "17/05/2024",
+        "severity": "baja",
+        "affected_docs": [
+          0,
+          2
+        ]
+      }
+    ],
+    "external_validations": [
+      {
+        "type": "verificación de domicilio",
+        "description": "Domicilio del asegurado no coincide con el de la póliza",
+        "result": "no coincide",
+        "is_critical": true
+      }
+    ],
+    "route_analysis": {
+      "declared_origin": "Circuito Diamante No. 227 Col. Residencial Camino Viejo en San Francisco del Rincón, Gto.",
+      "gps_origin_verification": "verificado",
+      "declared_incident_location": "En el interior de su casa",
+      "gps_incident_verification": "verificado",
+      "event_analysis": "No se reportan inconsistencias en la ubicación del incidente.",
+      "declared_destination": null,
+      "trajectory_verification": "no aplicable",
+      "route_inconsistencies": []
+    }
+  },
+  "processing_metrics": {
+    "ocr_success_rate": "100.0%",
+    "extraction_success_rate": "40.0%",
+    "fields_completion_rate": "80.0%",
+    "conflicts_resolved": 1,
+    "average_confidence": 0.7866666666666667
+  },
+  "report_path": "data/reports/MARTHA_JOSEFINA_ARANDA_REGALADO_3925_25_R_-_4735611_INFORME.html",
+  "pdf_path": "data/reports/MARTHA_JOSEFINA_ARANDA_REGALADO_3925_25_R_-_4735611_INFORME.pdf",
+  "fraud_score": 0.7,
+  "risk_level": "ALTO"
+}
