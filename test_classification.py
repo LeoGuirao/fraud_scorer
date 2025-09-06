@@ -46,7 +46,7 @@ async def test_heuristic_classification():
         ("poliza_seguro.pdf", "poliza_de_la_aseguradora"),
         ("informe_ajustador.pdf", "informe_preliminar_del_ajustador"),
         ("checklist_antifraude.xlsx", "checklist_antifraude"),
-        ("unknown_document.pdf", "otros"),  # Debería clasificar como "otros"
+        ("unknown_document.pdf", "otro"),  # Debería clasificar como "otro"
     ]
     
     success_count = 0
@@ -93,7 +93,7 @@ async def test_document_priority():
     ]
     low_priority = [
         "checklist_antifraude",
-        "otros"
+        "otro"
     ]
     
     # Usar la configuración directamente del módulo

@@ -283,6 +283,29 @@ class ExtractionConfig:
         ".csv": ExtractionRoute.OCR_TEXT,
     }
     
+    # Configuración de rutas de extracción por tipo de documento
+    DOCUMENT_EXTRACTION_ROUTES = {
+        # OCR + AI
+        "carta_de_reclamacion_formal_a_la_aseguradora": ExtractionRoute.OCR_TEXT,
+        "carta_de_reclamacion_formal_al_transportista": ExtractionRoute.OCR_TEXT,
+        "guias_y_facturas": ExtractionRoute.OCR_TEXT,
+        "tarjeta_de_circulacion_vehiculo": ExtractionRoute.OCR_TEXT,
+        "licencia_del_operador": ExtractionRoute.OCR_TEXT,
+        "aviso_de_siniestro_transportista": ExtractionRoute.OCR_TEXT,
+        "carpeta_de_investigacion": ExtractionRoute.OCR_TEXT,
+        "acreditacion_de_propiedad_y_representacion": ExtractionRoute.OCR_TEXT,
+        "salida_de_almacen": ExtractionRoute.OCR_TEXT,
+        "reporte_gps": ExtractionRoute.OCR_TEXT,
+        "guias_y_facturas_consolidadas": ExtractionRoute.OCR_TEXT,
+        "expediente_de_cobranza": ExtractionRoute.OCR_TEXT,
+        "checklist_antifraude": ExtractionRoute.OCR_TEXT,
+        
+        # AI Directo
+        "poliza_de_la_aseguradora": ExtractionRoute.DIRECT_AI,
+        "informe_preliminar_del_ajustador": ExtractionRoute.DIRECT_AI,
+        "informe_final_del_ajustador": ExtractionRoute.DIRECT_AI,
+    }
+    
     # Mapeo de tipos de documento a prioridades (actualizado)
     DOCUMENT_PRIORITIES = {
         "informe_preliminar_del_ajustador": FieldPriority.INFORME_AJUSTADOR,
@@ -366,12 +389,12 @@ class ExtractionConfig:
     
     # Prioridades para ordenamiento de archivos
     DOCUMENT_PRIORITIES = {
-        "informe_preliminar_del_ajustador": 1,
-        "informe_final_del_ajustador": 2,
-        "poliza_de_la_aseguradora": 3,
-        "carta_de_reclamacion_formal_a_la_aseguradora": 4,
-        "carta_de_reclamacion_formal_al_transportista": 5,
-        "carpeta_de_investigacion": 6,
+        "carpeta_de_investigacion": 1,
+        "informe_preliminar_del_ajustador": 2,
+        "informe_final_del_ajustador": 3,
+        "poliza_de_la_aseguradora": 4,
+        "carta_de_reclamacion_formal_a_la_aseguradora": 5,
+        "carta_de_reclamacion_formal_al_transportista": 6,
         "acreditacion_de_propiedad_y_representacion": 7,
         "aviso_de_siniestro_transportista": 8,
         "guias_y_facturas": 9,
@@ -384,36 +407,110 @@ class ExtractionConfig:
         "checklist_antifraude": 16,
         "otro": 99
     }
-    
-    # Parámetros de clasificación
-    CLASSIFICATION_CONFIG = {
-        "min_confidence_threshold": 0.6,  # Umbral para usar LLM
-        "sample_text_length": 1500,       # Caracteres para clasificación
-        "llm_model": "gpt-4o-mini",       # Modelo económico para clasificación
-        "llm_temperature": 0.1,           # Baja temperatura para consistencia
-        "llm_max_tokens": 200             # Límite de tokens para respuesta
+
+
+# Acceso directo para compatibilidad con tests  
+DOCUMENT_PRIORITIES = {
+    "carpeta_de_investigacion": 1,
+    "poliza_de_la_aseguradora": 2,
+    "guias_y_facturas": 3,
+    "informe_preliminar_del_ajustador": 4,
+    "informe_final_del_ajustador": 5,
+    "carta_de_reclamacion_formal_a_la_aseguradora": 6,
+    "carta_de_reclamacion_formal_al_transportista": 7,
+    "acreditacion_de_propiedad_y_representacion": 8,
+    "reporte_gps": 9,
+    "aviso_de_siniestro_transportista": 10,
+    "guias_y_facturas_consolidadas": 11,
+    "tarjeta_de_circulacion_vehiculo": 12,
+    "licencia_del_operador": 13,
+    "salida_de_almacen": 14,
+    "expediente_de_cobranza": 15,
+    "checklist_antifraude": 16,
+    "otro": 99
+}
+
+# Parámetros de clasificación
+CLASSIFICATION_CONFIG = {
+    "min_confidence_threshold": 0.6,  # Umbral para usar LLM
+    "sample_text_length": 1500,       # Caracteres para clasificación
+    "llm_model": "gpt-4o-mini",       # Modelo económico para clasificación
+    "llm_temperature": 0.1,           # Baja temperatura para consistencia
+    "llm_max_tokens": 200             # Límite de tokens para respuesta
+}
+
+# Configuración de nombres de archivo
+FILE_NAMING_CONFIG = {
+    "max_folder_length": 100,         # Longitud máxima carpeta
+    "max_file_length": 150,           # Longitud máxima archivo
+    "route_labels": {
+        "ocr_text": "OCR",
+        "direct_ai": "VIS"
     }
-    
-    # Configuración de nombres de archivo
-    FILE_NAMING_CONFIG = {
-        "max_folder_length": 100,         # Longitud máxima carpeta
-        "max_file_length": 150,           # Longitud máxima archivo
-        "route_labels": {
-            "ocr_text": "OCR",
-            "direct_ai": "VIS"
-        }
+}
+
+# Extensiones de archivo soportadas
+SUPPORTED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.docx', '.xlsx', '.csv'}
+
+# Directorio de staging para organización  
+from pathlib import Path
+STAGING_DIR = Path("data/uploads/renombre_de_documentos")
+
+# Aliases de tipos de documentos (para nombres de archivo cortos)
+DOCUMENT_TYPE_ALIASES = {
+    "DENUNCIA": "denuncia_inicial",
+    "FACTURA": "guias_y_facturas", 
+    "GUIA": "guias_y_facturas",
+    "POLIZA": "poliza_de_la_aseguradora",
+    "REPORTE": "reporte_gps",
+    "LICENCIA": "licencia_del_operador",
+    "TARJETA": "tarjeta_de_circulacion_vehiculo",
+    "RECLAMACION": "carta_de_reclamacion_formal_a_la_aseguradora",
+    "CHECKLIST": "checklist_antifraude",
+    "OTROS": "otro"
+}
+
+# Invertir el mapeo para obtener alias desde canónico
+CANONICAL_TO_ALIAS = {v: k for k, v in DOCUMENT_TYPE_ALIASES.items()}
+
+# Configuración de nombres de archivo
+FILE_NAMING_CONFIG = {
+    "max_folder_length": 100,
+    "max_file_length": 150, 
+    "route_labels": {
+        "ocr_text": "OCR",
+        "direct_ai": "VIS"
     }
+}
+
+# Función para obtener el modelo óptimo según investigación 2025
+def get_model_for_task(task: str, route: str = "ocr_text") -> str:
+    """
+    Obtiene el modelo óptimo para cada tarea según investigación 2025
     
-    # Extensiones de archivo soportadas
-    SUPPORTED_EXTENSIONS = {'.pdf', '.jpg', '.jpeg', '.png', '.docx', '.xlsx', '.csv'}
-    
-    @classmethod
-    def get_model_for_task(cls, task: str) -> str:
-        """Obtiene el modelo apropiado para cada tarea"""
-        if task == "extraction":
-            return ModelType.EXTRACTOR.value
-        elif task == "consolidation":
-            return ModelType.CONSOLIDATOR.value
-        elif task == "generation":
-            return ModelType.GENERATOR.value
-        return ModelType.EXTRACTOR.value
+    Args:
+        task: Tipo de tarea ("extraction", "consolidation", "generation")
+        route: Ruta de procesamiento ("ocr_text" o "direct_ai")
+        
+    Returns:
+        Nombre del modelo óptimo para la tarea
+    """
+    if task == "extraction":
+        if route == "direct_ai":
+            # Para visión: GPT-5 Mini es recomendado específicamente para extraction
+            # y es 95% más económico que GPT-5 estándar
+            return ModelType.GPT5_VISION_MINI.value
+        else:
+            # Para OCR + texto: GPT-5 con 272K context tokens para documentos complejos
+            return ModelType.GPT5.value
+            
+    elif task == "consolidation":
+        # Para razonamiento complejo: GPT-5 completo
+        return ModelType.GPT5.value
+        
+    elif task == "generation":
+        # Para generación: GPT-5 Mini es eficiente
+        return ModelType.GPT5_MINI.value
+        
+    # Fallback por compatibilidad
+    return ModelType.EXTRACTOR.value

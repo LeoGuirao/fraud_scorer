@@ -19,7 +19,7 @@ import instructor
 from pydantic import ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from fraud_scorer.settings import ExtractionConfig, ExtractionRoute
+from fraud_scorer.settings import ExtractionConfig, ExtractionRoute, get_model_for_task
 from fraud_scorer.models.extraction import DocumentExtraction
 from fraud_scorer.prompts.extraction_prompts import ExtractionPromptBuilder
 from fraud_scorer.utils.validators import FieldValidator
@@ -51,6 +51,7 @@ class AIFieldExtractor:
         
         # Configuración de rutas
         self.route_config = self.config.ROUTE_CONFIG
+        self.document_extraction_routes = getattr(self.config, 'DOCUMENT_EXTRACTION_ROUTES', {})
         self.field_mapping = self.config.DOCUMENT_FIELD_MAPPING
         self.validation_rules = self.config.FIELD_VALIDATION_RULES
 
@@ -112,7 +113,7 @@ class AIFieldExtractor:
             return empty
 
         # Determinar la ruta de procesamiento
-        route = self._determine_route(document_name, prepared_content)
+        route = self._determine_route(document_name, prepared_content, document_type)
         
         # Construir prompt con guías si el tipo es conocido
         if document_type in self.field_mapping:
@@ -216,7 +217,7 @@ class AIFieldExtractor:
         """
         try:
             response = await self.client.chat.completions.create(
-                model=self.config.get_model_for_task("extraction"),
+                model=get_model_for_task("extraction", route or "ocr_text"),
                 messages=[
                     {
                         "role": "system",
@@ -488,14 +489,22 @@ Responde SOLO con el JSON de los campos extraídos.
 """
         return prompt
     
-    def _determine_route(self, document_name: str, content: Dict[str, Any]) -> str:
+    def _determine_route(self, document_name: str, content: Dict[str, Any], document_type: Optional[str] = None) -> str:
         """
-        Determina la ruta de procesamiento según el tipo de archivo y contenido
+        Determina la ruta de procesamiento según el tipo de documento y contenido
+        Prioridad: 1) Tipo de documento (parámetro) 2) Extensión 3) Default
         """
-        # Obtener extensión del archivo
+        # 1. Usar tipo de documento si se proporciona como parámetro
+        if document_type and document_type in self.document_extraction_routes:
+            route = self.document_extraction_routes[document_type]
+            if isinstance(route, ExtractionRoute):
+                return route.value
+            return route
+        
+        # 2. Fallback a extensión del archivo
         ext = Path(document_name).suffix.lower()
         
-        # Verificar configuración de ruta
+        # Verificar configuración de ruta por extensión
         if ext in self.route_config:
             route = self.route_config[ext]
             if isinstance(route, ExtractionRoute):
@@ -508,7 +517,7 @@ Responde SOLO con el JSON de los campos extraídos.
                     return ExtractionRoute.OCR_TEXT.value
             return route
         
-        # Por defecto, usar OCR + texto
+        # 3. Por defecto, usar OCR + texto
         return ExtractionRoute.OCR_TEXT.value
     
     def _is_scanned_document(self, content: Dict[str, Any]) -> bool:
@@ -588,7 +597,7 @@ Responde SOLO con el JSON de los campos extraídos.
         
         # Usar modelo default si no se especifica
         if model is None:
-            model = self.config.get_model_for_task("extraction")
+            model = get_model_for_task("extraction", route)
         
         # Cache key considerando la ruta y tipo
         cache_key = f"{document_name}_{document_type}_{route}"

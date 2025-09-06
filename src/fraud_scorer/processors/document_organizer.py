@@ -20,7 +20,7 @@ import time
 import PyPDF2
 from openai import AsyncOpenAI
 
-from fraud_scorer.settings import ExtractionConfig
+from fraud_scorer.settings import ExtractionConfig, DOCUMENT_PRIORITIES
 from fraud_scorer.processors.document_classifier import DocumentClassifier, DocumentType
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
@@ -43,6 +43,7 @@ class DocumentOrganizer:
         self.config = ExtractionConfig()
         self.classifier = DocumentClassifier()
         self.metrics = OrganizationMetrics()
+        self._skip_ocr_sample = False  # Flag para tests
     
     async def organize_documents_phase_a(
         self,
@@ -66,7 +67,8 @@ class DocumentOrganizer:
         
         # 1. Crear carpeta staging con timestamp
         if staging_base is None:
-            staging_base = self.config.STAGING_DIR
+            from fraud_scorer.settings import STAGING_DIR
+            staging_base = STAGING_DIR
         
         timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
         staging_folder = staging_base / timestamp
@@ -133,10 +135,12 @@ class DocumentOrganizer:
                     doc_type_display = doc_type
                 
                 # Obtener alias corto para el nombre de archivo
-                alias = self.config.CANONICAL_TO_ALIAS.get(doc_type, doc_type[:15])
+                from fraud_scorer.settings import CANONICAL_TO_ALIAS
+                alias = CANONICAL_TO_ALIAS.get(doc_type, doc_type[:15])
                 
                 # Generar nombre nuevo
-                route_label = self.config.FILE_NAMING_CONFIG["route_labels"].get(route, "UNK")
+                from fraud_scorer.settings import FILE_NAMING_CONFIG
+                route_label = FILE_NAMING_CONFIG["route_labels"].get(route, "UNK")
                 base_name = self._sanitize_filename(file_path.stem[:50])
                 new_name = f"{idx:03d}__{alias}__{route_label}__{base_name}{file_path.suffix}"
                 new_path = staging_folder / new_name
@@ -270,7 +274,7 @@ class DocumentOrganizer:
                 
                 if not ocr_result:
                     logger.debug(f"Procesando OCR para {staged_path.name}")
-                    ocr_obj = await ocr_processor.process_single_document(str(staged_path))
+                    ocr_obj = await ocr_processor.analyze_document_async(str(staged_path))
                     if ocr_obj:
                         ocr_result = ocr_obj.to_dict()
                         persist_ocr(doc_id, ocr_result, "azure", "full")
@@ -369,7 +373,8 @@ class DocumentOrganizer:
         """Descubre archivos soportados en la carpeta"""
         files = []
         for file_path in folder.iterdir():
-            if file_path.is_file() and file_path.suffix.lower() in self.config.SUPPORTED_EXTENSIONS:
+            from fraud_scorer.settings import SUPPORTED_EXTENSIONS
+            if file_path.is_file() and file_path.suffix.lower() in SUPPORTED_EXTENSIONS:
                 files.append(file_path)
         return sorted(files)
     
@@ -377,7 +382,8 @@ class DocumentOrganizer:
         """Encuentra archivos no soportados"""
         unsupported = []
         for file_path in folder.iterdir():
-            if file_path.is_file() and file_path.suffix.lower() not in self.config.SUPPORTED_EXTENSIONS:
+            from fraud_scorer.settings import SUPPORTED_EXTENSIONS
+            if file_path.is_file() and file_path.suffix.lower() not in SUPPORTED_EXTENSIONS:
                 unsupported.append(file_path)
         return unsupported
     
@@ -403,6 +409,10 @@ class DocumentOrganizer:
         Obtiene texto de muestra para clasificación
         Usa cache si existe, sino extrae rápido
         """
+        # Si está activado el flag de skip OCR (para tests), retornar vacío
+        if self._skip_ocr_sample:
+            return ""
+        
         # Intentar cache primero
         try:
             doc_id, file_hash = ensure_document_registered("temp_classify", str(file_path))
@@ -433,7 +443,7 @@ class DocumentOrganizer:
             try:
                 # OCR rápido de página 1 solamente
                 ocr = AzureOCRProcessor()
-                result = await ocr.process_single_document(str(file_path), max_pages=1)
+                result = await ocr.analyze_document_async(str(file_path))
                 if result:
                     # Persistir en cache para reutilizar
                     doc_id, _ = ensure_document_registered("temp_classify", str(file_path))
@@ -553,7 +563,7 @@ class DocumentOrganizer:
         
         print("\nDistribución por tipo de documento:")
         for doc_type, count in sorted(type_counts.items(), 
-                                     key=lambda x: self.config.DOCUMENT_PRIORITIES.get(x[0], 99)):
+                                     key=lambda x: DOCUMENT_PRIORITIES.get(x[0], 99)):
             percentage = (count / len(mapping["files"])) * 100
             print(f"  {doc_type:40} : {count:3} ({percentage:5.1f}%)")
         

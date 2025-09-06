@@ -91,12 +91,14 @@ class DocumentTypeDefinition:
         
         # Count keyword matches
         keyword_matches = 0
+        filename_matches = 0
         for keyword in self.keywords:
             if keyword.lower() in text_lower:
                 keyword_matches += 2  # Peso mayor para contenido
                 reasons.append(f"texto: '{keyword}'")
             elif keyword.lower() in filename_lower:
                 keyword_matches += 1  # Peso menor para nombre
+                filename_matches += 1
                 reasons.append(f"nombre: '{keyword}'")
         
         # Count may-have matches
@@ -117,7 +119,13 @@ class DocumentTypeDefinition:
         if must_have_found > 0:
             confidence = max(confidence, 0.3)
         
-        matches = confidence > 0.2  # Umbral mínimo
+        # Si hay coincidencias solo en nombre de archivo y no hay texto, dar más peso
+        if filename_matches > 0 and len(text_lower.strip()) == 0:
+            confidence = max(confidence, 0.3)
+        
+        # Si hay coincidencias de nombre de archivo, reducir umbral mínimo
+        threshold = 0.15 if filename_matches > 0 else 0.2
+        matches = confidence > threshold
         
         return matches, confidence, reasons
 
@@ -148,8 +156,8 @@ class DocumentClassifier:
             
             DocumentType.CARTA_RECLAMACION_TRANSPORTISTA.value: DocumentTypeDefinition(
                 type_name="carta_de_reclamacion_formal_al_transportista",
-                keywords=["carta reclamación", "mercancía no entregada", "incumplimiento"],
-                must_have=["transportista", "reclamación"],
+                keywords=["carta reclamación", "reclamacion_transportista", "reclamación transportista", "mercancía no entregada", "incumplimiento"],
+                must_have=[],
                 may_have=["guías", "facturas", "importes", "explicación", "causas"],
                 exclude=["aseguradora", "indemnización del seguro"],
                 description="Carta al transportista reclamando por mercancía no entregada"
@@ -157,7 +165,7 @@ class DocumentClassifier:
             
             DocumentType.GUIAS_Y_FACTURAS.value: DocumentTypeDefinition(
                 type_name="guias_y_facturas",
-                keywords=["número de guía", "factura", "cfdi", "refacciones", "código sat"],
+                keywords=["número de guía", "factura", "guia_embarque", "guía embarque", "guía de embarque", "cfdi", "refacciones", "código sat", "total"],
                 must_have=[],
                 may_have=["peso", "remitente", "destinatario", "subtotal", "iva", "total", "pagare"],
                 exclude=["consolidado", "múltiples clientes en un archivo"],
@@ -175,8 +183,8 @@ class DocumentClassifier:
             
             DocumentType.TARJETA_CIRCULACION.value: DocumentTypeDefinition(
                 type_name="tarjeta_de_circulacion_vehiculo",
-                keywords=["tarjeta de circulación", "tipo de transporte", "niv", "placas"],
-                must_have=["circulación"],
+                keywords=["tarjeta de circulación", "tarjeta_circulacion", "tarjeta circulación", "tipo de transporte", "niv", "placas"],
+                must_have=[],
                 may_have=["folio", "marca", "modelo", "año", "propietario", "estado emisor"],
                 exclude=["licencia", "operador", "fotografía"],
                 description="Documento oficial de circulación vehicular"
@@ -193,8 +201,8 @@ class DocumentClassifier:
             
             DocumentType.AVISO_SINIESTRO_TRANSPORTISTA.value: DocumentTypeDefinition(
                 type_name="aviso_de_siniestro_transportista",
-                keywords=["ficha", "aviso de siniestro", "reporte siniestro", "transportista"],
-                must_have=["siniestro", "transportista"],
+                keywords=["ficha", "aviso de siniestro", "aviso_siniestro", "aviso siniestro", "reporte siniestro", "transportista"],
+                must_have=[],
                 may_have=["fecha", "hora", "lugar", "operador", "unidad", "accidente", "asalto", "robo"],
                 exclude=["fiscalía", "ministerio público", "ajustador"],
                 description="Reporte de siniestro emitido por la transportista"
@@ -202,9 +210,9 @@ class DocumentClassifier:
             
             DocumentType.CARPETA_INVESTIGACION.value: DocumentTypeDefinition(
                 type_name="carpeta_de_investigacion",
-                keywords=["carpeta de investigación", "fiscalía", "ministerio público", "querella"],
-                must_have=["investigación"],
-                may_have=["folio", "acuerdos", "denunciante", "ofendidos", "hechos", "acta"],
+                keywords=["carpeta de investigación", "carpeta_investigacion", "carpeta investigación", "fgr", "fiscalía", "ministerio público", "querella"],
+                must_have=[],
+                may_have=["investigación", "folio", "acuerdos", "denunciante", "ofendidos", "hechos", "acta"],
                 exclude=[],
                 description="Documento oficial de investigación judicial"
             ),
@@ -220,8 +228,8 @@ class DocumentClassifier:
             
             DocumentType.SALIDA_DE_ALMACEN.value: DocumentTypeDefinition(
                 type_name="salida_de_almacen",
-                keywords=["salida de almacén", "embarque", "control interno"],
-                must_have=["almacén"],
+                keywords=["salida de almacén", "salida_almacen", "salida almacén", "embarque", "control interno"],
+                must_have=[],
                 may_have=["códigos", "piezas", "cantidades", "firmas", "responsable", "transportista"],
                 exclude=["cfdi", "factura", "guía de paquetería"],
                 description="Control interno de salida de mercancías del almacén"
@@ -229,7 +237,7 @@ class DocumentClassifier:
             
             DocumentType.REPORTE_GPS.value: DocumentTypeDefinition(
                 type_name="reporte_gps",
-                keywords=["rastreo satelital", "gps", "recorrido", "telemetría"],
+                keywords=["rastreo satelital", "gps", "reporte gps", "coordenadas", "recorrido", "telemetría"],
                 must_have=["gps"],
                 may_have=["periodo", "distancia", "velocidad", "combustible", "horarios", "direcciones"],
                 exclude=[],
@@ -238,8 +246,8 @@ class DocumentClassifier:
             
             DocumentType.POLIZA_ASEGURADORA.value: DocumentTypeDefinition(
                 type_name="poliza_de_la_aseguradora",
-                keywords=["póliza", "cobertura", "vigencia", "asegurado", "prima"],
-                must_have=["póliza"],
+                keywords=["póliza", "poliza_seguro", "póliza seguro", "póliza de seguro", "cobertura", "vigencia", "asegurado", "prima", "transporte marítimo"],
+                must_have=[],
                 may_have=["carátula", "límites", "deducibles", "cláusulas", "endosos", "exclusiones"],
                 exclude=["reclamación", "siniestro ocurrido"],
                 description="Contrato formal de seguro"
@@ -247,8 +255,8 @@ class DocumentClassifier:
             
             DocumentType.INFORME_PRELIMINAR_AJUSTADOR.value: DocumentTypeDefinition(
                 type_name="informe_preliminar_del_ajustador",
-                keywords=["informe preliminar", "ajustador", "estimación inicial"],
-                must_have=["preliminar", "ajustador"],
+                keywords=["informe preliminar", "informe_ajustador", "informe ajustador", "ajustador", "estimación inicial"],
+                must_have=[],
                 may_have=["asegurado", "póliza", "evento", "pérdida", "deducible", "observaciones"],
                 exclude=["final", "definitivo", "conclusión"],
                 description="Valoración inicial del ajustador"
@@ -274,7 +282,7 @@ class DocumentClassifier:
             
             DocumentType.CHECKLIST_ANTIFRAUDE.value: DocumentTypeDefinition(
                 type_name="checklist_antifraude",
-                keywords=["checklist", "antifraude", "parámetros alerta", "validación"],
+                keywords=["checklist", "antifraude", "checklist antifraude", "evaluación", "evaluación de riesgo", "parámetros alerta", "validación"],
                 must_have=["antifraude"],
                 may_have=["crítico", "no crítico", "analista", "firmas", "riesgos"],
                 exclude=[],
@@ -450,12 +458,12 @@ Responde SOLO con JSON válido:
         """Retorna la prioridad de un tipo de documento para ordenamiento"""
         
         priority_map = {
-            DocumentType.INFORME_PRELIMINAR_AJUSTADOR.value: 1,
-            DocumentType.INFORME_FINAL_AJUSTADOR.value: 2,
-            DocumentType.POLIZA_ASEGURADORA.value: 3,
-            DocumentType.CARTA_RECLAMACION_ASEGURADORA.value: 4,
-            DocumentType.CARTA_RECLAMACION_TRANSPORTISTA.value: 5,
-            DocumentType.CARPETA_INVESTIGACION.value: 6,
+            DocumentType.CARPETA_INVESTIGACION.value: 1,
+            DocumentType.INFORME_PRELIMINAR_AJUSTADOR.value: 2,
+            DocumentType.INFORME_FINAL_AJUSTADOR.value: 3,
+            DocumentType.POLIZA_ASEGURADORA.value: 4,
+            DocumentType.CARTA_RECLAMACION_ASEGURADORA.value: 5,
+            DocumentType.CARTA_RECLAMACION_TRANSPORTISTA.value: 6,
             DocumentType.ACREDITACION_PROPIEDAD.value: 7,
             DocumentType.AVISO_SINIESTRO_TRANSPORTISTA.value: 8,
             DocumentType.GUIAS_Y_FACTURAS.value: 9,
