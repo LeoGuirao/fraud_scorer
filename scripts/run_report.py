@@ -43,6 +43,7 @@ from fraud_scorer.models.extraction import (
     ConsolidatedExtraction,
     ProgressEvent,
 )
+from fraud_scorer.processors.document_organizer import DocumentOrganizer
 import time
 import os
 
@@ -146,7 +147,7 @@ class FraudAnalysisSystemV2:
     Sistema de análisis de fraude v2.0 con IA y Cache OCR (sin legacy).
     """
 
-    def __init__(self):
+    def __init__(self, guided_mode: bool = True, extraction_mode: str = "auto"):
         # OCR + Parser
         self.ocr_processor = AzureOCRProcessor()
         self.document_parser = DocumentParser(self.ocr_processor)
@@ -154,13 +155,16 @@ class FraudAnalysisSystemV2:
         # Cache OCR
         self.cache_manager = OCRCacheManager()
 
-        # IA v2
+        # IA v2 con modo guiado
+        self.guided_mode = guided_mode
+        self.extraction_mode = extraction_mode
         self.extractor = AIFieldExtractor()
         self.consolidator = AIConsolidator()
         template_path = project_root / "src" / "fraud_scorer" / "templates"
         self.report_generator = AIReportGenerator(template_dir=template_path)
 
-        logger.info("Sistema v2.0 inicializado con componentes de IA")
+        mode_desc = "Guiado" if self.guided_mode else "Estándar"
+        logger.info(f"Sistema v2.0 inicializado - Modo: {mode_desc}, Extracción: {self.extraction_mode}")
         
         # Control de cancelación
         self._cancelled = False
@@ -531,10 +535,22 @@ class FraudAnalysisSystemV2:
         if self.progress_emitter:
             self.progress_emitter.emit("extract", "started", message="Extrayendo campos con IA")
 
-        extractions: List[DocumentExtraction] = await self.extractor.extract_from_documents_batch(
-            documents=ocr_results,
-            parallel_limit=3,
-        )
+        # Usar el método guiado si está habilitado
+        if self.guided_mode:
+            logger.info("  🛡️ Usando extracción guiada con restricciones documento-campo")
+            extractions: List[DocumentExtraction] = []
+            for doc_data in ocr_results:
+                extraction = await self.extractor.extract_from_document_guided(
+                    document_data=doc_data,
+                    mode=self.extraction_mode
+                )
+                if extraction:
+                    extractions.append(extraction)
+        else:
+            extractions: List[DocumentExtraction] = await self.extractor.extract_from_documents_batch(
+                documents=ocr_results,
+                parallel_limit=3,
+            )
 
         for extraction in extractions:
             fields_found = sum(1 for v in extraction.extracted_fields.values() if v is not None)
@@ -569,6 +585,7 @@ class FraudAnalysisSystemV2:
             extractions=extractions,
             case_id=case_id,
             use_advanced_reasoning=True,
+            guided_mode=self.guided_mode  # Pasar modo guiado al consolidador
         )
 
         # Conteo robusto (Pydantic v2/dict)
@@ -845,19 +862,33 @@ class FraudAnalysisSystemV2:
 
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
-    """Parser de argumentos (sin --use-legacy)."""
+    """Parser de argumentos con soporte para modo guiado y organización de documentos."""
     p = argparse.ArgumentParser(description="Fraud Scorer v2.0 - Sistema de Análisis con IA")
     p.add_argument("folder", type=Path, nargs='?', help="Carpeta con documentos del caso")
     p.add_argument("--out", type=Path, default=Path("data/reports"), help="Carpeta de salida")
     p.add_argument("--title", help="Título del caso")
     p.add_argument("--debug", action="store_true", help="Modo debug con más logging")
+    p.add_argument("--guided", action="store_true", help="Activar modo guiado con restricciones documento-campo")
+    p.add_argument("--mode", choices=["direct_ai", "ocr", "auto"], default="auto",
+                  help="Modo de extracción: direct_ai (IA directa), ocr (OCR primero), auto (automático)")
     p.add_argument("--purge-case", metavar="CASE_ID", help="Limpia artefactos del caso especificado")
     p.add_argument("--purge-orphans", action="store_true", help="Elimina archivos sin entrada en DB")
+    
+    # Argumentos de organización de documentos
+    p.add_argument("--organize-only", action="store_true", 
+                  help="Solo ejecuta Fase A de organización (clasificación y staging)")
+    p.add_argument("--organize-first", action="store_true",
+                  help="Ejecuta organización completa (Fase A + B) antes del pipeline normal")
+    p.add_argument("--skip-llm-classification", action="store_true",
+                  help="Solo usar heurísticas para clasificación, sin LLM")
+    p.add_argument("--extract-all-fields", action="store_true",
+                  help="Extraer todos los campos en Fase B (sin restricciones)")
+    
     return p.parse_args(argv)
 
 
 async def main(argv: List[str]) -> None:
-    """Función principal."""
+    """Función principal con soporte para organización de documentos."""
     args = parse_args(argv)
 
     if args.debug:
@@ -895,6 +926,77 @@ async def main(argv: List[str]) -> None:
         print(f"❌ Error: La carpeta {args.folder} no existe o no es un directorio.")
         sys.exit(1)
     
+    # ==== MANEJAR MODO DE ORGANIZACIÓN ====
+    if args.organize_only or args.organize_first:
+        logger.info("\n" + "=" * 60)
+        logger.info("📂 MODO DE ORGANIZACIÓN DE DOCUMENTOS")
+        logger.info("=" * 60)
+        
+        organizer = DocumentOrganizer()
+        
+        try:
+            # Ejecutar Fase A (clasificación y staging)
+            logger.info("\n🔍 FASE A: Clasificación y Staging")
+            logger.info("-" * 40)
+            staging_result = await organizer.organize_documents_phase_a(
+                input_folder=args.folder,
+                use_llm_fallback=not args.skip_llm_classification
+            )
+            
+            if not staging_result["success"]:
+                logger.error(f"❌ Error en Fase A: {staging_result.get('error')}")
+                sys.exit(1)
+            
+            logger.info(f"✅ Fase A completada: {staging_result['metrics']['total_files']} archivos procesados")
+            logger.info(f"📁 Carpeta de staging: {staging_result['staging_path']}")
+            
+            # Si es --organize-only, terminar aquí
+            if args.organize_only:
+                logger.info("\n" + "=" * 60)
+                logger.info("✅ ORGANIZACIÓN FASE A COMPLETADA")
+                logger.info("=" * 60)
+                logger.info(f"📊 Resumen:")
+                logger.info(f"  - Archivos procesados: {staging_result['metrics']['total_files']}")
+                logger.info(f"  - Archivos clasificados: {staging_result['metrics']['classified']}")
+                logger.info(f"  - Archivos no soportados: {staging_result['metrics']['unsupported']}")
+                logger.info(f"  - Documentos únicos: {len(staging_result['metrics']['documents_by_type'])}")
+                logger.info(f"  - Staging path: {staging_result['staging_path']}")
+                return
+            
+            # Si es --organize-first, continuar con Fase B
+            if args.organize_first:
+                logger.info("\n🧠 FASE B: Extracción y Renombrado Final")
+                logger.info("-" * 40)
+                
+                # Usar modo de extracción según argumentos
+                extraction_mode = "all" if args.extract_all_fields else "key_fields_only"
+                
+                final_result = await organizer.organize_documents_phase_b(
+                    staging_folder=Path(staging_result['staging_path']),
+                    extraction_mode=extraction_mode
+                )
+                
+                if not final_result["success"]:
+                    logger.error(f"❌ Error en Fase B: {final_result.get('error')}")
+                    # Aún así continuar con el pipeline si es posible
+                else:
+                    logger.info(f"✅ Fase B completada")
+                    logger.info(f"📁 Carpeta final: {final_result['final_path']}")
+                    logger.info(f"📄 Asegurado: {final_result.get('insured_name', 'N/A')}")
+                    logger.info(f"📋 Siniestro: {final_result.get('claim_number', 'N/A')}")
+                    
+                    # Actualizar la carpeta a procesar para el pipeline normal
+                    args.folder = Path(final_result['final_path'])
+                    logger.info(f"\n🔄 Continuando con pipeline normal usando: {args.folder}")
+        
+        except Exception as e:
+            logger.error(f"❌ Error en organización: {e}", exc_info=True)
+            if args.organize_only:
+                sys.exit(1)
+            # Si es --organize-first, continuar con la carpeta original
+            logger.warning("⚠️ Continuando con pipeline normal usando carpeta original")
+    
+    # ==== PIPELINE NORMAL DE ANÁLISIS ====
     # Sistema de análisis
     system = None
     
@@ -913,7 +1015,10 @@ async def main(argv: List[str]) -> None:
 
     args.out.mkdir(parents=True, exist_ok=True)
 
-    system = FraudAnalysisSystemV2()
+    system = FraudAnalysisSystemV2(
+        guided_mode=args.guided if hasattr(args, 'guided') else True,
+        extraction_mode=args.mode if hasattr(args, 'mode') else "auto"
+    )
 
     try:
         result = await system.process_case(

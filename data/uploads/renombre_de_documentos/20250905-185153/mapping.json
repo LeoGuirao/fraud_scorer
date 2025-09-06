@@ -1,0 +1,140 @@
+{
+  "files": [
+    {
+      "index": 1,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/._hidden_file.pdf",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/001__otro__OCR__._hidden_file.pdf",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 2,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/DENUNCIA_INICIAL.pdf",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/002__otro__OCR__DENUNCIA_INICIAL.pdf",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 3,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/GPS_tracking.csv",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/003__gps__OCR__GPS_tracking.csv",
+      "document_type": "reporte_gps",
+      "document_type_display": "reporte_gps",
+      "route": "ocr_text",
+      "confidence": 0.3,
+      "reasons": [
+        "Contiene 'gps' (requerido)",
+        "nombre: 'gps'"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 4,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/bitacora_viaje.xlsx",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/004__otro__OCR__bitacora_viaje.xlsx",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 5,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/candados_seguridad.jpg",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/005__otro__VIS__candados_seguridad.jpg",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "direct_ai",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 6,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/carta_reclamacion.pdf",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/006__otro__OCR__carta_reclamacion.pdf",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 7,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/factura_12345.pdf",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/007__otro__OCR__factura_12345.pdf",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 8,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/guia_embarque_001.pdf",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/008__otro__OCR__guia_embarque_001.pdf",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    },
+    {
+      "index": 9,
+      "original": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs/poliza_seguro.pdf",
+      "staged": "data/uploads/renombre_de_documentos/20250905-185153/009__otro__OCR__poliza_seguro.pdf",
+      "document_type": "otro",
+      "document_type_display": "otro",
+      "route": "ocr_text",
+      "confidence": 0.0,
+      "reasons": [
+        "No se encontraron indicadores claros"
+      ],
+      "classification_time_ms": 0,
+      "file_size": 0
+    }
+  ],
+  "metadata": {
+    "timestamp": "20250905-185153",
+    "source_folder": "/var/folders/k5/cnz1fw3j6dx0tbnbxywvl7t00000gn/T/tmpgi2m7p0b/test_docs",
+    "total_files": 9,
+    "phase_a_completed": true,
+    "phase_b_completed": false,
+    "unsupported_files": 1,
+    "phase_a_duration_ms": 3
+  }
+}

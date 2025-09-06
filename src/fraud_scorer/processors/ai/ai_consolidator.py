@@ -23,6 +23,7 @@ from fraud_scorer.models.extraction import (
     ExtractionBatch
 )
 from fraud_scorer.prompts.consolidation_prompts import ConsolidationPromptBuilder
+from fraud_scorer.utils.validators import FieldValidator  # Nuevo validador
 
 logger = logging.getLogger(__name__)
 
@@ -67,8 +68,14 @@ class AIConsolidator:
         )
         self.config = ExtractionConfig()
         self.prompt_builder = ConsolidationPromptBuilder()
+        self.validator = FieldValidator()  # Nuevo validador
         self.golden_examples = self._load_golden_examples()
-        logger.info("AIConsolidator inicializado")
+        
+        # Configuración del sistema de extracción guiada
+        self.field_mapping = self.config.DOCUMENT_FIELD_MAPPING
+        self.document_priorities = self.config.DOCUMENT_PRIORITIES
+        
+        logger.info("AIConsolidator inicializado con Sistema de Extracción Guiada")
 
     # ---------- API principal ----------
 
@@ -76,7 +83,8 @@ class AIConsolidator:
         self,
         extractions: List[DocumentExtraction],
         case_id: str,
-        use_advanced_reasoning: bool = True
+        use_advanced_reasoning: bool = True,
+        guided_mode: bool = True  # Añadir parámetro de modo guiado
     ) -> ConsolidatedExtraction:
         """
         Consolida múltiples extracciones en un resultado final.
@@ -85,6 +93,8 @@ class AIConsolidator:
         - Solo valida con IA si existe al menos un valor no-nulo.
         """
         logger.info(f"Consolidando {len(extractions)} extracciones para caso {case_id}")
+        if guided_mode:
+            logger.info("🛡️ Modo guiado activado: aplicando restricciones estrictas")
 
         # --- Cortocircuito si no hay extracciones ---
         if not extractions:
@@ -132,7 +142,8 @@ class AIConsolidator:
                 decision = await self._resolve_conflict_with_ai(
                     field_name=field_name,
                     options=options,
-                    all_extractions=extractions
+                    all_extractions=extractions,
+                    guided_mode=guided_mode
                 )
             else:
                 decision = self._resolve_conflict_with_rules(
@@ -211,7 +222,8 @@ class AIConsolidator:
         if use_advanced_reasoning and has_any_value:
             consolidated_fields_dict = await self._validate_with_ai_safe(
                 consolidated_fields_dict,
-                extractions
+                extractions,
+                guided_mode=guided_mode
             )
         elif use_advanced_reasoning and not has_any_value:
             logger.info(
@@ -244,7 +256,8 @@ class AIConsolidator:
         self,
         field_name: str,
         options: List[Dict[str, Any]],
-        all_extractions: List[DocumentExtraction]
+        all_extractions: List[DocumentExtraction],
+        guided_mode: bool = True
     ) -> ConsolidationDecision:
         """
         Usa IA (estructura) para resolver conflictos de un campo.
@@ -254,7 +267,8 @@ class AIConsolidator:
             options=options,
             field_rules=self.config.FIELD_SOURCE_RULES.get(field_name, []),
             golden_examples=self._get_relevant_examples(field_name),
-            context=self._build_context(all_extractions)
+            context=self._build_context(all_extractions),
+            guided_mode=guided_mode
         )
 
         try:
@@ -287,8 +301,23 @@ class AIConsolidator:
         options: List[Dict[str, Any]]
     ) -> ConsolidationDecision:
         """
-        Reglas determinísticas como respaldo (prioridades por fuente -> valor más común).
+        Reglas determinísticas como respaldo.
+        Usa prioridades del documento y luego valor más común.
         """
+        # Primero intentar resolver por prioridad del documento
+        # (las opciones ya vienen ordenadas por prioridad)
+        if options and "priority" in options[0]:
+            best_option = options[0]  # Ya está ordenado por prioridad
+            return ConsolidationDecision(
+                field_name=field_name,
+                selected_value=best_option["value"],
+                source_document=best_option["source"],
+                confidence=0.9,
+                reasoning=f"Seleccionado de {best_option['source']} ({best_option['document_type']}) por mayor prioridad",
+                alternatives_considered=options,
+            )
+        
+        # Fallback: usar reglas de fuente anteriores
         priority_sources = self.config.FIELD_SOURCE_RULES.get(field_name, [])
         if priority_sources:
             for priority_source in priority_sources:
@@ -299,10 +328,11 @@ class AIConsolidator:
                             selected_value=option["value"],
                             source_document=option["source"],
                             confidence=0.8,
-                            reasoning=f"Seleccionado de {option['source']} por regla de prioridad",
+                            reasoning=f"Seleccionado de {option['source']} por regla de prioridad legacy",
                             alternatives_considered=options,
                         )
 
+        # Último recurso: valor más común
         from collections import Counter
         value_counts = Counter(opt["value"] for opt in options)
         most_common_value = value_counts.most_common(1)[0][0]
@@ -322,7 +352,8 @@ class AIConsolidator:
     async def _validate_with_ai_safe(
         self,
         consolidated_fields: Dict[str, Any],
-        original_extractions: List[DocumentExtraction]
+        original_extractions: List[DocumentExtraction],
+        guided_mode: bool = True
     ) -> Dict[str, Any]:
         """
         Validación final con IA **sin inventar**:
@@ -333,7 +364,8 @@ class AIConsolidator:
         # Build prompt con reglas de NO invención
         prompt = self.prompt_builder.build_validation_prompt(
             consolidated_fields=consolidated_fields,
-            original_extractions=[self._to_dict(e) for e in original_extractions]
+            original_extractions=[self._to_dict(e) for e in original_extractions],
+            guided_mode=guided_mode
         )
         guardrails = (
             "INSTRUCCIONES ESTRICTAS:\n"
@@ -389,20 +421,54 @@ class AIConsolidator:
     def _group_by_field(self, extractions: List[DocumentExtraction]) -> Dict[str, List[Dict[str, Any]]]:
         """
         Agrupa los valores extraídos por campo (solo valores no nulos).
-        Devuelve: { field_name: [ {value, source, document_type}, ... ] }
+        Aplica filtrado según documentos autorizados y prioridades.
+        Devuelve: { field_name: [ {value, source, document_type, priority}, ... ] }
         """
         field_groups: Dict[str, List[Dict[str, Any]]] = {}
+        
         for extraction in extractions:
+            doc_type = getattr(extraction, "document_type", "desconocido")
+            
+            # Obtener campos permitidos para este tipo de documento
+            allowed_fields = self.field_mapping.get(doc_type, None)
+            
             # Se asume que extraction.extracted_fields es un dict
             for field_name, value in getattr(extraction, "extracted_fields", {}).items():
                 if value is None:
                     continue
+                
+                # Aplicar filtro de campos permitidos
+                if allowed_fields is not None and field_name not in allowed_fields:
+                    logger.debug(f"Campo '{field_name}' ignorado de documento tipo '{doc_type}' (no autorizado)")
+                    continue
+                
+                # Obtener prioridad del documento
+                priority = self._get_document_priority(doc_type)
+                
                 field_groups.setdefault(field_name, []).append({
                     "value": value,
                     "source": getattr(extraction, "source_document", "desconocido"),
-                    "document_type": getattr(extraction, "document_type", "desconocido"),
+                    "document_type": doc_type,
+                    "priority": priority
                 })
+        
+        # Ordenar opciones por prioridad para cada campo
+        for field_name in field_groups:
+            field_groups[field_name] = sorted(
+                field_groups[field_name], 
+                key=lambda x: x["priority"]
+            )
+        
         return field_groups
+    
+    def _get_document_priority(self, doc_type: str) -> int:
+        """
+        Obtiene la prioridad de un tipo de documento.
+        Menor número = mayor prioridad.
+        """
+        if doc_type in self.document_priorities:
+            return self.document_priorities[doc_type].value
+        return 99  # Prioridad más baja para documentos desconocidos
 
     def _build_context(self, extractions: List[DocumentExtraction]) -> str:
         """

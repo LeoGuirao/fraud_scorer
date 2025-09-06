@@ -13,13 +13,16 @@ try:
     from azure.ai.formrecognizer import DocumentAnalysisClient
     from azure.core.credentials import AzureKeyCredential
     from azure.core.exceptions import HttpResponseError, ClientAuthenticationError
-    from dotenv import load_dotenv
     AZURE_AVAILABLE = True
 except ImportError:
     AZURE_AVAILABLE = False
     logging.warning("Azure Form Recognizer no está instalado")
 
-load_dotenv()
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv no es crítico
 logger = logging.getLogger(__name__)
 
 class DocumentType(Enum):
@@ -50,8 +53,13 @@ class AzureOCRProcessor:
         if not AZURE_AVAILABLE:
             raise ImportError("Azure Form Recognizer no está disponible. Instala: pip install azure-ai-formrecognizer")
         
-        self.endpoint = endpoint or os.getenv('AZURE_ENDPOINT')
-        self.api_key = api_key or os.getenv('AZURE_OCR_KEY')
+        # Soportar ambos nombres de variables para compatibilidad
+        self.endpoint = (endpoint or 
+                        os.getenv('AZURE_ENDPOINT') or 
+                        os.getenv('AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT'))
+        self.api_key = (api_key or 
+                       os.getenv('AZURE_OCR_KEY') or 
+                       os.getenv('AZURE_DOCUMENT_INTELLIGENCE_KEY'))
         
         if not self.endpoint or not self.api_key:
             raise ValueError(
@@ -63,7 +71,7 @@ class AzureOCRProcessor:
                 endpoint=self.endpoint,
                 credential=AzureKeyCredential(self.api_key)
             )
-            logger.info("Cliente Azure OCR inicializado correctamente")
+            logger.info(f"Cliente Azure OCR inicializado correctamente con endpoint: {self.endpoint[:40]}...")
         except Exception as e:
             logger.error(f"Error inicializando cliente Azure: {e}")
             raise
@@ -183,15 +191,20 @@ class AzureOCRProcessor:
         )
 
     def _select_model(self, file_path: Path) -> str:
-        """Selecciona el modelo óptimo basado en el nombre del archivo"""
+        """Selecciona el modelo óptimo basado en el nombre del archivo
+        
+        IMPORTANTE: prebuilt-document es mejor para documentos generales
+        ya que extrae más campos estructurados y tablas.
+        """
         filename_lower = file_path.name.lower()
         
-        # Mapeo de palabras clave a modelos especializados
+        # Solo usar modelos especializados cuando sea MUY específico
+        # Para documentos de seguros/siniestros, prebuilt-document es mejor
         model_mappings = {
-            "prebuilt-invoice": ["factura", "invoice", "cfdi", "recibo"],
-            "prebuilt-receipt": ["ticket", "nota", "comprobante"],
-            "prebuilt-idDocument": ["ine", "ife", "identificacion", "credencial", "pasaporte"],
-            "prebuilt-businessCard": ["tarjeta", "card"],
+            # Solo para facturas CFDI muy específicas
+            "prebuilt-invoice": ["cfdi", "factura_sat"],
+            # Solo para IDs oficiales
+            "prebuilt-idDocument": ["ine", "ife", "pasaporte"],
         }
         
         for model, keywords in model_mappings.items():
@@ -199,6 +212,9 @@ class AzureOCRProcessor:
                 logger.info(f"Usando modelo especializado: {model}")
                 return model
         
+        # Por defecto usar prebuilt-document que es más versátil
+        # y extrae mejor campos estructurados para documentos de seguros
+        logger.info("Usando modelo prebuilt-document (mejor para documentos generales)")
         return "prebuilt-document"
 
     def _extract_text(self, result) -> str:
@@ -276,10 +292,33 @@ class AzureOCRProcessor:
         return tables
 
     def _extract_key_values(self, result) -> Dict[str, str]:
-        """Extrae pares clave-valor con validación mejorada"""
+        """Extrae pares clave-valor con validación mejorada
+        
+        Soporta tanto el formato antiguo (key_value_pairs) como el nuevo (documents[0].fields)
+        para máxima compatibilidad con prebuilt-document
+        """
         kv_pairs = {}
         
         try:
+            # Primero intentar con el formato de prebuilt-document (documents[0].fields)
+            if hasattr(result, 'documents') and result.documents:
+                for doc in result.documents:
+                    if hasattr(doc, 'fields') and doc.fields:
+                        for field_name, field_value in doc.fields.items():
+                            try:
+                                if field_value and hasattr(field_value, 'value'):
+                                    key = self._normalize_key(field_name)
+                                    value = str(field_value.value) if field_value.value else ""
+                                    value = self._normalize_value(value)
+                                    
+                                    if key and value:
+                                        kv_pairs[key] = value
+                                        
+                            except Exception as e:
+                                logger.debug(f"Error procesando campo {field_name}: {e}")
+                                continue
+            
+            # También intentar con el formato antiguo (key_value_pairs)
             if hasattr(result, 'key_value_pairs') and result.key_value_pairs:
                 for kv in result.key_value_pairs:
                     try:
@@ -291,7 +330,7 @@ class AzureOCRProcessor:
                             key = self._normalize_key(key)
                             value = self._normalize_value(value)
                             
-                            if key and value:
+                            if key and value and key not in kv_pairs:  # No sobrescribir si ya existe
                                 kv_pairs[key] = value
                                 
                     except (AttributeError, TypeError) as e:

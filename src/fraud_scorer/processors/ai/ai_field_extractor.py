@@ -19,9 +19,10 @@ import instructor
 from pydantic import ValidationError
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from fraud_scorer.settings import ExtractionConfig
+from fraud_scorer.settings import ExtractionConfig, ExtractionRoute
 from fraud_scorer.models.extraction import DocumentExtraction
 from fraud_scorer.prompts.extraction_prompts import ExtractionPromptBuilder
+from fraud_scorer.utils.validators import FieldValidator
 
 logger = logging.getLogger(__name__)
 
@@ -45,9 +46,15 @@ class AIFieldExtractor:
 
         self.config = ExtractionConfig()
         self.prompt_builder = ExtractionPromptBuilder()
+        self.validator = FieldValidator()  # Nuevo validador
         self.extraction_cache: Dict[str, DocumentExtraction] = {}
+        
+        # Configuración de rutas
+        self.route_config = self.config.ROUTE_CONFIG
+        self.field_mapping = self.config.DOCUMENT_FIELD_MAPPING
+        self.validation_rules = self.config.FIELD_VALIDATION_RULES
 
-        logger.info("AIFieldExtractor inicializado")
+        logger.info("AIFieldExtractor inicializado con Sistema de Extracción Guiada")
 
     # =============================================================================
     #   MÉTODO ACTUALIZADO: maneja OCRResult (objeto) y dict + prompt mejorado
@@ -104,19 +111,36 @@ class AIFieldExtractor:
             self._log_extraction_metrics(empty)
             return empty
 
-        # Construir prompt mejorado
-        prompt = self._build_enhanced_prompt(
-            document_name=document_name,
-            document_type=document_type or "otro",
-            ocr_content=prepared_content,
-        )
+        # Determinar la ruta de procesamiento
+        route = self._determine_route(document_name, prepared_content)
+        
+        # Construir prompt con guías si el tipo es conocido
+        if document_type in self.field_mapping:
+            # Usar prompt guiado
+            prompt = self.prompt_builder.build_guided_extraction_prompt(
+                document_name=document_name,
+                document_type=document_type,
+                content=prepared_content,
+                route=route.value if isinstance(route, ExtractionRoute) else route
+            )
+        else:
+            # Usar prompt mejorado legacy
+            prompt = self._build_enhanced_prompt(
+                document_name=document_name,
+                document_type=document_type or "otro",
+                ocr_content=prepared_content,
+            )
 
         # Llamar IA con reintentos (ahora acepta que el LLM responda solo con el JSON de campos)
         extraction = await self._call_ai_with_retry(
             prompt=prompt,
             document_name=document_name,
             document_type=document_type or "otro",
+            route=route
         )
+        
+        # Aplicar máscara de campos permitidos
+        extraction = self._apply_field_mask(extraction, document_type)
 
         # Post-proceso
         extraction = self._post_process_extraction(extraction)
@@ -183,6 +207,7 @@ class AIFieldExtractor:
         prompt: str,
         document_name: str,
         document_type: str,
+        route: Optional[str] = None,
     ) -> DocumentExtraction:
         """
         Llama a la API de OpenAI con reintentos automáticos.
@@ -462,3 +487,372 @@ CAMPOS REQUERIDOS:
 Responde SOLO con el JSON de los campos extraídos.
 """
         return prompt
+    
+    def _determine_route(self, document_name: str, content: Dict[str, Any]) -> str:
+        """
+        Determina la ruta de procesamiento según el tipo de archivo y contenido
+        """
+        # Obtener extensión del archivo
+        ext = Path(document_name).suffix.lower()
+        
+        # Verificar configuración de ruta
+        if ext in self.route_config:
+            route = self.route_config[ext]
+            if isinstance(route, ExtractionRoute):
+                return route.value
+            elif route == "auto":
+                # Decidir según contenido
+                if self._is_scanned_document(content):
+                    return ExtractionRoute.DIRECT_AI.value
+                else:
+                    return ExtractionRoute.OCR_TEXT.value
+            return route
+        
+        # Por defecto, usar OCR + texto
+        return ExtractionRoute.OCR_TEXT.value
+    
+    def _is_scanned_document(self, content: Dict[str, Any]) -> bool:
+        """
+        Detecta si es un documento escaneado (principalmente imagen)
+        """
+        text = content.get("text", "")
+        tables = content.get("tables", [])
+        
+        # Si hay muy poco texto pero hay contenido, probablemente es escaneado
+        if len(text) < 100 and not tables:
+            return True
+        
+        # Ratio de caracteres especiales (documentos escaneados mal OCR tienen muchos)
+        if text:
+            special_chars = sum(1 for c in text if not c.isalnum() and not c.isspace())
+            ratio = special_chars / len(text)
+            if ratio > 0.3:  # Más del 30% caracteres raros
+                return True
+        
+        return False
+    
+    def _apply_field_mask(self, extraction: DocumentExtraction, document_type: str) -> DocumentExtraction:
+        """
+        Aplica máscara de campos permitidos según el tipo de documento
+        """
+        # Si no hay mapeo para este tipo, retornar sin cambios
+        if document_type not in self.field_mapping:
+            logger.info(f"No hay restricciones de campos para tipo: {document_type}")
+            return extraction
+        
+        # Obtener campos permitidos
+        allowed_fields = set(self.field_mapping[document_type])
+        
+        # Aplicar máscara
+        masked_fields = {}
+        for field, value in extraction.extracted_fields.items():
+            if field in allowed_fields:
+                masked_fields[field] = value
+            else:
+                # Campo no permitido → null
+                masked_fields[field] = None
+                if value is not None:
+                    logger.debug(f"Campo '{field}' anulado para documento tipo '{document_type}' (valor era: {value})")
+        
+        # Actualizar extracción
+        extraction.extracted_fields = masked_fields
+        
+        # Agregar metadata sobre la máscara aplicada
+        if not extraction.extraction_metadata:
+            extraction.extraction_metadata = {}
+        extraction.extraction_metadata["field_mask_applied"] = True
+        extraction.extraction_metadata["allowed_fields"] = list(allowed_fields)
+        
+        return extraction
+    
+    async def extract_from_document_guided(
+        self,
+        content: Union[Dict[str, Any], bytes, Path],
+        document_name: str,
+        document_type: str,
+        route: str = "ocr_text",
+        model: str = None,
+        use_cache: bool = True
+    ) -> DocumentExtraction:
+        """
+        Extracción guiada con doble ruta y validación estricta
+        
+        Args:
+            content: OCR dict, bytes de imagen, o Path al archivo
+            document_name: Nombre del documento
+            document_type: Tipo detectado (informe_preliminar_del_ajustador, etc.)
+            route: "direct_ai" o "ocr_text"
+            model: Modelo a usar (si None, usa el default)
+        """
+        from pathlib import Path
+        
+        # Usar modelo default si no se especifica
+        if model is None:
+            model = self.config.get_model_for_task("extraction")
+        
+        # Cache key considerando la ruta y tipo
+        cache_key = f"{document_name}_{document_type}_{route}"
+        if use_cache and cache_key in self.extraction_cache:
+            logger.info(f"Usando cache de extracción guiada para {document_name}")
+            return self.extraction_cache[cache_key]
+        
+        logger.info(
+            f"Extracción guiada iniciada:\n"
+            f"  Documento: {document_name}\n"
+            f"  Tipo: {document_type}\n"
+            f"  Ruta: {route}\n"
+            f"  Modelo: {model}"
+        )
+        
+        # 1. Obtener campos permitidos para este documento
+        allowed_fields = self.field_mapping.get(document_type, [])
+        
+        if not allowed_fields:
+            logger.warning(
+                f"Documento tipo '{document_type}' no tiene campos permitidos. "
+                f"Retornando todos los campos como null."
+            )
+            return self._create_null_extraction(document_name, document_type)
+        
+        # 2. Construir prompt con guía
+        prompt = self.prompt_builder.build_guided_extraction_prompt(
+            document_name=document_name,
+            document_type=document_type,
+            content=content if route == "ocr_text" else None,
+            route=route
+        )
+        
+        # 3. Ejecutar extracción según ruta
+        try:
+            if route == "direct_ai":
+                raw_extraction = await self._extract_direct_ai(
+                    content=content,
+                    prompt=prompt,
+                    model=model
+                )
+            else:
+                raw_extraction = await self._extract_ocr_text(
+                    prompt=prompt,
+                    model=model,
+                    ocr_content=content
+                )
+        except Exception as e:
+            logger.error(f"Error en extracción: {e}")
+            raw_extraction = {}
+        
+        # 4. Aplicar máscara y validaciones
+        extraction = self._apply_field_mask_dict(raw_extraction, allowed_fields)
+        extraction = self._validate_and_transform_dict(extraction, document_type)
+        
+        # 5. Crear resultado
+        result = DocumentExtraction(
+            source_document=document_name,
+            document_type=document_type,
+            extracted_fields=extraction,
+            extraction_metadata={
+                "route": route,
+                "model_used": model,
+                "guide_applied": True,
+                "allowed_fields": allowed_fields,
+                "timestamp": datetime.now().isoformat()
+            }
+        )
+        
+        # Guardar en cache
+        if use_cache:
+            self.extraction_cache[cache_key] = result
+        
+        return result
+    
+    async def _extract_direct_ai(
+        self, 
+        content: Union[bytes, Path],
+        prompt: str,
+        model: str
+    ) -> Dict[str, Any]:
+        """
+        Extracción usando visión directa con GPT-4V
+        """
+        from pathlib import Path
+        logger.info(f"Iniciando extracción Direct AI con modelo {model}")
+        
+        # Preparar imagen
+        if isinstance(content, Path):
+            with open(content, 'rb') as f:
+                image_bytes = f.read()
+        else:
+            image_bytes = content
+        
+        # Codificar en base64
+        import base64
+        image_b64 = base64.b64encode(image_bytes).decode('utf-8')
+        
+        try:
+            # Llamada a la API con visión
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/jpeg;base64,{image_b64}",
+                                    "detail": "high"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            
+            # Parsear respuesta
+            content = response.choices[0].message.content or "{}"
+            result = json.loads(content)
+            logger.info(f"Direct AI extracción exitosa")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error en Direct AI: {e}")
+            return {}
+    
+    async def _extract_ocr_text(
+        self, 
+        prompt: str,
+        model: str,
+        ocr_content: Optional[Dict] = None
+    ) -> Dict[str, Any]:
+        """
+        Extracción usando OCR + texto con IA
+        """
+        logger.info(f"Iniciando extracción OCR + texto con modelo {model}")
+        
+        try:
+            # Llamada a la API
+            response = await self.client.chat.completions.create(
+                model=model,
+                messages=[
+                    {"role": "user", "content": prompt}
+                ],
+                temperature=0.1,
+                max_tokens=2000
+            )
+            
+            # Parsear respuesta
+            content = response.choices[0].message.content or "{}"
+            result = json.loads(content)
+            logger.info(f"OCR + texto extracción exitosa")
+            return result
+            
+        except Exception as e:
+            logger.error(f"Error en OCR + texto: {e}")
+            return {}
+    
+    def _apply_field_mask_dict(
+        self, 
+        extraction: Dict[str, Any],
+        allowed_fields: List[str]
+    ) -> Dict[str, Any]:
+        """
+        Aplica máscara de seguridad a un diccionario
+        """
+        masked = {}
+        
+        for field in self.config.REQUIRED_FIELDS:
+            if field in allowed_fields:
+                masked[field] = extraction.get(field, None)
+            else:
+                masked[field] = None
+                if field in extraction and extraction[field] is not None:
+                    logger.warning(f"Campo '{field}' bloqueado (no permitido)")
+        
+        return masked
+    
+    def _validate_and_transform_dict(
+        self,
+        extraction: Dict[str, Any],
+        document_type: str
+    ) -> Dict[str, Any]:
+        """
+        Aplica validaciones y transformaciones a un diccionario
+        """
+        validated = extraction.copy()
+        
+        for field, value in extraction.items():
+            if value is None:
+                continue
+            
+            rules = self.validation_rules.get(field, {})
+            
+            # Aplicar transformaciones
+            if 'transform' in rules and callable(rules['transform']):
+                try:
+                    validated[field] = rules['transform'](value)
+                except Exception as e:
+                    logger.error(f"Error transformando {field}: {e}")
+            
+            # Validar formato de fecha
+            if rules.get('type') == 'date' and value:
+                validated[field] = self._normalize_date(value)
+            
+            # Validar tipo numérico
+            if rules.get('type') == 'float' and value:
+                try:
+                    validated[field] = float(str(value).replace(',', '').replace('$', ''))
+                except:
+                    logger.error(f"No se pudo convertir {field} a float: {value}")
+        
+        return validated
+    
+    def _normalize_date(self, date_str: str) -> Optional[str]:
+        """
+        Normaliza fechas al formato DD/MM/YYYY
+        """
+        if not date_str:
+            return None
+        
+        # Mapeo de meses abreviados
+        month_map = {
+            'ENE': '01', 'FEB': '02', 'MAR': '03', 'ABR': '04',
+            'MAY': '05', 'JUN': '06', 'JUL': '07', 'AGO': '08',
+            'SEP': '09', 'OCT': '10', 'NOV': '11', 'DIC': '12'
+        }
+        
+        # Reemplazar meses abreviados
+        for abbr, num in month_map.items():
+            date_str = date_str.replace(abbr, num)
+        
+        # Intentar diferentes formatos
+        import re
+        
+        # Formato YYYY-MM-DD
+        if match := re.match(r'(\d{4})-(\d{2})-(\d{2})', date_str):
+            return f"{match.group(3)}/{match.group(2)}/{match.group(1)}"
+        
+        # Formato DD/MM/YYYY
+        if match := re.match(r'(\d{1,2})/(\d{1,2})/(\d{4})', date_str):
+            return f"{match.group(1).zfill(2)}/{match.group(2).zfill(2)}/{match.group(3)}"
+        
+        return date_str
+    
+    def _create_null_extraction(self, document_name: str, document_type: str) -> DocumentExtraction:
+        """
+        Crea una extracción con todos los campos en null
+        """
+        null_fields = {field: None for field in self.config.REQUIRED_FIELDS}
+        
+        return DocumentExtraction(
+            source_document=document_name,
+            document_type=document_type,
+            extracted_fields=null_fields,
+            extraction_metadata={
+                "route": "null",
+                "guide_applied": True,
+                "reason": "document_type_not_recognized",
+                "timestamp": datetime.now().isoformat()
+            }
+        )

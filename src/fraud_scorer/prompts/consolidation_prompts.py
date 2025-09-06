@@ -2,13 +2,14 @@
 
 """
 Constructor de prompts para consolidación con IA
+Sistema v2.0 con awareness del modo guiado y restricciones documento-campo
 """
 import json
 from typing import Dict, Any, List, Optional
 
 class ConsolidationPromptBuilder:
     """
-    Construye prompts para consolidación inteligente
+    Construye prompts para consolidación inteligente con awareness del sistema guiado
     """
     
     def build_conflict_resolution_prompt(
@@ -17,10 +18,11 @@ class ConsolidationPromptBuilder:
         options: List[Dict[str, Any]],
         field_rules: List[str],
         golden_examples: List[Dict],
-        context: str
+        context: str,
+        guided_mode: bool = True  # Nueva bandera para modo guiado
     ) -> str:
         """
-        Construye prompt para resolver conflictos
+        Construye prompt para resolver conflictos con awareness del modo guiado
         """
         # Formatear opciones
         options_text = self._format_options(options)
@@ -31,8 +33,19 @@ class ConsolidationPromptBuilder:
         # Formatear ejemplos
         examples_text = self._format_examples(golden_examples)
         
+        # Añadir restricciones si está en modo guiado
+        guided_notice = ""
+        if guided_mode:
+            guided_notice = """
+**⚠️ MODO GUIADO ACTIVADO:**
+- Solo se consolidan valores extraídos de documentos autorizados para cada campo
+- Los valores han sido pre-validados según reglas de negocio
+- La prioridad de documentos ya ha sido aplicada en la extracción
+"""
+        
         prompt = f"""
 Necesito resolver un conflicto para el campo '{field_name}' en un siniestro de seguros.
+{guided_notice}
 
 **CONTEXTO DEL CASO:**
 {context}
@@ -67,13 +80,25 @@ Proporciona tu decisión con el valor seleccionado y una explicación clara.
     def build_validation_prompt(
         self,
         consolidated_fields: Dict[str, Any],
-        original_extractions: List[Dict]
+        original_extractions: List[Dict],
+        guided_mode: bool = True  # Nueva bandera para modo guiado
     ) -> str:
         """
-        Construye prompt para validación final
+        Construye prompt para validación final con awareness del modo guiado
         """
+        guided_info = ""
+        if guided_mode:
+            guided_info = """
+**🛡️ VALIDACIÓN EN MODO GUIADO:**
+Este modo garantiza que:
+- Todos los valores provienen de documentos autorizados
+- Se aplicaron máscaras de seguridad para prevenir alucinaciones
+- Los campos siguen las reglas de negocio y validaciones específicas
+"""
+        
         prompt = f"""
 Valida los siguientes datos consolidados de un siniestro de seguros:
+{guided_info}
 
 **DATOS CONSOLIDADOS:**
 {json.dumps(consolidated_fields, ensure_ascii=False, indent=2)}
