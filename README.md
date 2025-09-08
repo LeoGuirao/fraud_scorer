@@ -145,6 +145,11 @@ fraud_scorer/
 - `gpt-4o-mini`: Más rápido y económico  
 - `gpt-3.5-turbo`: Legacy (no recomendado)  
 
+### Clasificación con visión (opcional)
+- Pipeline (`run_report.py`) puede usar visión para PDF/imagenes si `CLASSIFICATION_ENGINE.use_vision=true` en `src/fraud_scorer/settings.py`.
+- Requisitos: instalar `PyMuPDF` (`pip install pymupdf`).  
+- Consideraciones: mayor costo/latencia (se envían imágenes al LLM). Para mantener costos bajos, déjalo desactivado.
+
 ### Tipos de Documentos
 - Pólizas, facturas, denuncias, cartas porte, GPS, peritajes, IDs  
 

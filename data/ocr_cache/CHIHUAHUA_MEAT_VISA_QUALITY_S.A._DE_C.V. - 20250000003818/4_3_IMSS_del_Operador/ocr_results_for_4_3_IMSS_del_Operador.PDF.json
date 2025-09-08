@@ -1,0 +1,225 @@
+{
+  "text": "gob.mx\nINSTITUTO MEXICANO DEL SEGURO SOCIAL\nConstancia de presentación de movimientos afiliatorios IMSS DESDE SU EMPRESA\nEn términos del Artículo 6 del Reglamento de la Ley del Seguro Social en Materia de Afiliación, Clasificación de Empresas, Recaudación y Fiscalización, el Instituto Mexicano del Seguro Social extiende la presente Constancia de presentación de movimientos afiliatorios del Patrón o Sujeto Obligado con Nombre o Razón Social CHIHUAHUA MEAT VISA QUALITY SA DE CV con Registro Patronal A8069083104.\nNúmero de folio:\n75275953100243903\nNúmero de lote:\n407886696\nRFC del patrón:\nCMV0408038P9\nRegistro Patronal:\nA8069083104\nInformación General\nRazón Social:\nCHIHUAHUA MEAT VISA QUALITY SA DE CV\nFecha y hora de recepción del lote: 2025-05-12 10:17\nSerial del certificado:\n00000100000210907402\n85ab6efd4558bc1fb23add2e86317964ab3d34b0\nHuella Digital\nMovimientos recibidos por el IMSS\nBajas\nModif.\nReing.\n0\nTotal\n1\n1\n2\nOperados\nBajas\nModif.\nReing.\nTotal\n1\n1\n0\n2\nBajas Modif. 0\n0\nRechazados\nReing.\n0\nTotal 0\nTipo\n2\n7 33998335591\nNSS\n03149499042\nRelación de movimientos operados\nNombre Asegurado\nGURROLA ROCHA FRANCISCO JAVIER\nSALINAS GIL GILBERTO ANTONIO\nSal. Base\nExt.\nUMF Tipo\n$\n0.00\n0\n000\n0\n$\n0\n000\n0\nFec-Mov\n06/05/2025 0\n03/05/2025 0\nTipo\nC. Baja\n7\n0\nSello Digital:\n23CDAA493E299A3451087AB0369B2A39D1E04E7D9C0DF840C9F2ADBF4FED951F7AF09D8D0A3C20F73F8801EF6688EAD80D3673B14A4A5 2A92C3ADA68EB665B1A | 1246630139\nMÉXICO\nPRESIDENCIA DE LA REPÚBLICA\nUNIDOS ME\nCOFEMER de Mejora Regniatoria\nIMSS\nContacto: Reforma 476, Col. Juárez C.P. 06600, Del. Cuauhtémoc Ciudad de México Tel. 01 800 6232323\nPágina 1 de 2",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 5,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Número de folio:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "75275953100243903",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Número de lote:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "407886696",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "RFC del patrón:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "CMV0408038P9",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Registro Patronal:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "A8069083104",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Número de folio:",
+          "75275953100243903"
+        ],
+        [
+          "Número de lote:",
+          "407886696"
+        ],
+        [
+          "RFC del patrón:",
+          "CMV0408038P9"
+        ],
+        [
+          "Registro Patronal:",
+          "A8069083104"
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "row_count": 3,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "Operados",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Bajas",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Modif.",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Reing.",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "Total",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "1",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "1",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "0",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "2",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Operados",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Bajas",
+          "Modif.",
+          "Reing.",
+          "Total"
+        ],
+        [
+          "1",
+          "1",
+          "0",
+          "2"
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "razón_social": "CHIHUAHUA MEAT VISA QUALITY SA DE CV",
+    "con_registro_patronal": "A8069083104.",
+    "número_de_folio": "75275953100243903",
+    "número_de_lote": "407886696",
+    "rfc_del_patrón": "CMV0408038P9",
+    "registro_patronal": "A8069083104",
+    "fecha_y_hora_de_recepción_del_lote": "2025-05-12 10:17",
+    "serial_del_certificado": "00000100000210907402",
+    "bajas": "1",
+    "modif.\nreing.\ntotal": "0 1 2",
+    "bajas\nnss": "1 33998335591",
+    "sello_digital": "23CDAA493E299A3451087AB0369B2A39D1E04E7D9C0DF840C9F2ADBF4FED951F7AF09D8D0A3C20F73F8801EF6688EAD80D3673B14A4A5 2A92C3ADA68EB665B1A 1246630139",
+    "contacto": "Reforma 476, Col. Juárez C.P. 06600, Del. Cuauhtémoc Ciudad de México",
+    "tel.": "01 800 6232323"
+  },
+  "metadata": {
+    "file_name": "4 3 IMSS del Operador.PDF",
+    "file_size": 455493,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

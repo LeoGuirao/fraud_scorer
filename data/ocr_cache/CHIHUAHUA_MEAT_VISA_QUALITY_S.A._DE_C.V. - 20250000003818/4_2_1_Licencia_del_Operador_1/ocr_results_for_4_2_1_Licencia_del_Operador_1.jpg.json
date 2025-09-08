@@ -1,0 +1,34 @@
+{
+  "text": "NISSAN\nESTADOS UNIDOS MEXICANOS\nCHIHUAHUA GOBIERNO DEL ESTADO Juntos Si podemos\nLICENCIA PARA CONDUCIR DRIVER'S LICENSE\nBSP\nSECRETARÍA DE SEGURIDAD PÚBLICA DEL ESTADO\nCHOFER PARTICULAR ESTADO DE CHIHUAHUA\nCHIHUAHUA Gilberto A Salas h.\nGILBERTO ANTONIO SALINAS GIL CURP\nSAGG840505HCHLLL04 FECHA DE NACIMIENTO/ DOB 05/05/1984 FECHA DE EMISIÓN/ ISSUED 13/05/2025 FECHA DE EXPIRACIÓN/ EXPIRES ON 13/05/2028 IDENTIFICACION DE CONDUCTOR/ ID 10000112336 CONDUCTOR DESDE/ DRIVER SINCE 14/08/2023\nCHIHUAHUA\nRFC SAGG840505KN7 NACIONALIDAD MEXICANA\n1188141",
+  "tables": [],
+  "key_value_pairs": {
+    "curp": "SAGG840505HCHLLL04",
+    "fecha_de_nacimiento/_dob": "05/05/1984",
+    "fecha_de_emisión/_issued": "13/05/2025",
+    "fecha_de_expiración/_expires_on": "13/05/2028",
+    "identificacion_de_conductor/_id": "10000112336",
+    "conductor_desde/_driver_since": "14/08/2023",
+    "rfc": "SAGG840505KN7",
+    "nacionalidad": "MEXICANA"
+  },
+  "metadata": {
+    "file_name": "4 2 1 Licencia del Operador 1.jpg",
+    "file_size": 144068,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.7,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

@@ -1,0 +1,501 @@
+{
+  "case_id": "CASE-2025-0026",
+  "processing_date": "2025-09-07T23:48:50.580042",
+  "documents_processed": 19,
+  "policy_type": null,
+  "extraction_results": [
+    {
+      "source_document": "1 1 Carta Reclamacion HDI.pdf",
+      "document_type": "carta_de_reclamacion_formal_a_la_aseguradora",
+      "extracted_fields": {
+        "numero_siniestro": null,
+        "nombre_asegurado": null,
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": null,
+        "monto_reclamacion": 394526.03,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": null,
+        "fecha_reclamacion": null,
+        "lugar_hechos": null,
+        "ajuste": null,
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "monto_reclamacion"
+        ],
+        "timestamp": "2025-09-07T23:45:13.289837"
+      }
+    },
+    {
+      "source_document": "Informe Preliminar.pdf",
+      "document_type": "informe_preliminar_del_ajustador",
+      "extracted_fields": {
+        "numero_siniestro": "20250000003818",
+        "nombre_asegurado": "Chihuahua Meat Visa Quality S.A. de C.V.",
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": "Producto Cárnico",
+        "monto_reclamacion": null,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": "09/05/2025",
+        "fecha_reclamacion": "10/05/2025",
+        "lugar_hechos": "En trayecto a su destino",
+        "ajuste": "SINIESCA",
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "nombre_asegurado",
+          "bien_reclamado",
+          "fecha_ocurrencia",
+          "fecha_reclamacion",
+          "lugar_hechos",
+          "ajuste"
+        ],
+        "timestamp": "2025-09-07T23:45:27.987369"
+      }
+    },
+    {
+      "source_document": "Informe Final.pdf",
+      "document_type": "informe_final_del_ajustador",
+      "extracted_fields": {
+        "numero_siniestro": "20250000003818",
+        "nombre_asegurado": "Chihuahua Meat Visa Quality S.A. de C.V.",
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": "Producto Cárnico",
+        "monto_reclamacion": null,
+        "tipo_siniestro": "Robo Total / Parcial",
+        "fecha_ocurrencia": "06/05/2025",
+        "fecha_reclamacion": "10/05/2025",
+        "lugar_hechos": "Autopista México - Puebla 419, Cuarta Secc, 74169 Santa Ana Xalmimilulco, Pue.",
+        "ajuste": "SINIESCA",
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "nombre_asegurado",
+          "bien_reclamado",
+          "fecha_ocurrencia",
+          "fecha_reclamacion",
+          "lugar_hechos",
+          "tipo_siniestro",
+          "ajuste",
+          "conclusiones"
+        ],
+        "timestamp": "2025-09-07T23:45:53.668345"
+      }
+    },
+    {
+      "source_document": "7 1 Narracion de Hechos.pdf",
+      "document_type": "carpeta_de_investigacion",
+      "extracted_fields": {
+        "numero_siniestro": null,
+        "nombre_asegurado": null,
+        "numero_poliza": null,
+        "vigencia_inicio": null,
+        "vigencia_fin": null,
+        "domicilio_poliza": null,
+        "bien_reclamado": null,
+        "monto_reclamacion": null,
+        "tipo_siniestro": "Robo Total / Parcial",
+        "fecha_ocurrencia": "09/05/2025",
+        "fecha_reclamacion": null,
+        "lugar_hechos": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+        "ajuste": null,
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_siniestro",
+          "tipo_siniestro",
+          "fecha_ocurrencia",
+          "lugar_hechos"
+        ],
+        "timestamp": "2025-09-07T23:46:08.946225"
+      }
+    },
+    {
+      "source_document": "POLIZA.pdf",
+      "document_type": "poliza_de_la_aseguradora",
+      "extracted_fields": {
+        "numero_siniestro": null,
+        "nombre_asegurado": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
+        "numero_poliza": "14 - 35495",
+        "vigencia_inicio": "01/09/2024",
+        "vigencia_fin": "01/09/2025",
+        "domicilio_poliza": "OCTAVIO PAZ No. Ext. 119, COMPLEJO INDUSTRIAL CHIHUAHUA, C.P.31136, CHIHUAHUA CHIHUAHUA",
+        "bien_reclamado": null,
+        "monto_reclamacion": null,
+        "tipo_siniestro": null,
+        "fecha_ocurrencia": null,
+        "fecha_reclamacion": null,
+        "lugar_hechos": null,
+        "ajuste": null,
+        "conclusiones": null
+      },
+      "extraction_metadata": {
+        "route": "ocr_text",
+        "model_used": "gpt-5-mini",
+        "guide_applied": true,
+        "allowed_fields": [
+          "numero_poliza",
+          "nombre_asegurado",
+          "vigencia_inicio",
+          "vigencia_fin",
+          "domicilio_poliza"
+        ],
+        "timestamp": "2025-09-07T23:46:29.617186"
+      }
+    }
+  ],
+  "consolidated_data": {
+    "case_id": "CASE-2025-0026",
+    "consolidated_fields": {
+      "numero_siniestro": "20250000003818",
+      "nombre_asegurado": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
+      "monto_reclamacion": 394526.03,
+      "numero_poliza": "14 - 35495",
+      "vigencia_inicio": "01/09/2024",
+      "vigencia_fin": "01/09/2025",
+      "vigencia": null,
+      "domicilio_poliza": "OCTAVIO PAZ No. Ext. 119, COMPLEJO INDUSTRIAL CHIHUAHUA, C.P.31136, CHIHUAHUA CHIHUAHUA",
+      "tipo_siniestro": "Robo Total / Parcial",
+      "fecha_ocurrencia": "09/05/2025",
+      "fecha_reclamacion": "10/05/2025",
+      "lugar_hechos": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+      "bien_reclamado": "Producto Cárnico",
+      "ajuste": "SINIESCA",
+      "conclusiones": null
+    },
+    "consolidation_sources": {
+      "numero_siniestro": "Seleccionado de Informe Preliminar.pdf (informe_preliminar_del_ajustador) por mayor prioridad",
+      "nombre_asegurado": "Según las reglas de negocio, la póliza tiene máxima prioridad. El nombre en la póliza coincide con los informes (diferencia solo de mayúsculas), por lo que es consistente y aparece de forma reiterada. Se conserva el formato tal cual figura en la póliza.",
+      "monto_reclamacion": "Único valor de 1 1 Carta Reclamacion HDI.pdf",
+      "numero_poliza": "Único valor de POLIZA.pdf",
+      "vigencia_inicio": "Único valor de POLIZA.pdf",
+      "vigencia_fin": "Único valor de POLIZA.pdf",
+      "domicilio_poliza": "Único valor de POLIZA.pdf",
+      "tipo_siniestro": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad",
+      "fecha_ocurrencia": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad",
+      "fecha_reclamacion": "Ambas fuentes (informe preliminar y final del ajustador) coinciden en la misma fecha. No existe una fuente de mayor prioridad (denuncia) disponible. Entre las dos, el informe final es más autoritativo que el preliminar. El formato dd/mm/aaaa es consistente con el estándar del caso y no hay indicios de inconsistencia con otros campos. Por frecuencia (2 coincidencias) y jerarquía (final > preliminar), se selecciona la fecha del informe final.",
+      "lugar_hechos": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad",
+      "bien_reclamado": "Ambas opciones coinciden en el valor. No hay documentos de mayor prioridad según reglas (denuncia/factura). Entre las fuentes disponibles, el informe final del ajustador es más definitivo y confiable que el preliminar, y la frecuencia refuerza la consistencia. Por ello se consolida desde el informe final con alta confianza.",
+      "ajuste": "El valor aparece en ambos documentos de peritaje (preliminar y final). Dado que el tipo con mayor autoridad dentro del peritaje es el informe final del ajustador, se prioriza esa fuente. Además, la frecuencia (coincidencia en dos documentos) refuerza la consistencia y no hay conflicto con otros campos."
+    },
+    "conflicts_resolved": [
+      {
+        "field": "numero_siniestro",
+        "options": [
+          {
+            "value": "20250000003818",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "20250000003818",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "20250000003818",
+        "reasoning": "Seleccionado de Informe Preliminar.pdf (informe_preliminar_del_ajustador) por mayor prioridad"
+      },
+      {
+        "field": "nombre_asegurado",
+        "options": [
+          {
+            "value": "Chihuahua Meat Visa Quality S.A. de C.V.",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "Chihuahua Meat Visa Quality S.A. de C.V.",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          },
+          {
+            "value": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
+            "source": "POLIZA.pdf",
+            "document_type": "poliza_de_la_aseguradora",
+            "priority": 4
+          }
+        ],
+        "selected": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
+        "reasoning": "Según las reglas de negocio, la póliza tiene máxima prioridad. El nombre en la póliza coincide con los informes (diferencia solo de mayúsculas), por lo que es consistente y aparece de forma reiterada. Se conserva el formato tal cual figura en la póliza."
+      },
+      {
+        "field": "tipo_siniestro",
+        "options": [
+          {
+            "value": "Robo Total / Parcial",
+            "source": "7 1 Narracion de Hechos.pdf",
+            "document_type": "carpeta_de_investigacion",
+            "priority": 1
+          },
+          {
+            "value": "Robo Total / Parcial",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "Robo Total / Parcial",
+        "reasoning": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad"
+      },
+      {
+        "field": "fecha_ocurrencia",
+        "options": [
+          {
+            "value": "09/05/2025",
+            "source": "7 1 Narracion de Hechos.pdf",
+            "document_type": "carpeta_de_investigacion",
+            "priority": 1
+          },
+          {
+            "value": "09/05/2025",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "06/05/2025",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "09/05/2025",
+        "reasoning": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad"
+      },
+      {
+        "field": "fecha_reclamacion",
+        "options": [
+          {
+            "value": "10/05/2025",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "10/05/2025",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "10/05/2025",
+        "reasoning": "Ambas fuentes (informe preliminar y final del ajustador) coinciden en la misma fecha. No existe una fuente de mayor prioridad (denuncia) disponible. Entre las dos, el informe final es más autoritativo que el preliminar. El formato dd/mm/aaaa es consistente con el estándar del caso y no hay indicios de inconsistencia con otros campos. Por frecuencia (2 coincidencias) y jerarquía (final > preliminar), se selecciona la fecha del informe final."
+      },
+      {
+        "field": "lugar_hechos",
+        "options": [
+          {
+            "value": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+            "source": "7 1 Narracion de Hechos.pdf",
+            "document_type": "carpeta_de_investigacion",
+            "priority": 1
+          },
+          {
+            "value": "En trayecto a su destino",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "Autopista México - Puebla 419, Cuarta Secc, 74169 Santa Ana Xalmimilulco, Pue.",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+        "reasoning": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad"
+      },
+      {
+        "field": "bien_reclamado",
+        "options": [
+          {
+            "value": "Producto Cárnico",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "Producto Cárnico",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "Producto Cárnico",
+        "reasoning": "Ambas opciones coinciden en el valor. No hay documentos de mayor prioridad según reglas (denuncia/factura). Entre las fuentes disponibles, el informe final del ajustador es más definitivo y confiable que el preliminar, y la frecuencia refuerza la consistencia. Por ello se consolida desde el informe final con alta confianza."
+      },
+      {
+        "field": "ajuste",
+        "options": [
+          {
+            "value": "SINIESCA",
+            "source": "Informe Preliminar.pdf",
+            "document_type": "informe_preliminar_del_ajustador",
+            "priority": 2
+          },
+          {
+            "value": "SINIESCA",
+            "source": "Informe Final.pdf",
+            "document_type": "informe_final_del_ajustador",
+            "priority": 3
+          }
+        ],
+        "selected": "SINIESCA",
+        "reasoning": "El valor aparece en ambos documentos de peritaje (preliminar y final). Dado que el tipo con mayor autoridad dentro del peritaje es el informe final del ajustador, se prioriza esa fuente. Además, la frecuencia (coincidencia en dos documentos) refuerza la consistencia y no hay conflicto con otros campos."
+      }
+    ],
+    "confidence_scores": {
+      "numero_siniestro": 0.9,
+      "nombre_asegurado": 0.98,
+      "monto_reclamacion": 1.0,
+      "numero_poliza": 1.0,
+      "vigencia_inicio": 1.0,
+      "vigencia_fin": 1.0,
+      "vigencia": 0.0,
+      "domicilio_poliza": 1.0,
+      "tipo_siniestro": 0.9,
+      "fecha_ocurrencia": 0.9,
+      "fecha_reclamacion": 0.97,
+      "lugar_hechos": 0.9,
+      "bien_reclamado": 0.95,
+      "ajuste": 0.96,
+      "conclusiones": 0.0
+    }
+  },
+  "fraud_analysis": {
+    "fraud_score": 0.7,
+    "fraud_indicators": [
+      {
+        "description": "Inconsistencia en las fechas de ocurrencia del siniestro",
+        "weight": 0.8,
+        "doc_refs": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "description": "Monto de reclamación elevado sin justificación clara",
+        "weight": 0.6,
+        "doc_refs": [
+          0
+        ]
+      },
+      {
+        "description": "Diferencias en el lugar de los hechos",
+        "weight": 0.7,
+        "doc_refs": [
+          2,
+          3
+        ]
+      }
+    ],
+    "inconsistencies": [
+      {
+        "field": "fecha_ocurrencia",
+        "value_a": "09/05/2025",
+        "value_b": "06/05/2025",
+        "severity": "alta",
+        "affected_docs": [
+          1,
+          2,
+          3
+        ]
+      },
+      {
+        "field": "nombre_asegurado",
+        "value_a": "Chihuahua Meat Visa Quality S.A. de C.V.",
+        "value_b": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
+        "severity": "media",
+        "affected_docs": [
+          1,
+          4
+        ]
+      },
+      {
+        "field": "tipo_siniestro",
+        "value_a": "Robo Total / Parcial",
+        "value_b": null,
+        "severity": "baja",
+        "affected_docs": [
+          2,
+          3
+        ]
+      }
+    ],
+    "external_validations": [
+      {
+        "type": "verificación de póliza",
+        "description": "La póliza está vigente y corresponde al asegurado",
+        "result": "válido",
+        "is_critical": false
+      },
+      {
+        "type": "verificación de antecedentes",
+        "description": "No se encontraron antecedentes de reclamaciones previas",
+        "result": "válido",
+        "is_critical": false
+      }
+    ],
+    "route_analysis": {
+      "declared_origin": "Chihuahua",
+      "gps_origin_verification": "válido",
+      "declared_incident_location": "Autopista México - Puebla",
+      "gps_incident_verification": "no válido",
+      "event_analysis": "Inconsistencias en la ubicación del incidente",
+      "declared_destination": "Puebla",
+      "trajectory_verification": "no válido",
+      "route_inconsistencies": [
+        {
+          "description": "Desviación significativa de la ruta declarada",
+          "severity": "alta"
+        }
+      ]
+    }
+  },
+  "processing_metrics": {
+    "ocr_success_rate": "100.0%",
+    "extraction_success_rate": "26.3%",
+    "fields_completion_rate": "86.7%",
+    "conflicts_resolved": 8,
+    "average_confidence": 0.8306666666666668
+  },
+  "report_path": "data/reports/CHIHUAHUA_MEAT_VISA_QUALITY_S.A._DE_C.V._20250000003818_INFORME.html",
+  "pdf_path": "data/reports/CHIHUAHUA_MEAT_VISA_QUALITY_S.A._DE_C.V._20250000003818_INFORME.pdf",
+  "fraud_score": 0.7,
+  "risk_level": "ALTO"
+}

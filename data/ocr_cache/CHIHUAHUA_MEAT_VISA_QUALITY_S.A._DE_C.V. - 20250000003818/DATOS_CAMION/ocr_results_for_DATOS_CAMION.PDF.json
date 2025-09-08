@@ -1,0 +1,131 @@
+{
+  "text": "ERN\nCONQUER C DRÍGU NOTARIO PÚBLICA UNIDOS\n-\nCEA NOTURNO PORUGO\nVEZ GARCÍA\nNO. 2\nCamiones\nDych\nwww.camionesdyck.com\nXICO\n00.00\nMarca Freightliner\nStock B9529\nModelo M2 106\nSerie 1FVACXDT4DDFB9529\nAño 2013\nMotor Cummins\nAaron Dyck / Cel. 625-122-9022 Francisco Dyck / Cel. 625-121-9587\nOFICINA: (625)578-6369 :selected: camionesdyck@gmail.com\nwww.camionesdyck.com\nKm. 29 #2915, Carr. a Alvaro Obregón, Cd. Cuauhtémoc, Chih. :unselected:",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 5,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Stock",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "B9529",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Modelo",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "M2 106",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Serie",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "1FVACXDT4DDFB9529",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Año",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "2013",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Motor",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "Cummins",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Stock",
+        "B9529"
+      ],
+      "data_rows": [
+        [
+          "Modelo",
+          "M2 106"
+        ],
+        [
+          "Serie",
+          "1FVACXDT4DDFB9529"
+        ],
+        [
+          "Año",
+          "2013"
+        ],
+        [
+          "Motor",
+          "Cummins"
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "aaron\n/_cel.": "625-122-9022",
+    "cel.": "625-121-9587",
+    "oficina": "(625)578-6369",
+    "www.camionesdyck.com": ":selected:"
+  },
+  "metadata": {
+    "file_name": "DATOS CAMION.PDF",
+    "file_size": 744860,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.5,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

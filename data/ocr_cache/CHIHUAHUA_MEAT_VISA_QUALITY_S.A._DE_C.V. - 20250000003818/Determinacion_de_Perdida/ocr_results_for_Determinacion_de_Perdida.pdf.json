@@ -1,0 +1,1000 @@
+{
+  "text": "DETERMINACIÓN DE PÉRDIDA\nAsegurado: Chihuahua Meat Visa Quality S.A. de C.V.\nBeneficiario: Chihuahua Meat Visa Quality S.A. de C.V.\nPóliza: 14 - 35495\nRamo: Transportes\nCobertura:\nRobo de Bulto Por Entero\nT.C. Dolar 20.5125 a) Para los embarques de compras efectuadas por el asegurado, el valor para seguro será el valor factura de compra de los bienes más gastos, tales como fletes, impuestos de importación o exportación, gastos aduanales, acarreos y demás gastos inherentes al transporte de los bienes, si los hubiere.\nTipo de Embarque Venta y Compra\nValor Para Seguro: b) Para embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos de exportación y demás gastos inherentes al transporte de los bienes, si los hubiere.\nSINIESCA\nProfessional\nInsurance Adjusters\nSiniestro: 20250000003818\nReporte: 4735501\nRef. Ajustador:\nSCA-0347-25\nDeterminacion de Perdida\nCosto de Producción\nFactura\nDescripción\nCantidad\nValor Unitario\nImporte Total\nCosto Unitario\nImporte Total\nCVUF368109\nARRACH P ASAR NATURAL\n116.24\n$205.00\n$23,829.20\n$200.69\n$ 23,328.21\nCVUF368109\nCHAMORRO VISA\n386.16\n$48.00\n$18,535.68\n$46.19\n$ 17,836.73\nCVUF368109\nCHAMORRO CON PIEL KG\n139.2\n$48.00\n$6,681.60\n$46.12\n$ 6,419.90\nCVUF368109\nTRIPAS RES SWIFT\n326.4\n$48.00\n$15,667.20\n$38.20\n$ 12,468.48\nCVUF368109\nBEFF SCALDED TRIPE SWIFT (MENUDO RES)\n80.01\n$85.00\n$6,800.85\n$62.93\n$ 5,035.03\nCVUF368109\nCARNE P/PASTOR 1KG MAS\n42.56\n$85.00\n$3,617.60\n$81.54\n$ 3,470.34\nCVUF368109\nRIB EYE ENG NACIONAL\n547.70\n$265.00\n$145,140.50\n$254.90\n$ 139,608.73\nCVUF368109\nCOSTILLA ENG. (CHUCK SHORT RIB)\n153.94\n$170.00\n$26,169.80\n$160.66\n$ 24,732.00\nCVUF368109\nMOLLEJA DE RES\n1096.836\n$100.00\n$109,683.60\n$94.62\n$ 103,782.62\nValor Total Venta MXN\n$356,126.03\nTota MXN\n$ 336,682.04\nDeterminacion de Perdida\nFactura\nDescripción\nCantidad\nValor Unitario\nImporte Total\n400003046\nMEDALLLON DE ATUN 200G PREMIUM CAMANCHA\n50\n$172.00\n$8,600.00\n400003046\nPorcion de salmón 200 g Reserva Especial Camancha\n100\n$298.00\n$29,800.00\nValor Total compra MXN\n$38,400.00\nResumen de Perdida MXN\nSuma Asegurada MXN\n$1,300,000.00\nImporte Reclamado\n$ 394,526.03\nMonto Ajustado\n$ 375,082.04\n(-) Deducible 25% SVTE\n$ 93,770.51\nTotal a Indemnizar\n$ 281,311.53\n(Doscientos ochenta y un mil trescientos once 53/100 MXN)\nPRIMER SINIESTRO 25% SOBRE EL VALOR TOTAL DEL EMBARQUE",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 3,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Siniestro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "20250000003818",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Reporte:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "4735501",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Ref. Ajustador:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "SCA-0347-25",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Siniestro:",
+        "20250000003818"
+      ],
+      "data_rows": [
+        [
+          "Reporte:",
+          "4735501"
+        ],
+        [
+          "Ref. Ajustador:",
+          "SCA-0347-25"
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "row_count": 11,
+      "column_count": 7,
+      "cells": [
+        {
+          "text": "Determinacion de Perdida",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 3
+        },
+        {
+          "text": "Costo de Producción",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 5
+        },
+        {
+          "text": "Factura",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Descripción",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Cantidad",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "Valor Unitario",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "Importe Total",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 4
+        },
+        {
+          "text": "Costo Unitario",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 5
+        },
+        {
+          "text": "Importe Total",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "ARRACH P ASAR NATURAL",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "116.24",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "$205.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "$23,829.20",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 4
+        },
+        {
+          "text": "$200.69",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 5
+        },
+        {
+          "text": "$ 23,328.21",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "CHAMORRO VISA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "386.16",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "$48.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 3
+        },
+        {
+          "text": "$18,535.68",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 4
+        },
+        {
+          "text": "$46.19",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 5
+        },
+        {
+          "text": "$ 17,836.73",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "CHAMORRO CON PIEL KG",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "139.2",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "$48.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 3
+        },
+        {
+          "text": "$6,681.60",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 4
+        },
+        {
+          "text": "$46.12",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 5
+        },
+        {
+          "text": "$ 6,419.90",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "TRIPAS RES SWIFT",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "326.4",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        },
+        {
+          "text": "$48.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 3
+        },
+        {
+          "text": "$15,667.20",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 4
+        },
+        {
+          "text": "$38.20",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 5
+        },
+        {
+          "text": "$ 12,468.48",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "BEFF SCALDED TRIPE SWIFT (MENUDO RES)",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "80.01",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 2
+        },
+        {
+          "text": "$85.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 3
+        },
+        {
+          "text": "$6,800.85",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 4
+        },
+        {
+          "text": "$62.93",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 5
+        },
+        {
+          "text": "$ 5,035.03",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 0
+        },
+        {
+          "text": "CARNE P/PASTOR 1KG MAS",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 1
+        },
+        {
+          "text": "42.56",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 2
+        },
+        {
+          "text": "$85.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 3
+        },
+        {
+          "text": "$3,617.60",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 4
+        },
+        {
+          "text": "$81.54",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 5
+        },
+        {
+          "text": "$ 3,470.34",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 0
+        },
+        {
+          "text": "RIB EYE ENG NACIONAL",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 1
+        },
+        {
+          "text": "547.70",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 2
+        },
+        {
+          "text": "$265.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 3
+        },
+        {
+          "text": "$145,140.50",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 4
+        },
+        {
+          "text": "$254.90",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 5
+        },
+        {
+          "text": "$ 139,608.73",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 0
+        },
+        {
+          "text": "COSTILLA ENG. (CHUCK SHORT RIB)",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 1
+        },
+        {
+          "text": "153.94",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 2
+        },
+        {
+          "text": "$170.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 3
+        },
+        {
+          "text": "$26,169.80",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 4
+        },
+        {
+          "text": "$160.66",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 5
+        },
+        {
+          "text": "$ 24,732.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 9,
+          "column": 6
+        },
+        {
+          "text": "CVUF368109",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 0
+        },
+        {
+          "text": "MOLLEJA DE RES",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 1
+        },
+        {
+          "text": "1096.836",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 2
+        },
+        {
+          "text": "$100.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 3
+        },
+        {
+          "text": "$109,683.60",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 4
+        },
+        {
+          "text": "$94.62",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 5
+        },
+        {
+          "text": "$ 103,782.62",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 10,
+          "column": 6
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Determinacion de Perdida",
+        "",
+        "",
+        "",
+        "",
+        "Costo de Producción",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Factura",
+          "Descripción",
+          "Cantidad",
+          "Valor Unitario",
+          "Importe Total",
+          "Costo Unitario",
+          "Importe Total"
+        ],
+        [
+          "CVUF368109",
+          "ARRACH P ASAR NATURAL",
+          "116.24",
+          "$205.00",
+          "$23,829.20",
+          "$200.69",
+          "$ 23,328.21"
+        ],
+        [
+          "CVUF368109",
+          "CHAMORRO VISA",
+          "386.16",
+          "$48.00",
+          "$18,535.68",
+          "$46.19",
+          "$ 17,836.73"
+        ],
+        [
+          "CVUF368109",
+          "CHAMORRO CON PIEL KG",
+          "139.2",
+          "$48.00",
+          "$6,681.60",
+          "$46.12",
+          "$ 6,419.90"
+        ],
+        [
+          "CVUF368109",
+          "TRIPAS RES SWIFT",
+          "326.4",
+          "$48.00",
+          "$15,667.20",
+          "$38.20",
+          "$ 12,468.48"
+        ],
+        [
+          "CVUF368109",
+          "BEFF SCALDED TRIPE SWIFT (MENUDO RES)",
+          "80.01",
+          "$85.00",
+          "$6,800.85",
+          "$62.93",
+          "$ 5,035.03"
+        ],
+        [
+          "CVUF368109",
+          "CARNE P/PASTOR 1KG MAS",
+          "42.56",
+          "$85.00",
+          "$3,617.60",
+          "$81.54",
+          "$ 3,470.34"
+        ],
+        [
+          "CVUF368109",
+          "RIB EYE ENG NACIONAL",
+          "547.70",
+          "$265.00",
+          "$145,140.50",
+          "$254.90",
+          "$ 139,608.73"
+        ],
+        [
+          "CVUF368109",
+          "COSTILLA ENG. (CHUCK SHORT RIB)",
+          "153.94",
+          "$170.00",
+          "$26,169.80",
+          "$160.66",
+          "$ 24,732.00"
+        ],
+        [
+          "CVUF368109",
+          "MOLLEJA DE RES",
+          "1096.836",
+          "$100.00",
+          "$109,683.60",
+          "$94.62",
+          "$ 103,782.62"
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "row_count": 4,
+      "column_count": 5,
+      "cells": [
+        {
+          "text": "Determinacion de Perdida",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Factura",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Descripción",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Cantidad",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "Valor Unitario",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "Importe Total",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 4
+        },
+        {
+          "text": "400003046",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "MEDALLLON DE ATUN 200G PREMIUM CAMANCHA",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "50",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "$172.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "$8,600.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 4
+        },
+        {
+          "text": "400003046",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Porcion de salmón 200 g Reserva Especial Camancha",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "100",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "$298.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 3
+        },
+        {
+          "text": "$29,800.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 4
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Determinacion de Perdida",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Factura",
+          "Descripción",
+          "Cantidad",
+          "Valor Unitario",
+          "Importe Total"
+        ],
+        [
+          "400003046",
+          "MEDALLLON DE ATUN 200G PREMIUM CAMANCHA",
+          "50",
+          "$172.00",
+          "$8,600.00"
+        ],
+        [
+          "400003046",
+          "Porcion de salmón 200 g Reserva Especial Camancha",
+          "100",
+          "$298.00",
+          "$29,800.00"
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "row_count": 7,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Resumen de Perdida MXN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Suma Asegurada MXN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "$1,300,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Importe Reclamado",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "$ 394,526.03",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Monto Ajustado",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "$ 375,082.04",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "(-) Deducible 25% SVTE",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "$ 93,770.51",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Total a Indemnizar",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "$ 281,311.53",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "(Doscientos ochenta y un mil trescientos once 53/100 MXN)",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Resumen de Perdida MXN",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Suma Asegurada MXN",
+          "$1,300,000.00"
+        ],
+        [
+          "Importe Reclamado",
+          "$ 394,526.03"
+        ],
+        [
+          "Monto Ajustado",
+          "$ 375,082.04"
+        ],
+        [
+          "(-) Deducible 25% SVTE",
+          "$ 93,770.51"
+        ],
+        [
+          "Total a Indemnizar",
+          "$ 281,311.53"
+        ],
+        [
+          "(Doscientos ochenta y un mil trescientos once 53/100 MXN)",
+          ""
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "asegurado": "Chihuahua Meat Visa Quality S.A. de C.V.",
+    "beneficiario": "Chihuahua Meat Visa Quality S.A. de C.V.",
+    "póliza": "14 - 35495",
+    "ramo": "Transportes",
+    "cobertura": "Robo de Bulto Por Entero 20.5125",
+    "siniestro": "20250000003818",
+    "reporte": "4735501",
+    "ref._ajustador": "SCA-0347-25",
+    "valor_total_venta_mxn": "$356,126.03",
+    "tota_mxn": "$ 336,682.04",
+    "valor_total_compra_mxn": "$38,400.00",
+    "suma_asegurada_mxn": "$1,300,000.00",
+    "importe_reclamado": "$ 394,526.03",
+    "monto_ajustado": "$ 375,082.04",
+    "(-)_deducible_25%_svte": "93,770.51",
+    "total_a_indemnizar": "281,311.53",
+    "(doscientos_ochenta_y_un_mil_trescientos": "53/100 MXN)"
+  },
+  "metadata": {
+    "file_name": "Determinacion de Perdida.pdf",
+    "file_size": 126913,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

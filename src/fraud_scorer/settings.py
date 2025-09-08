@@ -168,6 +168,16 @@ class ExtractionConfig:
         "notas_de_reparacion": [],
         "dictamen_tecnico": [],
         "comprobante_de_domicilio": [],
+        # Tipos adicionales solicitados (no aportan cabecera)
+        "cfdi_carta_porte": [],
+        "constancia_imss_del_operador": [],
+        "factura_comercial_cfdi": [],
+        "pedido_por_correo": [],
+        "reporte_de_costos_y_rendimientos": [],
+        "facturas_comerciales_internacionales": [],
+        "declaracion_universal_de_accidente": [],
+        "ficha_tecnica_de_vehiculo": [],
+        "determinacion_de_perdida": [],
     })
 
     # Tipos de documento en los que SÍ se debe ejecutar extracción de campos
@@ -348,6 +358,16 @@ class ExtractionConfig:
         "notas_de_reparacion": ExtractionRoute.OCR_TEXT,
         "dictamen_tecnico": ExtractionRoute.OCR_TEXT,
         "comprobante_de_domicilio": ExtractionRoute.OCR_TEXT,
+        # Nuevos tipos
+        "cfdi_carta_porte": ExtractionRoute.OCR_TEXT,
+        "constancia_imss_del_operador": ExtractionRoute.OCR_TEXT,
+        "factura_comercial_cfdi": ExtractionRoute.OCR_TEXT,
+        "pedido_por_correo": ExtractionRoute.OCR_TEXT,
+        "reporte_de_costos_y_rendimientos": ExtractionRoute.OCR_TEXT,
+        "facturas_comerciales_internacionales": ExtractionRoute.OCR_TEXT,
+        "declaracion_universal_de_accidente": ExtractionRoute.OCR_TEXT,
+        "ficha_tecnica_de_vehiculo": ExtractionRoute.OCR_TEXT,
+        "determinacion_de_perdida": ExtractionRoute.OCR_TEXT,
         
         # AI Directo
         "poliza_de_la_aseguradora": ExtractionRoute.DIRECT_AI,
@@ -434,7 +454,18 @@ class ExtractionConfig:
         "id_oficial": "identificacion_oficial",
         "nota_reparacion": "notas_de_reparacion",
         "dictamen_tecnico": "dictamen_tecnico",
-        "comp_dom": "comprobante_de_domicilio"
+        "comp_dom": "comprobante_de_domicilio",
+        # Nuevos tipos
+        "carta_porte": "cfdi_carta_porte",
+        "imss_operador": "constancia_imss_del_operador",
+        "factura_cfdi": "factura_comercial_cfdi",
+        "pedido_correo": "pedido_por_correo",
+        "costos_rendimientos": "reporte_de_costos_y_rendimientos",
+        "facturas_intl": "facturas_comerciales_internacionales",
+        "dua": "declaracion_universal_de_accidente",
+        "narracion_hechos": "narracion_de_hechos",
+        "ficha_vehiculo": "ficha_tecnica_de_vehiculo",
+        "determinacion_perdida": "determinacion_de_perdida"
     }
     
     # Invertir el mapeo para obtener alias desde canónico
@@ -484,6 +515,15 @@ DOCUMENT_PRIORITIES = {
     "salida_de_almacen": 14,
     "expediente_de_cobranza": 15,
     "checklist_antifraude": 16,
+    "cfdi_carta_porte": 21,
+    "factura_comercial_cfdi": 22,
+    "facturas_comerciales_internacionales": 23,
+    "pedido_por_correo": 24,
+    "constancia_imss_del_operador": 25,
+    "declaracion_universal_de_accidente": 26,
+    "reporte_de_costos_y_rendimientos": 27,
+    "ficha_tecnica_de_vehiculo": 28,
+    "determinacion_de_perdida": 29,
     "otro": 99
 }
 
@@ -494,6 +534,14 @@ CLASSIFICATION_CONFIG = {
     "llm_model": "gpt-4o-mini",       # Modelo económico para clasificación
     "llm_temperature": 0.1,           # Baja temperatura para consistencia
     "llm_max_completion_tokens": 200             # Límite de tokens para respuesta
+}
+
+# Configuración del motor de clasificación (engine)
+# Estrategia LLM-first y uso de visión (imágenes/PDF) en el pipeline.
+# Nota: Activar visión incrementa costo/latencia y requiere PyMuPDF.
+CLASSIFICATION_ENGINE = {
+    "strategy": "llm_first",   # Alternativas futuras: "heuristic_first"
+    "use_vision": True          # True: usar visión (PDF/imagen) en pipeline; False: solo texto
 }
 
 # Configuración de nombres de archivo
@@ -537,6 +585,17 @@ DOCUMENT_TYPE_ALIASES = {
     "NOTA_REP": "notas_de_reparacion",
     "DICTAMEN": "dictamen_tecnico",
     "COMP_DOM": "comprobante_de_domicilio",
+    # Nuevos tipos
+    "CFDI_CP": "cfdi_carta_porte",
+    "IMSS_OPER": "constancia_imss_del_operador",
+    "FACTURA_CFDI": "factura_comercial_cfdi",
+    "PEDIDO_CORREO": "pedido_por_correo",
+    "COSTOS_REND": "reporte_de_costos_y_rendimientos",
+    "FACT_INTL": "facturas_comerciales_internacionales",
+    "DUA": "declaracion_universal_de_accidente",
+    "NARR_HECHOS": "narracion_de_hechos",
+    "FICHA_VEH": "ficha_tecnica_de_vehiculo",
+    "DET_PERDIDA": "determinacion_de_perdida",
     "OTROS": "otro"
 }
 

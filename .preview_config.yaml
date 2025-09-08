@@ -1,0 +1,20 @@
+preview:
+  llm_model: "gpt-4o"
+  confidence_threshold: 0.6
+  max_sample_chars: 2000
+  supported_extensions:
+    - .pdf
+    - .jpg
+    - .jpeg
+    - .png
+    - .docx
+    - .xlsx
+    - .csv
+    - .txt
+  ui:
+    show_samples_by_default: false
+    max_files_per_type_in_tree: 5
+    enable_colors: true
+  limits:
+    max_files: 1000
+    max_file_size_mb: 50

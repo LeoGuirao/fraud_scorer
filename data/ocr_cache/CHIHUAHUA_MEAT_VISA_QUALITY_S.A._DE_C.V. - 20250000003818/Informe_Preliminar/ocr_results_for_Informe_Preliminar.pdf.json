@@ -1,0 +1,1339 @@
+{
+  "text": "www. siniesca.com\nSINIESCA\n®\nProfessional Insurance Adjusters\nINFORME PRELIMINAR\nAseguradora:\nHDI Seguros S.A. de C.V.\nAnalista:\nCecy Sandoval\nPóliza:\n14 - 35495\nRamo:\nTransportes\nCobertura:\nRobo de Bulto Por Entero\nSiniestro:\n20250000003818\nReporte:\n4735501\nRef. Ajustador:\nSCA-0347-25\nDATOS GENERALES DEL ASEGURADO\nAsegurado:\nChihuahua Meat Visa Quality S.A. de C.V.\nBeneficiario Preferente:\nChihuahua Meat Visa Quality S.A. de C.V.\nDomicilio:\nOctavio Paz No. Ext. 119, Complejo Industrial Chihuahua, C.P.31136, Chihuahua, Chihuahua\nContacto:\nDalia Flores Chacón / 6141843762 / dflores@visadelnorte.com\nGiro Asegurado:\nCarnes Y Sus Derivados, Bodega Y Tienda\nTipo de Póliza:\nPóliza Anual De Pronóstico De Embarques\nVigencia de la póliza:\n01/SEP/2024\nal\n01/SEP/2025\nMoneda:\nMXN\n(Día Mes Año)\nUSD/MXN/EUR\nDATOS DEL SINIESTRO\nFecha de ocurrido:\n09/05/2025\nFecha de Reporte:\n10/05/2025\nBienes afectados:\nProducto Cárnico\nCausa directa del daño:\nRobo de Bulto Por Entero\nUbicación del siniestro:\nEn trayecto a su destino\nDescripción de los Hechos:\nSe nos reporta que el 09 de mayo del 2025 el robo de mercancía consistente en producto cárnico, con un valor de $386,000.00 MXN, Motivo por el cual el asegurado solicita la intervención de la compañía de seguros.\nAnálisis de la Póliza\nValor para el seguro:\nb) Para embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos\nCalzada circunvalación Oriente 1729, int. 6 Col. Ciudad Granja, Zapopan Jalisco, CP. 45010\nTel. +52 333 631 48 25\nwww. siniesca.com\nde exportación y demás gastos inherentes al transporte de los bienes, si los hubiere.\nGiro:\nCarnes Y Sus Derivados, Bodega Y Tienda\nTerritorialidad:\nNacional\nOrigen:\nChihuahua, Chihuahua.\nDestino:\nPuebla.\nLímite máximo por embarque:\n$1,300,000.00 MXN\nCobertura Afectada:\nRobo de Bulto Por Entero\nGarantías de cobertura:\nPor analizar las garantías aplicables.\nESTIMACIÓN DE PÉRDIDA\nMXN ( X )\nUSD ( )\nCoberturas Afectadas:\nRobo\nSuma Asegurada:\n$1,300,000.00\nX\nImporte de Reclamación:\n$386,000.00\nX\nEstimación del Ajustador:\n$386,000.00\nX\nDeducible (25% SVTE):\n$96,500.00\nX\nEstimación NETA:\n$289,500.00\nX\nDEDUCIBLE PARA LA COBERTURA DE ROBO PARCIAL Y ROBO DE BULTO POR ENTERO. PRIMER SINIESTRO 25% SOBRE EL VALOR TOTAL DEL EMBARQUE SEGUNDO SINIESTRO 30% SOBRE EL VALOR TOTAL DEL EMBARQUE\nSTERS A PARTIR DEL TERCER SINIESTRO 35% SOBRE EL VALOR TOTAL DEL EMBARQUE. De manera preliminar se aplica el 25% Sobre el valor total del embarque. IS\nSALVAMENTO\nDescripción:\nNo Aplica.\nEstado del salvamento:\nNo Aplica.\nValor estimado:\nNo Aplica.\nPersona a contactar:\nNo Aplica.\nDomicilio, teléfono, correo electrónico de contacto: :unselected: No Aplica.\nObservaciones:\nNo Aplica, se afecta la cobertura de robo de bulto por entero.\nNING TOGE\nSUBROGACIÓN\nResponsable:\nNo aplica.\nPersona a contactar:\nNo aplica.\nDomicilio, teléfono, correo electrónico de contacto:\nNo aplica.\nObservaciones:\nNo aplica, se utiliza una unidad propiedad del asegurado.\nCalzada circunvalación Oriente 1729, int. 6 Col. Ciudad Granja, Zapopan Jalisco, CP. 45010\nTel. +52 333 631 48 25 :selected: :selected: :selected: :selected: :selected: :selected: :unselected: :unselected:\nwww. siniesca.com\nOBSERVACIONES FINALES\nLa reserva se abre de manera precautoria misma que podría variar una vez que el asegurado documente.\nSin más por el momento, se entrega el presente informe para los fines que la compañía de seguros requiera, quedando a sus órdenes por cualquier duda o aclaración.\nZapopan, Jalisco a 12 de mayo de 2025\nPROFESSIONS\nAdrian Torres Ajustador Cedula CNSF# V19399 SINIESCA Professional Claims Adjusters S.C.\nSINIESCA PR\nADJUSTERS / CHH. A\n®\nWALKING TOGETHER\nCalzada circunvalación Oriente 1729, int. 6 Col. Ciudad Granja, Zapopan Jalisco, CP. 45010\nTel. +52 333 631 48 25",
+  "tables": [
+    {
+      "id": 0,
+      "row_count": 4,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Aseguradora:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "HDI Seguros S.A. de C.V.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Analista:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Cecy Sandoval",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Póliza:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "14 - 35495",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Ramo:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Transportes",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Aseguradora:",
+        "HDI Seguros S.A. de C.V."
+      ],
+      "data_rows": [
+        [
+          "Analista:",
+          "Cecy Sandoval"
+        ],
+        [
+          "Póliza:",
+          "14 - 35495"
+        ],
+        [
+          "Ramo:",
+          "Transportes"
+        ]
+      ]
+    },
+    {
+      "id": 1,
+      "row_count": 3,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "Siniestro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "20250000003818",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Reporte:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "4735501",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Ref. Ajustador:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "SCA-0347-25",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "Siniestro:",
+        "20250000003818"
+      ],
+      "data_rows": [
+        [
+          "Reporte:",
+          "4735501"
+        ],
+        [
+          "Ref. Ajustador:",
+          "SCA-0347-25"
+        ]
+      ]
+    },
+    {
+      "id": 2,
+      "row_count": 9,
+      "column_count": 6,
+      "cells": [
+        {
+          "text": "DATOS GENERALES DEL ASEGURADO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Asegurado:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Chihuahua Meat Visa Quality S.A. de C.V.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Beneficiario Preferente:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "Chihuahua Meat Visa Quality S.A. de C.V.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Domicilio:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Octavio Paz No. Ext. 119, Complejo Industrial Chihuahua, C.P.31136, Chihuahua, Chihuahua",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Contacto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "Dalia Flores Chacón / 6141843762 / dflores@visadelnorte.com",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Giro Asegurado:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "Carnes Y Sus Derivados, Bodega Y Tienda",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "Tipo de Póliza:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "Póliza Anual De Pronóstico De Embarques",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "Vigencia de la póliza:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 0
+        },
+        {
+          "text": "01/SEP/2024",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 1
+        },
+        {
+          "text": "al",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 2
+        },
+        {
+          "text": "01/SEP/2025",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 3
+        },
+        {
+          "text": "Moneda:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 4
+        },
+        {
+          "text": "MXN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 5
+        },
+        {
+          "text": "(Día Mes Año)",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 0
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 3
+        },
+        {
+          "text": "USD/MXN/EUR",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 4
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 8,
+          "column": 5
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "DATOS GENERALES DEL ASEGURADO",
+        "",
+        "",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Asegurado:",
+          "Chihuahua Meat Visa Quality S.A. de C.V.",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Beneficiario Preferente:",
+          "Chihuahua Meat Visa Quality S.A. de C.V.",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Domicilio:",
+          "Octavio Paz No. Ext. 119, Complejo Industrial Chihuahua, C.P.31136, Chihuahua, Chihuahua",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Contacto:",
+          "Dalia Flores Chacón / 6141843762 / dflores@visadelnorte.com",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Giro Asegurado:",
+          "Carnes Y Sus Derivados, Bodega Y Tienda",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Tipo de Póliza:",
+          "Póliza Anual De Pronóstico De Embarques",
+          "",
+          "",
+          "",
+          ""
+        ],
+        [
+          "Vigencia de la póliza:",
+          "01/SEP/2024",
+          "al",
+          "01/SEP/2025",
+          "Moneda:",
+          "MXN"
+        ],
+        [
+          "(Día Mes Año)",
+          "",
+          "",
+          "",
+          "USD/MXN/EUR",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 3,
+      "row_count": 7,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "DATOS DEL SINIESTRO",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Fecha de ocurrido:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "09/05/2025",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Fecha de Reporte:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "10/05/2025",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Bienes afectados:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Producto Cárnico",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Causa directa del daño:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "Robo de Bulto Por Entero",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Ubicación del siniestro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "En trayecto a su destino",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "Descripción de los Hechos:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "Se nos reporta que el 09 de mayo del 2025 el robo de mercancía consistente en producto cárnico, con un valor de $386,000.00 MXN, Motivo por el cual el asegurado solicita la intervención de la compañía de seguros.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "DATOS DEL SINIESTRO",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Fecha de ocurrido:",
+          "09/05/2025"
+        ],
+        [
+          "Fecha de Reporte:",
+          "10/05/2025"
+        ],
+        [
+          "Bienes afectados:",
+          "Producto Cárnico"
+        ],
+        [
+          "Causa directa del daño:",
+          "Robo de Bulto Por Entero"
+        ],
+        [
+          "Ubicación del siniestro:",
+          "En trayecto a su destino"
+        ],
+        [
+          "Descripción de los Hechos:",
+          "Se nos reporta que el 09 de mayo del 2025 el robo de mercancía consistente en producto cárnico, con un valor de $386,000.00 MXN, Motivo por el cual el asegurado solicita la intervención de la compañía de seguros."
+        ]
+      ]
+    },
+    {
+      "id": 4,
+      "row_count": 2,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Análisis de la Póliza",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Valor para el seguro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "b) Para embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        "Análisis de la Póliza"
+      ],
+      "data_rows": [
+        [
+          "Valor para el seguro:",
+          "b) Para embarques de ventas e inventarios efectuados por el asegurado, el valor para el seguro será el precio de costo de producción o adquisición, más gastos tales como fletes, impuestos"
+        ]
+      ]
+    },
+    {
+      "id": 5,
+      "row_count": 8,
+      "column_count": 2,
+      "cells": [
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "de exportación y demás gastos inherentes al transporte de los bienes, si los hubiere.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 1
+        },
+        {
+          "text": "Giro:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Carnes Y Sus Derivados, Bodega Y Tienda",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "Territorialidad:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "Nacional",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Origen:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "Chihuahua, Chihuahua.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Destino:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "Puebla.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "Límite máximo por embarque:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "$1,300,000.00 MXN",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "Cobertura Afectada:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "Robo de Bulto Por Entero",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "Garantías de cobertura:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 0
+        },
+        {
+          "text": "Por analizar las garantías aplicables.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 7,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "",
+        "de exportación y demás gastos inherentes al transporte de los bienes, si los hubiere."
+      ],
+      "data_rows": [
+        [
+          "Giro:",
+          "Carnes Y Sus Derivados, Bodega Y Tienda"
+        ],
+        [
+          "Territorialidad:",
+          "Nacional"
+        ],
+        [
+          "Origen:",
+          "Chihuahua, Chihuahua."
+        ],
+        [
+          "Destino:",
+          "Puebla."
+        ],
+        [
+          "Límite máximo por embarque:",
+          "$1,300,000.00 MXN"
+        ],
+        [
+          "Cobertura Afectada:",
+          "Robo de Bulto Por Entero"
+        ],
+        [
+          "Garantías de cobertura:",
+          "Por analizar las garantías aplicables."
+        ]
+      ]
+    },
+    {
+      "id": 6,
+      "row_count": 7,
+      "column_count": 5,
+      "cells": [
+        {
+          "text": "ESTIMACIÓN DE PÉRDIDA",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "MXN ( X )\n:selected:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 2
+        },
+        {
+          "text": "USD ( )\n:unselected:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 4
+        },
+        {
+          "text": "Coberturas Afectadas:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "Robo",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": ":unselected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 4
+        },
+        {
+          "text": "Suma Asegurada:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "$1,300,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "X\n:selected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 4
+        },
+        {
+          "text": "Importe de Reclamación:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "$386,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "X\n:selected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 4
+        },
+        {
+          "text": "Estimación del Ajustador:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "$386,000.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        },
+        {
+          "text": "X\n:selected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 4
+        },
+        {
+          "text": "Deducible (25% SVTE):",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 0
+        },
+        {
+          "text": "$96,500.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 1
+        },
+        {
+          "text": "X\n:selected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 5,
+          "column": 4
+        },
+        {
+          "text": "Estimación NETA:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 0
+        },
+        {
+          "text": "$289,500.00",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 1
+        },
+        {
+          "text": "X\n:selected:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 2
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 3
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 6,
+          "column": 4
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "ESTIMACIÓN DE PÉRDIDA",
+        "",
+        "MXN ( X )\n:selected:",
+        "",
+        "USD ( )\n:unselected:"
+      ],
+      "data_rows": [
+        [
+          "Coberturas Afectadas:",
+          "Robo",
+          ":unselected:",
+          "",
+          ""
+        ],
+        [
+          "Suma Asegurada:",
+          "$1,300,000.00",
+          "X\n:selected:",
+          "",
+          ""
+        ],
+        [
+          "Importe de Reclamación:",
+          "$386,000.00",
+          "X\n:selected:",
+          "",
+          ""
+        ],
+        [
+          "Estimación del Ajustador:",
+          "$386,000.00",
+          "X\n:selected:",
+          "",
+          ""
+        ],
+        [
+          "Deducible (25% SVTE):",
+          "$96,500.00",
+          "X\n:selected:",
+          "",
+          ""
+        ],
+        [
+          "Estimación NETA:",
+          "$289,500.00",
+          "X\n:selected:",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 7,
+      "row_count": 5,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "SALVAMENTO",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Descripción:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "No Aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 1,
+          "column": 3
+        },
+        {
+          "text": "Estado del salvamento:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "No Aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Valor estimado:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "No Aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "Persona a contactar:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "No Aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "Domicilio, teléfono, correo electrónico de contacto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        },
+        {
+          "text": ":unselected: No Aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 3
+        },
+        {
+          "text": "Observaciones:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 0
+        },
+        {
+          "text": "No Aplica, se afecta la cobertura de robo de bulto por entero.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 4,
+          "column": 1
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "SALVAMENTO",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Descripción:",
+          "No Aplica.",
+          "",
+          ""
+        ],
+        [
+          "Estado del salvamento:",
+          "No Aplica.",
+          "Valor estimado:",
+          "No Aplica."
+        ],
+        [
+          "Persona a contactar:",
+          "No Aplica.",
+          "Domicilio, teléfono, correo electrónico de contacto:",
+          ":unselected: No Aplica."
+        ],
+        [
+          "Observaciones:",
+          "No Aplica, se afecta la cobertura de robo de bulto por entero.",
+          "",
+          ""
+        ]
+      ]
+    },
+    {
+      "id": 8,
+      "row_count": 4,
+      "column_count": 4,
+      "cells": [
+        {
+          "text": "SUBROGACIÓN",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 0,
+          "column": 0
+        },
+        {
+          "text": "Responsable:",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 0
+        },
+        {
+          "text": "No aplica.",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 1
+        },
+        {
+          "text": "",
+          "confidence": 0.0,
+          "kind": "columnHeader",
+          "row": 1,
+          "column": 2
+        },
+        {
+          "text": "Persona a contactar:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 0
+        },
+        {
+          "text": "No aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 1
+        },
+        {
+          "text": "Domicilio, teléfono, correo electrónico de contacto:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 2
+        },
+        {
+          "text": "No aplica.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 2,
+          "column": 3
+        },
+        {
+          "text": "Observaciones:",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 0
+        },
+        {
+          "text": "No aplica, se utiliza",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 1
+        },
+        {
+          "text": "una unidad propiedad del asegurado.",
+          "confidence": 0.0,
+          "kind": "content",
+          "row": 3,
+          "column": 2
+        }
+      ],
+      "confidence": 0.0,
+      "headers": [
+        "SUBROGACIÓN",
+        "",
+        "",
+        ""
+      ],
+      "data_rows": [
+        [
+          "Responsable:",
+          "No aplica.",
+          "",
+          ""
+        ],
+        [
+          "Persona a contactar:",
+          "No aplica.",
+          "Domicilio, teléfono, correo electrónico de contacto:",
+          "No aplica."
+        ],
+        [
+          "Observaciones:",
+          "No aplica, se utiliza",
+          "una unidad propiedad del asegurado.",
+          ""
+        ]
+      ]
+    }
+  ],
+  "key_value_pairs": {
+    "aseguradora": "HDI Seguros S.A. de C.V.",
+    "analista": "Cecy Sandoval",
+    "póliza": "14 - 35495",
+    "ramo": "Transportes",
+    "cobertura": "Robo de Bulto Por Entero",
+    "siniestro": "20250000003818",
+    "reporte": "4735501",
+    "ref._ajustador": "SCA-0347-25",
+    "asegurado": "Chihuahua Meat Visa Quality S.A. de C.V.",
+    "beneficiario_preferente": "Chihuahua Meat Visa Quality S.A. de C.V. Octavio Complejo",
+    "domicilio": "Chihuahua, Chihuahua",
+    "contacto": "Dalia Flores Chacón / 6141843762 / dflores@visadelnorte.com",
+    "giro_asegurado": "Carnes Y Sus Derivados, Bodega Y Tienda",
+    "tipo_de_póliza": "Póliza Anual De Pronóstico De Embarques",
+    "vigencia_de_la_póliza": "01/SEP/2024 al 01/SEP/2025",
+    "moneda": "MXN USD/MXN/EUR",
+    "fecha_de_ocurrido": "09/05/2025",
+    "fecha_de_reporte": "10/05/2025",
+    "bienes_afectados": "Producto Cárnico",
+    "causa_directa_del_daño": "Robo de Bulto Por Entero",
+    "ubicación_del_siniestro": "En trayecto a su destino",
+    "tel.": "+52 333 631 48 25",
+    "giro": "Carnes Y Sus Derivados, Bodega Y Tienda",
+    "territorialidad": "Nacional",
+    "origen": "Chihuahua, Chihuahua.",
+    "destino": "Puebla.",
+    "límite_máximo_por_embarque": "$1,300,000.00 MXN",
+    "cobertura_afectada": "Robo de Bulto Por Entero",
+    "garantías_de_cobertura": "Por analizar las garantías aplicables.",
+    "coberturas_afectadas": "Robo",
+    "suma_asegurada": "$1,300,000.00",
+    "importe_de_reclamación": "$386,000.00",
+    "estimación_del_ajustador": "$386,000.00",
+    "deducible_(25%_svte)": "$96,500.00",
+    "estimación_neta": "$289,500.00",
+    "descripción": "No Aplica.",
+    "estado_del_salvamento": "No Aplica.",
+    "valor_estimado": "No Aplica.",
+    "persona_a_contactar": "No Aplica.",
+    "domicilio,_teléfono,_correo_electrónico_de_contacto": "No Aplica.",
+    "responsable": "No aplica."
+  },
+  "metadata": {
+    "file_name": "Informe Preliminar.pdf",
+    "file_size": 315630,
+    "model_used": "prebuilt-document",
+    "page_count": 3,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.9,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

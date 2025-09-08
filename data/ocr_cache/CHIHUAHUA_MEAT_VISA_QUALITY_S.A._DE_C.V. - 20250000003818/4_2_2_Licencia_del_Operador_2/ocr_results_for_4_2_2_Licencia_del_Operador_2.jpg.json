@@ -1,0 +1,32 @@
+{
+  "text": "CHIHUAHUA GOBIERNO DEL ESTADO Juntos Sí podemos\nOFICINA/OFFICE CHIHUAHUA\nGRUPO SANGUINEO/ BLOOD TYPE: 0+ COLOR DE OJOS / EYES CAFE OSCURO DONANTE DE ORGANOS Y TEJIDOS / DONOR SI SEXO/ SEX MASCULINO ALTURA/HEIGHT 167 RESTRICCIONES RESTRICTION: NINGUNA\nALERGIAS NEGADAS\nSSPE\nSECRETARÍA DE SEGURIDAD PÚBLICA DEL ESTADO\nING. DMP. GILBERTO LOYA CHAVEZ SECRETARIO DE SEGURIDAD PÚBLICA DEL ESTADO\nTEL. CASO DE EMERGENCIA /CALL IN CASE OF EMERGENCY. 6141119744\nESTA LICENCIA AUTORIZA A CONDUCIR/ THIS LICENCE AUTHORIZES TO DRIVE AUTOMOVILES PARTICULARES HASTA 10 TONELADAS\nTABLA DE RESTRICCIONES\n1. USA LENTES 2. MANEJAR A NO MÁS DE 60 KM POR HORA\n3. USAR EQUIPO ESPECIAL PARA MIEMBROS SUPERIORES\n4. USAR EQUIPO ESPECIAL PARA MIEMBROS INFERIORES 5. USAR EQUIPO ACÚSTICO 6. CONDUCIR SÓLO AUTOMÓVIL AUTOMÁTICO 7. MANEJAR SÓLO DE DÍA 8. MANEJAR CON ACOMPAÑANTE",
+  "tables": [],
+  "key_value_pairs": {
+    "oficina/office": "Sí podemos",
+    "blood_type": "0+",
+    "sexo/_sex": "6141119744",
+    "masculino_altura/height": "167",
+    "restricciones": "AUTHORIZES TO DRIVE",
+    "restriction": "NINGUNA ALERGIAS AUTOMOVILES 10"
+  },
+  "metadata": {
+    "file_name": "4 2 2 Licencia del Operador 2.jpg",
+    "file_size": 149973,
+    "model_used": "prebuilt-document",
+    "page_count": 1,
+    "language": "es",
+    "source_type": "ocr",
+    "engine": "azure_document_intelligence",
+    "success": false,
+    "errors": [
+      "Confianza baja en el reconocimiento"
+    ],
+    "confidence": {
+      "overall": 0.0,
+      "text_extraction": 0.7,
+      "table_detection": 0.0,
+      "entity_recognition": 0.0,
+      "quality_assessment": "poor"
+    }
+  }
+}

@@ -49,6 +49,18 @@ class DocumentType(Enum):
     EXPEDIENTE_COBRANZA = "expediente_de_cobranza"
     CHECKLIST_ANTIFRAUDE = "checklist_antifraude"
     
+    # Nuevas categorías (no usadas para extracción de cabecera)
+    CFDI_CARTA_PORTE = "cfdi_carta_porte"
+    CONSTANCIA_IMSS_OPERADOR = "constancia_imss_del_operador"
+    FACTURA_COMERCIAL_CFDI = "factura_comercial_cfdi"
+    PEDIDO_POR_CORREO = "pedido_por_correo"
+    REPORTE_COSTOS_RENDIMIENTOS = "reporte_de_costos_y_rendimientos"
+    FACTURAS_COMERCIALES_INTERNACIONALES = "facturas_comerciales_internacionales"
+    DECLARACION_UNIVERSAL_ACCIDENTE = "declaracion_universal_de_accidente"
+    NARRACION_DE_HECHOS = "narracion_de_hechos"
+    FICHA_TECNICA_VEHICULO = "ficha_tecnica_de_vehiculo"
+    DETERMINACION_DE_PERDIDA = "determinacion_de_perdida"
+    
     # Nuevos documentos generales
     IDENTIFICACION_OFICIAL = "identificacion_oficial"
     NOTAS_DE_REPARACION = "notas_de_reparacion"
@@ -145,6 +157,16 @@ class DocumentClassifier:
     def __init__(self):
         self.type_definitions = self._initialize_type_definitions()
         self.llm_guide = self._build_llm_guide()
+        try:
+            from fraud_scorer.classification.engine import ClassifierEngine
+            from fraud_scorer.settings import CLASSIFICATION_CONFIG
+            self._engine = ClassifierEngine(
+                model_name=CLASSIFICATION_CONFIG.get("llm_model", "gpt-4o-mini"),
+                base_classifier=self,
+            )
+        except Exception as e:
+            logger.warning(f"No se pudo inicializar ClassifierEngine: {e}")
+            self._engine = None
         
     def _initialize_type_definitions(self) -> Dict[str, DocumentTypeDefinition]:
         """Inicializa las definiciones de tipos de documento"""
@@ -183,7 +205,7 @@ class DocumentClassifier:
                 keywords=["consolidado", "múltiples guías", "varios clientes"],
                 must_have=["consolidado"],
                 may_have=["etiquetas", "paquetería", "cfdi", "pagares"],
-                exclude=[],
+                exclude=["salida de almacén", "salida_almacen", "almacén", "firmas", "responsable", "recibe", "entrega"],
                 description="Múltiples guías y facturas en un solo archivo consolidado"
             ),
             
@@ -236,8 +258,8 @@ class DocumentClassifier:
                 type_name="salida_de_almacen",
                 keywords=["salida de almacén", "salida_almacen", "salida almacén", "embarque", "control interno"],
                 must_have=[],
-                may_have=["códigos", "piezas", "cantidades", "firmas", "responsable", "transportista"],
-                exclude=["cfdi", "factura", "guía de paquetería"],
+                may_have=["códigos", "piezas", "cantidades", "firmas", "responsable", "transportista", "recibe", "entrega"],
+                exclude=["cfdi", "factura", "uuid", "sat", "timbrado", "carta porte", "complemento carta porte", "guía de paquetería"],
                 description="Control interno de salida de mercancías del almacén"
             ),
             
@@ -332,6 +354,93 @@ class DocumentClassifier:
                 exclude=["póliza", "poliza", "siniestro"],
                 description="Recibo oficial para acreditar domicilio (CFE/agua/teléfono)"
             ),
+
+            # ------------------ Nuevos tipos ------------------
+            DocumentType.CFDI_CARTA_PORTE.value: DocumentTypeDefinition(
+                type_name="cfdi_carta_porte",
+                keywords=[
+                    "carta porte", "cfdi", "complemento carta porte", "uuid", "sello", "sat",
+                    "emisor", "receptor", "traslado", "transporte", "autotransporte",
+                    "mercancias", "mercancías", "ubicaciones", "figura transporte", "permsct",
+                    "remolques", "transpinternac"
+                ],
+                must_have=["carta porte"],
+                may_have=["origen", "destino", "material", "peso", "folio", "serie"],
+                exclude=["informe", "póliza"],
+                description="CFDI con complemento Carta Porte para acreditar traslado de mercancías"
+            ),
+            DocumentType.CONSTANCIA_IMSS_OPERADOR.value: DocumentTypeDefinition(
+                type_name="constancia_imss_del_operador",
+                keywords=["imss", "instituto mexicano del seguro social", "nss", "registro patronal", "asegurado", "movimiento afiliatorio", "alta", "baja", "modificación"],
+                must_have=[],
+                may_have=["sello digital", "patrón", "empresa", "vigencia"],
+                exclude=["identificación", "ine", "ife", "póliza"],
+                description="Constancia del IMSS con datos del asegurado y movimientos afiliatorios"
+            ),
+            DocumentType.FACTURA_COMERCIAL_CFDI.value: DocumentTypeDefinition(
+                type_name="factura_comercial_cfdi",
+                keywords=["cfdi", "factura", "uuid", "timbrado", "sat", "rfc", "subtotal", "iva", "total", "código sat"],
+                must_have=["factura"],
+                may_have=["emisor", "receptor", "productos", "cantidades", "orden de compra"],
+                exclude=["carta porte", "complemento carta porte", "autotransporte", "mercancias", "mercancías", "ubicaciones", "figura transporte"],
+                description="CFDI de venta de mercancías con timbrado SAT"
+            ),
+            DocumentType.PEDIDO_POR_CORREO.value: DocumentTypeDefinition(
+                type_name="pedido_por_correo",
+                keywords=["correo", "email", "from:", "to:", "subject", "asunto", "pedido", "confirmación"],
+                must_have=[],
+                may_have=["productos", "cantidades", "adjunto"],
+                exclude=["cfdi", "uuid", "timbrado"],
+                description="Impresión de correo electrónico de solicitud/confirmación de pedido"
+            ),
+            DocumentType.REPORTE_COSTOS_RENDIMIENTOS.value: DocumentTypeDefinition(
+                type_name="reporte_de_costos_y_rendimientos",
+                keywords=["costos", "rendimientos", "márgenes", "lote", "producción", "reporte"],
+                must_have=[],
+                may_have=["pedimento", "carta porte", "orden de compra"],
+                exclude=["cfdi", "factura"],
+                description="Reporte interno de costos/rendimientos, no un CFDI de venta"
+            ),
+            DocumentType.FACTURAS_COMERCIALES_INTERNACIONALES.value: DocumentTypeDefinition(
+                type_name="facturas_comerciales_internacionales",
+                keywords=["comercial invoice", "factura comercial", "importación", "exportación", "aduana", "pedimento", "moneda", "usd", "eur", "incoterms"],
+                must_have=[],
+                may_have=["bill of lading", "bl", "puerto"],
+                exclude=["cfdi", "sat", "carta porte"],
+                description="Facturas de proveedores extranjeros ligadas a import/export"
+            ),
+            DocumentType.DECLARACION_UNIVERSAL_ACCIDENTE.value: DocumentTypeDefinition(
+                type_name="declaracion_universal_de_accidente",
+                keywords=["declaración universal de accidente", "dua", "aseguradora", "croquis", "firma", "ajustador", "conductor"],
+                must_have=[],
+                may_have=["narración", "poliza", "siniestro"],
+                exclude=["informe final", "informe preliminar"],
+                description="Formato estandarizado de aseguradora para documentar accidentes (DUA)"
+            ),
+            DocumentType.NARRACION_DE_HECHOS.value: DocumentTypeDefinition(
+                type_name="narracion_de_hechos",
+                keywords=["narración de hechos", "narracion de hechos", "relato", "declarante", "declaración", "hechos", "siniestro"],
+                must_have=[],
+                may_have=["ruta", "circunstancias", "modo", "fecha"],
+                exclude=["informe", "póliza", "cfdi"],
+                description="Narración testimonial en voz del afectado/testigo sobre el evento"
+            ),
+            DocumentType.FICHA_TECNICA_VEHICULO.value: DocumentTypeDefinition(
+                type_name="ficha_tecnica_de_vehiculo",
+                keywords=["ficha técnica", "vehículo", "marca", "modelo", "año", "niv", "serie", "motor", "fotografía"],
+                must_have=[],
+                may_have=["color", "kilometraje", "version"],
+                exclude=["tarjeta de circulación", "licencia"],
+                description="Ficha comercial/técnica con datos del vehículo (no autorización oficial)"
+            ),
+            DocumentType.DETERMINACION_DE_PERDIDA.value: DocumentTypeDefinition(
+                type_name="determinacion_de_perdida",
+                keywords=["determinación de pérdida", "monto a indemnizar", "deducible", "importe reclamado", "monto ajustado", "total a indemnizar", "ajustador"],
+                must_have=[],
+                may_have=["cuantificación", "desglose", "facturas"],
+                exclude=["informe preliminar", "informe final", "póliza"],
+                description="Cálculo económico de la pérdida (cuantificación de indemnización)"
+            ),
         }
         
         return definitions
@@ -350,26 +459,36 @@ class DocumentClassifier:
             - confidence: Nivel de confianza (0.0 - 1.0)
             - reasons: Lista de razones para la clasificación
         """
-        # 1. Intentar clasificación heurística
-        doc_type, confidence, reasons = self._heuristic_classify(sample_text, filename)
-        
-        # 2. Si necesita subnumeración (guias_y_facturas), detectar destinatario
+        # Unificar con el engine: LLM-first (sin visión); fallback a heurística en error
+        if self._engine is not None and use_llm_fallback:
+            try:
+                # Gobernar 'use_vision' desde settings (pipeline)
+                try:
+                    from fraud_scorer.settings import CLASSIFICATION_ENGINE
+                    use_vis = bool(CLASSIFICATION_ENGINE.get("use_vision", False))
+                except Exception:
+                    use_vis = False
+
+                doc_type, confidence, reasons = await self._engine.classify(
+                    sample_text=sample_text[:1500],
+                    filename=filename,
+                    document_path=None,     # El pipeline no pasa rutas aquí; visión usa OCR solo si se inyecta ruta más adelante
+                    use_llm=True,
+                    use_vision=use_vis,
+                )
+            except Exception as e:
+                logger.warning(f"Engine LLM falló, usando heurística: {e}")
+                doc_type, confidence, reasons = self._heuristic_classify(sample_text, filename)
+        else:
+            # Cuando no se desea LLM (use_llm_fallback=False) o engine no disponible
+            doc_type, confidence, reasons = self._heuristic_classify(sample_text, filename)
+
+        # Enriquecimiento: destinatario si aplica
         if doc_type == DocumentType.GUIAS_Y_FACTURAS.value:
             destinatario = self._extract_destinatario(sample_text)
             if destinatario:
                 reasons.append(f"Destinatario detectado: {destinatario}")
-        
-        # 3. Si confianza baja y LLM habilitado, usar fallback (aunque haya match heurístico débil)
-        if confidence < 0.6 and use_llm_fallback:
-            try:
-                doc_type, confidence, reasons = await self._llm_classify(
-                    sample_text[:1500],
-                    filename
-                )
-            except Exception as e:
-                logger.warning(f"Error en clasificación LLM: {e}")
-                # Mantener clasificación heurística
-        
+
         return doc_type, confidence, reasons
     
     def _heuristic_classify(
@@ -608,6 +727,16 @@ Responde SOLO con JSON válido:
             DocumentType.DICTAMEN_TECNICO.value: 18,
             DocumentType.IDENTIFICACION_OFICIAL.value: 19,
             DocumentType.COMPROBANTE_DOMICILIO.value: 20,
+            DocumentType.CFDI_CARTA_PORTE.value: 21,
+            DocumentType.FACTURA_COMERCIAL_CFDI.value: 22,
+            DocumentType.FACTURAS_COMERCIALES_INTERNACIONALES.value: 23,
+            DocumentType.PEDIDO_POR_CORREO.value: 24,
+            DocumentType.CONSTANCIA_IMSS_OPERADOR.value: 25,
+            DocumentType.DECLARACION_UNIVERSAL_ACCIDENTE.value: 26,
+            DocumentType.REPORTE_COSTOS_RENDIMIENTOS.value: 27,
+            DocumentType.FICHA_TECNICA_VEHICULO.value: 28,
+            DocumentType.DETERMINACION_DE_PERDIDA.value: 29,
+            DocumentType.NARRACION_DE_HECHOS.value: 30,
             DocumentType.OTRO.value: 99
         }
         
