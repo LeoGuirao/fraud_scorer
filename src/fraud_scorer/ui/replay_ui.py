@@ -325,11 +325,6 @@ class ReplayUI:
                 
                 # Mostrar métricas del procesamiento
                 if results:
-                    if 'fraud_analysis' in results:
-                        fraud_score = results['fraud_analysis'].get('fraud_score', 0)
-                        console.print(f"\n[bold]Análisis de Fraude:[/bold]")
-                        console.print(f"  • Score: [{'red' if fraud_score > 0.7 else 'yellow' if fraud_score > 0.3 else 'green'}]{fraud_score:.2%}[/]")
-                    
                     if 'extraction_results' in results:
                         console.print(f"  • Documentos procesados: {len(results['extraction_results'])}")
             
@@ -443,14 +438,12 @@ class ReplayUI:
             return
         elif choice.lower() == 'a':
             if Confirm.ask("[red]¿Está seguro de limpiar TODO el cache?[/red]", default=False):
-                # Implementar limpieza total
                 try:
-                    base_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
-                    if base_dir.exists():
-                        import shutil
-                        shutil.rmtree(base_dir)
-                    base_dir.mkdir(parents=True, exist_ok=True)
-                    console.print("[green]✓ Cache limpiado completamente[/green]")
+                    result = self.system.replay_service.clear_cache(["all"])  # Usa servicio centralizado
+                    if result.get("status") == "success":
+                        console.print("[green]✓ Cache limpiado completamente[/green]")
+                    else:
+                        console.print(f"[yellow]⚠️ {result.get('message','No se pudo limpiar completamente')}[/yellow]")
                 except Exception as e:
                     console.print(f"[red]❌ Error limpiando cache: {e}[/red]")
         else:
@@ -461,21 +454,12 @@ class ReplayUI:
                     if Confirm.ask(f"[yellow]¿Limpiar cache de {case_id}?[/yellow]", default=False):
                         # Implementar limpieza específica
                         try:
-                            cleared = False
-                            if hasattr(self.cache_manager, "clear_case_cache"):
-                                self.cache_manager.clear_case_cache(case_id)
-                                cleared = True
-                            else:
-                                base_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
-                                case_dir = base_dir / case_id
-                                if case_dir.exists():
-                                    import shutil
-                                    shutil.rmtree(case_dir)
-                                    cleared = True
-                            if cleared:
+                            # Usar el servicio para limpiar correctamente artefactos e índice
+                            result = self.system.replay_service.clear_cache([case_id])
+                            if result.get("status") == "success":
                                 console.print(f"[green]✓ Cache de {case_id} limpiado[/green]")
                             else:
-                                console.print(f"[yellow]⚠️ No se encontró cache para {case_id}[/yellow]")
+                                console.print(f"[yellow]⚠️ {result.get('message','No se pudo limpiar completamente')}[/yellow]")
                         except Exception as e:
                             console.print(f"[red]❌ Error limpiando cache de {case_id}: {e}[/red]")
                 else:

@@ -48,7 +48,7 @@ from fraud_scorer.api.endpoints.replay import router as replay_router
 # Inicializar FastAPI
 app = FastAPI(
     title="Fraud Scorer Web Interface",
-    description="Sistema de Análisis de Siniestros con Detección de Fraude",
+    description="Sistema de Análisis de Siniestros con OCR y generación de reportes",
     version="2.0.0"
 )
 
@@ -173,27 +173,11 @@ class FraudScorerProcessor:
                 use_advanced_reasoning=True
             )
             
-            # Análisis de fraude
-            logger.info("Analizando fraude...")
-            from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-            analyzer = AIDocumentAnalyzer()
-            
-            docs_for_analysis = []
-            for doc in ocr_results:
-                docs_for_analysis.append({
-                    "document_type": doc.get("document_type", "otro"),
-                    "key_value_pairs": doc.get("ocr_result", {}).get("key_value_pairs", {}),
-                    "specific_fields": {}
-                })
-            
-            ai_analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
-            
             # Generar reporte
             logger.info("Generando reporte HTML...")
             html_path = REPORTS_DIR / f"INF-{case_id}.html"
             self.report_generator.generate_report(
                 consolidated_data=consolidated,
-                ai_analysis=ai_analysis,
                 output_path=html_path
             )
             
@@ -206,9 +190,7 @@ class FraudScorerProcessor:
             return {
                 "success": True,
                 "case_id": case_id,
-                "html_path": str(html_path),
-                "fraud_score": ai_analysis.get("fraud_score", 0),
-                "risk_level": self._get_risk_level(ai_analysis.get("fraud_score", 0))
+                "html_path": str(html_path)
             }
             
         except Exception as e:
@@ -233,14 +215,7 @@ class FraudScorerProcessor:
         else:
             return "otro"
     
-    def _get_risk_level(self, fraud_score: float) -> str:
-        """Determina el nivel de riesgo"""
-        if fraud_score < 0.3:
-            return "BAJO"
-        elif fraud_score < 0.6:
-            return "MEDIO"
-        else:
-            return "ALTO"
+    # (Cálculo de nivel de riesgo eliminado)
 
 # Instancia global del procesador
 processor = FraudScorerProcessor()
@@ -488,7 +463,7 @@ async def process_documents_background(process_id: str, files: List[Path]):
         # Procesar el caso usando el sistema completo
         case_title = f"Caso_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
         
-        processing_status[process_id]["message"] = "Analizando con IA..."
+        processing_status[process_id]["message"] = "Consolidando y generando reporte..."
         processing_status[process_id]["progress"] = 60
         
         # Ejecutar el procesamiento completo
@@ -503,18 +478,12 @@ async def process_documents_background(process_id: str, files: List[Path]):
         
         # Extraer información del resultado
         case_id = result.get("case_id", "UNKNOWN")
-        fraud_analysis = result.get("fraud_analysis", {})
-        fraud_score = fraud_analysis.get("fraud_score", 0)
-        risk_level = "BAJO" if fraud_score < 0.3 else ("MEDIO" if fraud_score < 0.6 else "ALTO")
-        
         processing_status[process_id] = {
             "status": "completed",
             "message": "Procesamiento completado - Listo para validación",
             "progress": 100,
             "case_id": case_id,
             "report_url": f"/feedback/{case_id}",  # Redirigir primero al feedback
-            "fraud_score": fraud_score,
-            "risk_level": risk_level,
             "completed_at": datetime.now().isoformat()
         }
         
@@ -636,17 +605,9 @@ async def process_feedback(case_id: str, feedback_data: dict):
         
         # Crear un objeto mock de ConsolidatedExtraction con los datos corregidos
         mock_consolidated = create_mock_consolidated_extraction(corrected_data, case_id)
-        mock_ai_analysis = {
-            "fraud_score": 0.3,  # Valor por defecto
-            "risk_indicators": [],
-            "confidence_score": 0.8,
-            "recommendations": ["Revisar documentación adicional"]
-        }
-        
         # Generar el reporte final
         html_content = report_generator.generate_report(
             consolidated_data=mock_consolidated,
-            ai_analysis=mock_ai_analysis,
             output_path=html_path
         )
         

@@ -338,6 +338,161 @@
         .loading {
             animation: pulse 2s infinite;
         }
+
+        /* Maintenance Tools Styles */
+        .maintenance-tools {
+            background: linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%);
+            border: 2px solid #e9ecef;
+            border-radius: 20px;
+            padding: 35px;
+            margin-top: 40px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .maintenance-tools::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #10b981 0%, #059669 50%, #dc3545 100%);
+        }
+
+        .maintenance-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .maintenance-header h3 {
+            color: #333;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .maintenance-header p {
+            color: #666;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .maintenance-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .maintenance-action {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .maintenance-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .maintenance-btn.reconcile {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .maintenance-btn.purge {
+            background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        }
+
+        .maintenance-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+        }
+
+        .maintenance-btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-icon {
+            font-size: 18px;
+        }
+
+        .btn-text {
+            font-weight: 600;
+        }
+
+        .purge-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .purge-input {
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 16px;
+            min-width: 220px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .purge-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .maintenance-description {
+            color: #777;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        /* Responsive for maintenance tools */
+        @media (max-width: 768px) {
+            .maintenance-grid {
+                grid-template-columns: 1fr;
+                gap: 25px;
+            }
+            
+            .maintenance-tools {
+                padding: 25px 20px;
+            }
+            
+            .purge-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .maintenance-btn {
+                min-width: 100%;
+            }
+            
+            .purge-input {
+                min-width: 100%;
+                margin-bottom: 10px;
+            }
+        }
     </style>
     <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet"/>
 </head>
@@ -348,7 +503,7 @@
             <h1>FRAUD SCORER</h1>
             <p class="subtitle">Sistema Inteligente de Análisis de Siniestros</p>
             <p class="description">
-                Plataforma impulsada por IA para la detección de fraude y análisis automatizado de documentos de siniestros
+                Plataforma impulsada por IA para análisis automatizado de documentos de siniestros y generación de reportes
             </p>
         </div>
 
@@ -361,13 +516,13 @@
                 </div>
                 <h2 class="option-title">Nuevo Análisis de Siniestro</h2>
                 <p class="option-description">
-                    Inicie un análisis completo de fraude cargando documentos de siniestro. 
-                    Nuestra IA procesará los documentos y generará un reporte detallado con scoring de riesgo.
+                    Inicie un procesamiento completo cargando documentos de siniestro. 
+                    Nuestra IA procesará los documentos y generará un reporte detallado.
                 </p>
                 <ul class="feature-list">
                     <li>Procesamiento OCR avanzado</li>
                     <li>Análisis de IA con GPT-4</li>
-                    <li>Scoring de fraude automatizado</li>
+                    <li>Consolidación inteligente de datos</li>
                     <li>Reportes HTML y PDF</li>
                 </ul>
                 <a href="/upload" class="option-button">
@@ -409,12 +564,45 @@
                     <div class="stat-label">Cache OCR</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value loading" id="avgScore">---</div>
-                    <div class="stat-label">Detección Efectiva</div>
+                    <div class="stat-value loading" id="avgDocs">---</div>
+                    <div class="stat-label">Promedio Docs/Caso</div>
                 </div>
                 <div class="stat-item">
-                    <div class="stat-value loading" id="uptime">---</div>
-                    <div class="stat-label">Sistema Operativo</div>
+                    <div class="stat-value loading" id="hitRate">---</div>
+                    <div class="stat-label">Tasa de Acierto OCR</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Maintenance Tools -->
+        <div class="maintenance-tools">
+            <div class="maintenance-header">
+                <h3>Herramientas de Mantenimiento</h3>
+                <p>Gestión avanzada del sistema y base de datos</p>
+            </div>
+            
+            <div class="maintenance-grid">
+                <div class="maintenance-action">
+                    <button class="maintenance-btn reconcile" onclick="reconcileNowIndex()">
+                        <span class="btn-icon">🔧</span>
+                        <span class="btn-text">Reconciliar Ahora</span>
+                    </button>
+                    <p class="maintenance-description">
+                        Actualiza estadísticas y limpia registros huérfanos tras cambios manuales
+                    </p>
+                </div>
+                
+                <div class="maintenance-action">
+                    <div class="purge-controls">
+                        <input id="deepPurgeCaseIdIdx" type="text" placeholder="CASE-YYYY-XXXX" class="purge-input"/>
+                        <button class="maintenance-btn purge" onclick="deepPurgeIndex()">
+                            <span class="btn-icon">🗑️</span>
+                            <span class="btn-text">Deep Purge</span>
+                        </button>
+                    </div>
+                    <p class="maintenance-description">
+                        Elimina completamente un caso (archivos y registros en base de datos)
+                    </p>
                 </div>
             </div>
         </div>
@@ -433,32 +621,36 @@
         // Load system statistics
         async function loadSystemStats() {
             try {
-                const response = await fetch('/replay/api/stats');
-                if (response.ok) {
-                    const responseData = await response.json();
-                    const stats = responseData.data || responseData;
-                    
-                    // Update statistics with proper values
-                    document.getElementById('totalCases').textContent = stats.case_count || 0;
-                    document.getElementById('cacheSize').textContent = 
-                        stats.total_size_mb ? `${stats.total_size_mb} MB` : '0 MB';
-                    
-                    // Calculate fraud detection rate based on processed cases
-                    const detectionRate = stats.case_count > 0 ? ((stats.case_count * 0.8) + 15).toFixed(1) : 85;
-                    document.getElementById('avgScore').textContent = `${detectionRate}%`;
-                    
-                    // Calculate uptime based on system activity
-                    const uptime = stats.case_count > 0 && stats.total_size_mb > 0 ? '99.9%' : '100%';
-                    document.getElementById('uptime').textContent = uptime;
-                    
-                    // Remove loading animation
-                    document.querySelectorAll('.loading').forEach(el => {
-                        el.classList.remove('loading');
-                    });
-                } else {
-                    // Fallback values if API is not available
-                    setFallbackStats();
+                const [statsResp, casesResp] = await Promise.all([
+                    fetch('/replay/api/stats'),
+                    fetch('/replay/api/cases')
+                ]);
+                if (!statsResp.ok) throw new Error('Stats API error');
+                const statsData = await statsResp.json();
+                const stats = statsData.data || statsData;
+
+                // Update basic stats
+                document.getElementById('totalCases').textContent = stats.case_count || 0;
+                document.getElementById('cacheSize').textContent = stats.total_size_mb ? `${stats.total_size_mb} MB` : '0 MB';
+
+                // Avg docs/case (need cases list)
+                let avgDocs = '---';
+                if (casesResp.ok) {
+                    const casesData = await casesResp.json();
+                    const cases = casesData.data || casesData;
+                    const totalDocs = Array.isArray(cases) ? cases.reduce((s, c) => s + (c.total_documents || c.document_count || 0), 0) : 0;
+                    avgDocs = (stats.case_count > 0) ? (totalDocs / stats.case_count).toFixed(1) : '0';
                 }
+                document.getElementById('avgDocs').textContent = avgDocs;
+
+                // OCR hit rate from cache_stats (if available)
+                const hits = Number(stats.ocr_hits || 0), misses = Number(stats.ocr_misses || 0);
+                const total = hits + misses;
+                const rate = total > 0 ? `${((hits/total)*100).toFixed(1)}%` : 'N/A';
+                document.getElementById('hitRate').textContent = rate;
+
+                // Remove loading animation
+                document.querySelectorAll('.loading').forEach(el => el.classList.remove('loading'));
             } catch (error) {
                 console.log('Stats API not available, using fallback values');
                 setFallbackStats();
@@ -468,8 +660,8 @@
         function setFallbackStats() {
             document.getElementById('totalCases').textContent = '0';
             document.getElementById('cacheSize').textContent = '0 MB';
-            document.getElementById('avgScore').textContent = '---';
-            document.getElementById('uptime').textContent = '100%';
+            document.getElementById('avgDocs').textContent = '---';
+            document.getElementById('hitRate').textContent = 'N/A';
             
             // Remove loading animation
             document.querySelectorAll('.loading').forEach(el => {
@@ -490,6 +682,32 @@
                 }
             });
         });
+
+        async function reconcileNowIndex() {
+            try {
+                const r = await fetch('/replay/api/stats'); // ya ejecuta reconciliación
+                if (!r.ok) throw new Error('Error en reconciliación');
+                await loadSystemStats();
+                alert('Reconciliación completada. Estadísticas actualizadas.');
+            } catch (e) {
+                alert('No se pudo reconciliar: ' + (e?.message || e));
+            }
+        }
+
+        async function deepPurgeIndex() {
+            const cid = document.getElementById('deepPurgeCaseIdIdx').value.trim();
+            if (!cid) { alert('Ingrese un Case ID válido'); return; }
+            if (!confirm(`Esto eliminará completamente ${cid} (FS + DB). ¿Desea continuar?`)) return;
+            try {
+                const r = await fetch(`/replay/api/deep-purge/${encodeURIComponent(cid)}`, { method: 'DELETE' });
+                const j = await r.json();
+                if (!r.ok || !j.success) throw new Error(j.detail || j.message || 'Error en deep purge');
+                await loadSystemStats();
+                alert(`Caso ${cid} eliminado completamente.`);
+            } catch (e) {
+                alert('No se pudo eliminar: ' + (e?.message || e));
+            }
+        }
 
         // Add click handlers for entire cards
         document.addEventListener('click', function(e) {

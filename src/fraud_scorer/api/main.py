@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 # 2. Crear la instancia de la aplicación
 app = FastAPI(
     title="Sistema de Análisis de Siniestros v2.0",
-    description="API para análisis automático de documentos de siniestros con OCR y detección de fraude mediante IA.",
+    description="API para análisis automático de documentos de siniestros con OCR y generación de reportes.",
     version="2.0.0"  # Actualizamos la versión
 )
 

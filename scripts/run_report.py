@@ -110,7 +110,7 @@ class _ProgressEmitter:
             
     def _calculate_eta(self, current_stage: str, status: str) -> Optional[int]:
         """Calcula tiempo estimado restante basado en EWMA"""
-        stages = ["upload", "ocr", "extract", "consolidate", "analyze", "report"]
+        stages = ["upload", "ocr", "extract", "consolidate", "report"]
         
         if status == "done":
             # Encontrar etapas restantes
@@ -136,7 +136,7 @@ class _ProgressEmitter:
                 # Estimaciones por defecto en segundos
                 defaults = {
                     "upload": 2, "ocr": 15, "extract": 10,
-                    "consolidate": 5, "analyze": 8, "report": 5
+                    "consolidate": 5, "report": 5
                 }
                 total_remaining += defaults.get(stage, 5)
                 
@@ -145,7 +145,7 @@ class _ProgressEmitter:
 
 class FraudAnalysisSystemV2:
     """
-    Sistema de análisis de fraude v2.0 con IA y Cache OCR (sin legacy).
+    Sistema de análisis de siniestros v2.0 con IA y Cache OCR (sin legacy).
     """
 
     def __init__(self, guided_mode: bool = True, extraction_mode: str = "auto"):
@@ -833,10 +833,12 @@ class FraudAnalysisSystemV2:
         if self.progress_emitter:
             self.progress_emitter.emit("consolidate", "done", message="Consolidación completada")
 
+        # Fase de fraude eliminada
+
         # ============================================
-        # FASE 4: Análisis de fraude (IA)
+        # FASE 4: Generación del reporte
         # ============================================
-        logger.info("\n🔎 FASE 4: Análisis de fraude")
+        logger.info("\n📝 FASE 4: Generación del reporte")
         logger.info("-" * 40)
         
         # Verificar cancelación antes de fase 4
@@ -844,38 +846,9 @@ class FraudAnalysisSystemV2:
             await self.cleanup_on_cancel()
             raise asyncio.CancelledError("Proceso cancelado durante fase 4")
         
-        # Notificar análisis de fraude
-        if self.progress_callback:
-            self.progress_callback("Analizando indicadores de fraude...", 70)
-        
-        # Emitir evento de inicio de análisis
-        if self.progress_emitter:
-            self.progress_emitter.emit("analyze", "started", message="Analizando indicadores de fraude")
-        
-        ai_analysis = await self._analyze_fraud(consolidated, extractions)
-        fraud_score = ai_analysis.get("fraud_score", 0)
-        risk_level = "BAJO" if fraud_score < 0.3 else ("MEDIO" if fraud_score < 0.6 else "ALTO")
-        logger.info(f"✓ Fraud Score: {fraud_score:.2%}")
-        logger.info(f"✓ Nivel de Riesgo: {risk_level}")
-        
-        # Emitir evento de finalización de análisis
-        if self.progress_emitter:
-            self.progress_emitter.emit("analyze", "done", message=f"Análisis completado - Riesgo: {risk_level}")
-
-        # ============================================
-        # FASE 5: Generación del reporte
-        # ============================================
-        logger.info("\n📝 FASE 5: Generación del reporte")
-        logger.info("-" * 40)
-        
-        # Verificar cancelación antes de fase 5
-        if self.cancellation_check and await self.cancellation_check():
-            await self.cleanup_on_cancel()
-            raise asyncio.CancelledError("Proceso cancelado durante fase 5")
-        
         # Notificar generación de reporte
         if self.progress_callback:
-            self.progress_callback("Generando reporte HTML y PDF...", 85)
+            self.progress_callback("Generando reporte HTML y PDF...", 75)
         
         # Emitir evento de inicio de reporte
         if self.progress_emitter:
@@ -911,7 +884,6 @@ class FraudAnalysisSystemV2:
         
         html_content = self.report_generator.generate_report(
             consolidated_data=consolidated,
-            ai_analysis=ai_analysis,
             output_path=html_path,
             insured_name=insured_name_from_data,
             claim_number=claim_number_from_data
@@ -932,16 +904,16 @@ class FraudAnalysisSystemV2:
         
         # Notificar finalización
         if self.progress_callback:
-            self.progress_callback("Finalizando procesamiento...", 95)
+            self.progress_callback("Finalizando procesamiento...", 90)
         
         # Emitir evento de finalización de reporte
         if self.progress_emitter:
             self.progress_emitter.emit("report", "done", message="Reporte generado")
 
         # ============================================
-        # FASE 6: Guardar resultados y Organizar archivos
+        # FASE 5: Guardar resultados y Organizar archivos
         # ============================================
-        logger.info("\n💾 FASE 6: Guardar resultados y Organizar archivos")
+        logger.info("\n💾 FASE 5: Guardar resultados y Organizar archivos")
         logger.info("-" * 40)
         ocr_total = len(documents)
         ocr_success = len(ocr_results)
@@ -998,7 +970,6 @@ class FraudAnalysisSystemV2:
             "policy_type": getattr(self.extractor, "policy_context", None),
             "extraction_results": [e.model_dump() for e in extractions],
             "consolidated_data": consolidated.model_dump(),
-            "fraud_analysis": ai_analysis,
             "processing_metrics": {
                 "ocr_success_rate": f"{ocr_rate:.1%}",
                 "extraction_success_rate": f"{extraction_rate:.1%}",
@@ -1008,8 +979,6 @@ class FraudAnalysisSystemV2:
             },
             "report_path": str(html_path),  # Ruta del reporte HTML
             "pdf_path": str(pdf_path),      # Ruta del PDF
-            "fraud_score": ai_analysis.get("fraud_score", 0) if ai_analysis else 0,
-            "risk_level": risk_level,
         }
 
         # Guardamos el reporte completo de resultados (que incluye métricas, etc.) con nombre mejorado
@@ -1035,29 +1004,7 @@ class FraudAnalysisSystemV2:
 
         return results
 
-    async def _analyze_fraud(
-        self,
-        consolidated: ConsolidatedExtraction,
-        extractions: List[DocumentExtraction],
-    ) -> Dict[str, Any]:
-        """
-        Análisis de fraude usando IA.
-        """
-        from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
-
-        analyzer = AIDocumentAnalyzer()
-
-        # Payload ligero para IA
-        docs_for_analysis = [
-            {
-                "document_type": extr.document_type,
-                "key_value_pairs": extr.extracted_fields,
-            }
-            for extr in extractions
-        ]
-
-        analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
-        return analysis
+    # (Método _analyze_fraud eliminado)
 
 
 def parse_args(argv: List[str]) -> argparse.Namespace:
@@ -1233,8 +1180,6 @@ async def main(argv: List[str]) -> None:
         if result:
             print(f"📄 Reporte generado: {result.get('report_path', 'N/A')}")
             print(f"🆔 Case ID: {result.get('case_id', 'N/A')}")
-            print(f"⚠️  Fraud Score: {result.get('fraud_score', 0):.2%}")
-            print(f"🔍 Nivel de Riesgo: {result.get('risk_level', 'N/A')}")
         
     except asyncio.CancelledError:
         logger.info("\n⚠️ Proceso cancelado por el usuario")

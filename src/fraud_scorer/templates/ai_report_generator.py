@@ -88,7 +88,6 @@ class AIReportGenerator:
     def generate_report(
         self,
         consolidated_data: ConsolidatedExtraction,
-        ai_analysis: Optional[Dict[str, Any]] = None,
         output_path: Optional[Path] = None,
         insured_name: Optional[str] = None,
         claim_number: Optional[str] = None
@@ -98,7 +97,6 @@ class AIReportGenerator:
         
         Args:
             consolidated_data: Datos consolidados del caso
-            ai_analysis: Análisis adicional de IA (fraud score, etc.)
             output_path: Ruta donde guardar el HTML
             insured_name: Nombre del asegurado para nomenclatura (opcional)
             claim_number: Número de siniestro para nomenclatura (opcional)
@@ -116,7 +114,7 @@ class AIReportGenerator:
             logger.info(f"Generando reporte para caso {case_id}")
 
         # Preparar datos para la plantilla
-        template_data = self._prepare_template_data(consolidated_data, ai_analysis)
+        template_data = self._prepare_template_data(consolidated_data)
         
         # Añadir nombre del asegurado y número de siniestro si están disponibles
         if insured_name:
@@ -192,7 +190,6 @@ class AIReportGenerator:
     def _prepare_template_data(
         self,
         consolidated_data: ConsolidatedExtraction,
-        ai_analysis: Optional[Dict[str, Any]]
     ) -> Dict[str, Any]:
         """
         Prepara los datos para la plantilla.
@@ -267,16 +264,7 @@ class AIReportGenerator:
             "consolidation_sources": cd_dict.get("consolidation_sources", getattr(consolidated_data, "consolidation_sources", {})),
         }
         
-        # Agregar análisis de IA si existe (normalizado por si acaso)
-        ai_analysis_dict = _to_dict(ai_analysis)
-        if ai_analysis_dict:
-            template_data.update({
-                "fraud_score": ai_analysis_dict.get("fraud_score", 0),
-                "risk_level": self._calculate_risk_level(ai_analysis_dict.get("fraud_score", 0) or 0),
-                "inconsistencias": ai_analysis_dict.get("inconsistencies", []),
-                "fraud_indicators": ai_analysis_dict.get("fraud_indicators", []),
-                "validaciones_externas": ai_analysis_dict.get("external_validations", [])
-            })
+        # (Análisis de IA eliminado)
         
         # Agregar información de conflictos resueltos si viene
         conflicts = cd_dict.get("conflicts_resolved", getattr(consolidated_data, "conflicts_resolved", []))
@@ -312,18 +300,7 @@ class AIReportGenerator:
         except Exception:
             return "0.00"
     
-    def _calculate_risk_level(self, fraud_score: float) -> str:
-        """Calcula el nivel de riesgo basado en el score"""
-        try:
-            score = float(fraud_score)
-        except Exception:
-            score = 0.0
-        if score < 0.3:
-            return "BAJO"
-        elif score < 0.6:
-            return "MEDIO"
-        else:
-            return "ALTO"
+    # (Cálculo de riesgo eliminado)
     
     def _dataclass_to_dict(self, obj: Any) -> Dict[str, Any]:
         """

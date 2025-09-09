@@ -1,6 +1,6 @@
 {
   "case_id": "CASE-2025-0026",
-  "processing_date": "2025-09-07T23:48:50.580042",
+  "processing_date": "2025-09-08T17:18:18.170660",
   "documents_processed": 19,
   "policy_type": null,
   "extraction_results": [
@@ -31,7 +31,7 @@
           "numero_siniestro",
           "monto_reclamacion"
         ],
-        "timestamp": "2025-09-07T23:45:13.289837"
+        "timestamp": "2025-09-08T17:15:05.350290"
       }
     },
     {
@@ -66,7 +66,7 @@
           "lugar_hechos",
           "ajuste"
         ],
-        "timestamp": "2025-09-07T23:45:27.987369"
+        "timestamp": "2025-09-08T17:15:25.282963"
       }
     },
     {
@@ -103,7 +103,7 @@
           "ajuste",
           "conclusiones"
         ],
-        "timestamp": "2025-09-07T23:45:53.668345"
+        "timestamp": "2025-09-08T17:15:47.869526"
       }
     },
     {
@@ -121,7 +121,7 @@
         "tipo_siniestro": "Robo Total / Parcial",
         "fecha_ocurrencia": "09/05/2025",
         "fecha_reclamacion": null,
-        "lugar_hechos": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+        "lugar_hechos": "EN LA AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
         "ajuste": null,
         "conclusiones": null
       },
@@ -135,7 +135,7 @@
           "fecha_ocurrencia",
           "lugar_hechos"
         ],
-        "timestamp": "2025-09-07T23:46:08.946225"
+        "timestamp": "2025-09-08T17:16:08.749452"
       }
     },
     {
@@ -168,7 +168,7 @@
           "vigencia_fin",
           "domicilio_poliza"
         ],
-        "timestamp": "2025-09-07T23:46:29.617186"
+        "timestamp": "2025-09-08T17:16:29.205728"
       }
     }
   ],
@@ -186,25 +186,25 @@
       "tipo_siniestro": "Robo Total / Parcial",
       "fecha_ocurrencia": "09/05/2025",
       "fecha_reclamacion": "10/05/2025",
-      "lugar_hechos": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+      "lugar_hechos": "EN LA AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
       "bien_reclamado": "Producto Cárnico",
       "ajuste": "SINIESCA",
       "conclusiones": null
     },
     "consolidation_sources": {
-      "numero_siniestro": "Seleccionado de Informe Preliminar.pdf (informe_preliminar_del_ajustador) por mayor prioridad",
-      "nombre_asegurado": "Según las reglas de negocio, la póliza tiene máxima prioridad. El nombre en la póliza coincide con los informes (diferencia solo de mayúsculas), por lo que es consistente y aparece de forma reiterada. Se conserva el formato tal cual figura en la póliza.",
+      "numero_siniestro": "El valor coincide exactamente en el informe preliminar y en el informe final del ajustador. Aunque la prioridad de fuentes favorece denuncia y póliza, no hay opciones de esas fuentes para este campo. El formato (14 dígitos) es estándar y la duplicidad en dos documentos independientes respalda su confiabilidad. Se elige la referencia del Informe Final por ser la versión definitiva.",
+      "nombre_asegurado": "Las tres opciones refieren a la misma razón social; la diferencia es solo de capitalización. Según las reglas de negocio, la fuente con mayor prioridad es la póliza. La opción de POLIZA.pdf coincide con los informes y representa el nombre legal tal como consta en el contrato. Por ello se selecciona el valor de la póliza.",
       "monto_reclamacion": "Único valor de 1 1 Carta Reclamacion HDI.pdf",
       "numero_poliza": "Único valor de POLIZA.pdf",
       "vigencia_inicio": "Único valor de POLIZA.pdf",
       "vigencia_fin": "Único valor de POLIZA.pdf",
       "domicilio_poliza": "Único valor de POLIZA.pdf",
-      "tipo_siniestro": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad",
-      "fecha_ocurrencia": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad",
-      "fecha_reclamacion": "Ambas fuentes (informe preliminar y final del ajustador) coinciden en la misma fecha. No existe una fuente de mayor prioridad (denuncia) disponible. Entre las dos, el informe final es más autoritativo que el preliminar. El formato dd/mm/aaaa es consistente con el estándar del caso y no hay indicios de inconsistencia con otros campos. Por frecuencia (2 coincidencias) y jerarquía (final > preliminar), se selecciona la fecha del informe final.",
+      "tipo_siniestro": "Ambas fuentes autorizadas (carpeta de investigación e informe final del ajustador) coinciden en el mismo valor. Las reglas de prioridad (denuncia, póliza) no aplican a estas opciones, por lo que se privilegia la consistencia entre documentos y la credibilidad del informe final del ajustador. El valor está en formato estándar y aparece repetido sin conflicto.",
+      "fecha_ocurrencia": "Según reglas, la prioridad es denuncia > peritaje. La carpeta de investigación (denuncia) indica 09/05/2025. Además, este valor se repite en el informe preliminar, reforzando su frecuencia. Aunque el informe final consigna 06/05/2025, tiene menor prioridad frente a la denuncia. Formato válido y consistente.",
+      "fecha_reclamacion": "No hay 'denuncia' disponible en las opciones (máxima prioridad). El valor aparece de forma consistente y duplicada en dos documentos del ajustador. Entre ellos, el informe final es más definitivo que el preliminar. El formato es válido (DD/MM/AAAA) y es coherente con el contexto del siniestro.",
       "lugar_hechos": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad",
-      "bien_reclamado": "Ambas opciones coinciden en el valor. No hay documentos de mayor prioridad según reglas (denuncia/factura). Entre las fuentes disponibles, el informe final del ajustador es más definitivo y confiable que el preliminar, y la frecuencia refuerza la consistencia. Por ello se consolida desde el informe final con alta confianza.",
-      "ajuste": "El valor aparece en ambos documentos de peritaje (preliminar y final). Dado que el tipo con mayor autoridad dentro del peritaje es el informe final del ajustador, se prioriza esa fuente. Además, la frecuencia (coincidencia en dos documentos) refuerza la consistencia y no hay conflicto con otros campos."
+      "bien_reclamado": "Ambas fuentes disponibles (informe preliminar y final del ajustador) coinciden en el valor. Dado que el informe final es más determinante que el preliminar y no hay documentos de mayor prioridad (denuncia/factura) entre las opciones, se selecciona el del informe final. La repetición del mismo valor en dos documentos incrementa la confianza.",
+      "ajuste": "Ambas fuentes (informe preliminar y final del ajustador) coinciden en el valor 'SINIESCA'. Son documentos de peritaje y, por práctica, el informe final tiene mayor peso que el preliminar. La repetición del mismo valor en dos fuentes independientes refuerza la confiabilidad y el formato es consistente con el nombre de la ajustadora."
     },
     "conflicts_resolved": [
       {
@@ -224,7 +224,7 @@
           }
         ],
         "selected": "20250000003818",
-        "reasoning": "Seleccionado de Informe Preliminar.pdf (informe_preliminar_del_ajustador) por mayor prioridad"
+        "reasoning": "El valor coincide exactamente en el informe preliminar y en el informe final del ajustador. Aunque la prioridad de fuentes favorece denuncia y póliza, no hay opciones de esas fuentes para este campo. El formato (14 dígitos) es estándar y la duplicidad en dos documentos independientes respalda su confiabilidad. Se elige la referencia del Informe Final por ser la versión definitiva."
       },
       {
         "field": "nombre_asegurado",
@@ -249,7 +249,7 @@
           }
         ],
         "selected": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
-        "reasoning": "Según las reglas de negocio, la póliza tiene máxima prioridad. El nombre en la póliza coincide con los informes (diferencia solo de mayúsculas), por lo que es consistente y aparece de forma reiterada. Se conserva el formato tal cual figura en la póliza."
+        "reasoning": "Las tres opciones refieren a la misma razón social; la diferencia es solo de capitalización. Según las reglas de negocio, la fuente con mayor prioridad es la póliza. La opción de POLIZA.pdf coincide con los informes y representa el nombre legal tal como consta en el contrato. Por ello se selecciona el valor de la póliza."
       },
       {
         "field": "tipo_siniestro",
@@ -268,7 +268,7 @@
           }
         ],
         "selected": "Robo Total / Parcial",
-        "reasoning": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad"
+        "reasoning": "Ambas fuentes autorizadas (carpeta de investigación e informe final del ajustador) coinciden en el mismo valor. Las reglas de prioridad (denuncia, póliza) no aplican a estas opciones, por lo que se privilegia la consistencia entre documentos y la credibilidad del informe final del ajustador. El valor está en formato estándar y aparece repetido sin conflicto."
       },
       {
         "field": "fecha_ocurrencia",
@@ -293,7 +293,7 @@
           }
         ],
         "selected": "09/05/2025",
-        "reasoning": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad"
+        "reasoning": "Según reglas, la prioridad es denuncia > peritaje. La carpeta de investigación (denuncia) indica 09/05/2025. Además, este valor se repite en el informe preliminar, reforzando su frecuencia. Aunque el informe final consigna 06/05/2025, tiene menor prioridad frente a la denuncia. Formato válido y consistente."
       },
       {
         "field": "fecha_reclamacion",
@@ -312,13 +312,13 @@
           }
         ],
         "selected": "10/05/2025",
-        "reasoning": "Ambas fuentes (informe preliminar y final del ajustador) coinciden en la misma fecha. No existe una fuente de mayor prioridad (denuncia) disponible. Entre las dos, el informe final es más autoritativo que el preliminar. El formato dd/mm/aaaa es consistente con el estándar del caso y no hay indicios de inconsistencia con otros campos. Por frecuencia (2 coincidencias) y jerarquía (final > preliminar), se selecciona la fecha del informe final."
+        "reasoning": "No hay 'denuncia' disponible en las opciones (máxima prioridad). El valor aparece de forma consistente y duplicada en dos documentos del ajustador. Entre ellos, el informe final es más definitivo que el preliminar. El formato es válido (DD/MM/AAAA) y es coherente con el contexto del siniestro."
       },
       {
         "field": "lugar_hechos",
         "options": [
           {
-            "value": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+            "value": "EN LA AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
             "source": "7 1 Narracion de Hechos.pdf",
             "document_type": "carpeta_de_investigacion",
             "priority": 1
@@ -336,7 +336,7 @@
             "priority": 3
           }
         ],
-        "selected": "AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
+        "selected": "EN LA AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA",
         "reasoning": "Seleccionado de 7 1 Narracion de Hechos.pdf (carpeta_de_investigacion) por mayor prioridad"
       },
       {
@@ -356,7 +356,7 @@
           }
         ],
         "selected": "Producto Cárnico",
-        "reasoning": "Ambas opciones coinciden en el valor. No hay documentos de mayor prioridad según reglas (denuncia/factura). Entre las fuentes disponibles, el informe final del ajustador es más definitivo y confiable que el preliminar, y la frecuencia refuerza la consistencia. Por ello se consolida desde el informe final con alta confianza."
+        "reasoning": "Ambas fuentes disponibles (informe preliminar y final del ajustador) coinciden en el valor. Dado que el informe final es más determinante que el preliminar y no hay documentos de mayor prioridad (denuncia/factura) entre las opciones, se selecciona el del informe final. La repetición del mismo valor en dos documentos incrementa la confianza."
       },
       {
         "field": "ajuste",
@@ -375,12 +375,12 @@
           }
         ],
         "selected": "SINIESCA",
-        "reasoning": "El valor aparece en ambos documentos de peritaje (preliminar y final). Dado que el tipo con mayor autoridad dentro del peritaje es el informe final del ajustador, se prioriza esa fuente. Además, la frecuencia (coincidencia en dos documentos) refuerza la consistencia y no hay conflicto con otros campos."
+        "reasoning": "Ambas fuentes (informe preliminar y final del ajustador) coinciden en el valor 'SINIESCA'. Son documentos de peritaje y, por práctica, el informe final tiene mayor peso que el preliminar. La repetición del mismo valor en dos fuentes independientes refuerza la confiabilidad y el formato es consistente con el nombre de la ajustadora."
       }
     ],
     "confidence_scores": {
-      "numero_siniestro": 0.9,
-      "nombre_asegurado": 0.98,
+      "numero_siniestro": 0.98,
+      "nombre_asegurado": 0.97,
       "monto_reclamacion": 1.0,
       "numero_poliza": 1.0,
       "vigencia_inicio": 1.0,
@@ -388,103 +388,12 @@
       "vigencia": 0.0,
       "domicilio_poliza": 1.0,
       "tipo_siniestro": 0.9,
-      "fecha_ocurrencia": 0.9,
-      "fecha_reclamacion": 0.97,
+      "fecha_ocurrencia": 0.85,
+      "fecha_reclamacion": 0.96,
       "lugar_hechos": 0.9,
-      "bien_reclamado": 0.95,
-      "ajuste": 0.96,
+      "bien_reclamado": 0.97,
+      "ajuste": 0.98,
       "conclusiones": 0.0
-    }
-  },
-  "fraud_analysis": {
-    "fraud_score": 0.7,
-    "fraud_indicators": [
-      {
-        "description": "Inconsistencia en las fechas de ocurrencia del siniestro",
-        "weight": 0.8,
-        "doc_refs": [
-          1,
-          2,
-          3
-        ]
-      },
-      {
-        "description": "Monto de reclamación elevado sin justificación clara",
-        "weight": 0.6,
-        "doc_refs": [
-          0
-        ]
-      },
-      {
-        "description": "Diferencias en el lugar de los hechos",
-        "weight": 0.7,
-        "doc_refs": [
-          2,
-          3
-        ]
-      }
-    ],
-    "inconsistencies": [
-      {
-        "field": "fecha_ocurrencia",
-        "value_a": "09/05/2025",
-        "value_b": "06/05/2025",
-        "severity": "alta",
-        "affected_docs": [
-          1,
-          2,
-          3
-        ]
-      },
-      {
-        "field": "nombre_asegurado",
-        "value_a": "Chihuahua Meat Visa Quality S.A. de C.V.",
-        "value_b": "CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.",
-        "severity": "media",
-        "affected_docs": [
-          1,
-          4
-        ]
-      },
-      {
-        "field": "tipo_siniestro",
-        "value_a": "Robo Total / Parcial",
-        "value_b": null,
-        "severity": "baja",
-        "affected_docs": [
-          2,
-          3
-        ]
-      }
-    ],
-    "external_validations": [
-      {
-        "type": "verificación de póliza",
-        "description": "La póliza está vigente y corresponde al asegurado",
-        "result": "válido",
-        "is_critical": false
-      },
-      {
-        "type": "verificación de antecedentes",
-        "description": "No se encontraron antecedentes de reclamaciones previas",
-        "result": "válido",
-        "is_critical": false
-      }
-    ],
-    "route_analysis": {
-      "declared_origin": "Chihuahua",
-      "gps_origin_verification": "válido",
-      "declared_incident_location": "Autopista México - Puebla",
-      "gps_incident_verification": "no válido",
-      "event_analysis": "Inconsistencias en la ubicación del incidente",
-      "declared_destination": "Puebla",
-      "trajectory_verification": "no válido",
-      "route_inconsistencies": [
-        {
-          "description": "Desviación significativa de la ruta declarada",
-          "severity": "alta"
-        }
-      ]
     }
   },
   "processing_metrics": {
@@ -492,10 +401,8 @@
     "extraction_success_rate": "26.3%",
     "fields_completion_rate": "86.7%",
     "conflicts_resolved": 8,
-    "average_confidence": 0.8306666666666668
+    "average_confidence": 0.834
   },
   "report_path": "data/reports/CHIHUAHUA_MEAT_VISA_QUALITY_S.A._DE_C.V._20250000003818_INFORME.html",
-  "pdf_path": "data/reports/CHIHUAHUA_MEAT_VISA_QUALITY_S.A._DE_C.V._20250000003818_INFORME.pdf",
-  "fraud_score": 0.7,
-  "risk_level": "ALTO"
+  "pdf_path": "data/reports/CHIHUAHUA_MEAT_VISA_QUALITY_S.A._DE_C.V._20250000003818_INFORME.pdf"
 }

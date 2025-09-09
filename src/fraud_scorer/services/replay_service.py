@@ -11,7 +11,6 @@ import json
 from ..storage.ocr_cache import OCRCacheManager
 from ..storage.db import get_conn
 from ..pipelines.data_flow import build_docs_for_template_from_db
-from ..processors.ai.document_analyzer import AIDocumentAnalyzer
 from ..processors.ai.ai_field_extractor import AIFieldExtractor
 from ..processors.ai.ai_consolidator import AIConsolidator
 from ..templates.ai_report_generator import AIReportGenerator
@@ -27,34 +26,37 @@ class ReplayService:
         self.cache_manager = OCRCacheManager()
 
     def get_cache_stats(self) -> Dict[str, Any]:
-        """Obtiene las estadísticas del caché que se mostrarán en el dashboard."""
+        """Obtiene estadísticas del caché (FS) y métricas DB complementarias.
+        - FS: refleja borrados manuales (usa OCRCacheManager.get_cache_stats())
+        - DB: agrega conteos de tablas para diagnóstico (no rompe UI)
+        """
         try:
-            # Encuentra todos los archivos de índice de casos, que son la fuente de verdad
-            case_files = list(self.cache_manager.index_dir.glob("*.json"))
-            case_count = len(case_files)
-
-            # Para los archivos y el tamaño, necesitamos leer los índices
-            total_files = 0
-            total_size_bytes = 0
-            for case_file in case_files:
-                with open(case_file, 'r') as f:
-                    data = json.load(f)
-                    # Sumamos los archivos cacheados en este caso
-                    num_files = len(data.get("cache_files", []))
-                    total_files += num_files
-                    # Obtenemos el tamaño de cada archivo cacheado
-                    for doc_path_str in data.get("cache_files", []):
-                        cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
-                        if cache_path.exists():
-                            total_size_bytes += cache_path.stat().st_size
-            
-            total_size_mb = round(total_size_bytes / (1024 * 1024), 2)
-
-            return {
-                "case_count": case_count,
-                "file_count": total_files,
-                "total_size_mb": total_size_mb,
+            fs_stats = self.cache_manager.get_cache_stats()  # {'total_cases','total_cached_files','cache_size_mb', ...}
+            # Mapear a los nombres usados por la UI para no romper nada
+            out = {
+                "case_count": fs_stats.get("total_cases", 0),
+                "file_count": fs_stats.get("total_cached_files", 0),
+                "total_size_mb": fs_stats.get("cache_size_mb", 0.0),
+                "cache_directory": fs_stats.get("cache_directory", str(self.cache_manager.cache_dir))
             }
+
+            # Métricas DB (complemento)
+            try:
+                with get_conn() as conn:
+                    out["db_cases"] = conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
+                    out["db_documents"] = conn.execute("SELECT COUNT(*) FROM documents").fetchone()[0]
+                    out["db_ocr_results"] = conn.execute("SELECT COUNT(*) FROM ocr_results").fetchone()[0]
+                    out["db_extracted_data"] = conn.execute("SELECT COUNT(*) FROM extracted_data").fetchone()[0]
+                    # Agregar métricas globales de cache_stats si existen
+                    row = conn.execute("SELECT ocr_hits, ocr_misses, bytes_saved, ms_saved FROM cache_stats WHERE scope='global'").fetchone()
+                    if row:
+                        out["ocr_hits"] = row["ocr_hits"]
+                        out["ocr_misses"] = row["ocr_misses"]
+                        out["bytes_saved"] = row["bytes_saved"]
+                        out["ms_saved"] = row["ms_saved"]
+            except Exception:
+                pass
+            return out
         except Exception as e:
             logger.error(f"Error al calcular estadísticas del caché: {e}")
             return {"case_count": 0, "file_count": 0, "total_size_mb": 0}
@@ -86,6 +88,60 @@ class ReplayService:
         Delega a _core_replay_processing para la lógica centralizada.
         """
         return await self._core_replay_processing(config)
+
+    def cleanup_db_orphans(self) -> dict:
+        """Elimina orfandad en DB para mantener consistencia tras cambios manuales en FS."""
+        from ..storage.db import get_conn
+        stats = {}
+        with get_conn() as conn:
+            stats['orphan_extracted_before'] = conn.execute(
+                "SELECT COUNT(*) FROM extracted_data WHERE document_id NOT IN (SELECT id FROM documents)"
+            ).fetchone()[0]
+            stats['orphan_runs_before'] = conn.execute(
+                "SELECT COUNT(*) FROM runs WHERE case_id NOT IN (SELECT case_id FROM cases)"
+            ).fetchone()[0]
+            stats['orphan_ocr_before'] = conn.execute(
+                "SELECT COUNT(*) FROM ocr_results WHERE document_id NOT IN (SELECT id FROM documents)"
+            ).fetchone()[0]
+
+            conn.execute("DELETE FROM extracted_data WHERE document_id NOT IN (SELECT id FROM documents)")
+            conn.execute("DELETE FROM runs WHERE case_id NOT IN (SELECT case_id FROM cases)")
+            conn.execute("DELETE FROM ocr_results WHERE document_id NOT IN (SELECT id FROM documents)")
+
+            stats['orphan_extracted_after'] = conn.execute(
+                "SELECT COUNT(*) FROM extracted_data WHERE document_id NOT IN (SELECT id FROM documents)"
+            ).fetchone()[0]
+            stats['orphan_runs_after'] = conn.execute(
+                "SELECT COUNT(*) FROM runs WHERE case_id NOT IN (SELECT case_id FROM cases)"
+            ).fetchone()[0]
+            stats['orphan_ocr_after'] = conn.execute(
+                "SELECT COUNT(*) FROM ocr_results WHERE document_id NOT IN (SELECT id FROM documents)"
+            ).fetchone()[0]
+
+        return stats
+
+    async def deep_purge_case(self, case_id: str) -> bool:
+        """
+        Limpieza profunda de un caso: artefactos de FS + filas en DB (cases y cascada).
+        """
+        try:
+            # 1) Limpiar artefactos de FS
+            await self.purge_case(case_id)
+
+            # 2) Eliminar caso en DB (cascada elimina documentos, ocr_results, extracted_data, runs)
+            from ..storage.db import get_conn
+            with get_conn() as conn:
+                conn.execute("DELETE FROM cases WHERE case_id = ?", (case_id,))
+
+            # 3) Limpiar métricas de cache del caso (ya lo hace purge_case, pero reforzamos)
+            from ..storage.db import reset_cache_stats
+            reset_cache_stats(case_id)
+
+            logger.info(f"✅ Deep purge completado para {case_id}")
+            return True
+        except Exception as e:
+            logger.error(f"Error en deep purge {case_id}: {e}")
+            return False
     
     async def _core_replay_processing(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -221,7 +277,6 @@ class ReplayService:
         extractor = AIFieldExtractor(api_key=api_key)
         consolidator = AIConsolidator(api_key=api_key)
         report_generator = AIReportGenerator()
-        analyzer = AIDocumentAnalyzer(api_key=api_key, model=model, temperature=temperature)
 
         # Fase 1: Extracción
         logger.info("Extrayendo campos con IA...")
@@ -238,19 +293,7 @@ class ReplayService:
             use_advanced_reasoning=True
         )
 
-        # Fase 3: Análisis de fraude
-        logger.info("Analizando fraude...")
-        docs_for_analysis = []
-        for extraction in extractions:
-            docs_for_analysis.append({
-                "document_type": getattr(extraction, "document_type", None),
-                "key_value_pairs": getattr(extraction, "extracted_fields", {}) or {},
-                "specific_fields": getattr(extraction, "extracted_fields", {}) or {},
-                "raw_text": "",
-                "entities": []
-            })
-
-        ai_analysis = await analyzer.analyze_claim_documents(docs_for_analysis)
+        # Fase de análisis de fraude eliminada
 
         # Fase 4: Generar reporte si se solicita
         if options.get('regenerate_report', True):
@@ -269,7 +312,6 @@ class ReplayService:
             html_path = output_path / f"INF-{s_insured}-{s_claim}.html"
             html_content = report_generator.generate_report(
                 consolidated_data=consolidated,
-                ai_analysis=ai_analysis,
                 output_path=html_path
             )
 
@@ -300,7 +342,6 @@ class ReplayService:
             "options_used": {**options, "api_key": "***redacted***"},
             "extraction_results": extractions_list,
             "consolidated_data": consolidated_dict,
-            "fraud_analysis": ai_analysis,
             "output_path": str(output_path)
         }
 
@@ -341,18 +382,33 @@ class ReplayService:
         errors = []
         for case_id in cases_to_delete:
             try:
-                # Limpiar índice del caso
-                index_path = self.cache_manager.index_dir / f"{case_id}.json"
-                if index_path.exists():
-                    index_path.unlink()
-                
-                # Limpiar archivos de cache asociados
+                # Cargar índice del caso primero (antes de eliminarlo) para conocer artefactos
                 case_index = self.cache_manager.get_case_index(case_id)
+                
+                # Limpiar archivos de cache asociados (shards por hash)
                 if case_index and "cache_files" in case_index:
                     for doc_path_str in case_index["cache_files"]:
                         cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
                         if cache_path.exists():
                             cache_path.unlink()
+
+                # Limpiar carpeta reorganizada si existe (Nombre - Reclamo)
+                try:
+                    insured = (case_index or {}).get('insured_name') or ""
+                    claim = (case_index or {}).get('claim_number') or ""
+                    if insured or claim:
+                        s_insured = self.cache_manager._sanitize_filename(insured)
+                        s_claim = self.cache_manager._sanitize_filename(claim or case_id)
+                        case_folder = self.cache_manager.cache_dir / f"{s_insured} - {s_claim}"
+                        if case_folder.exists():
+                            shutil.rmtree(case_folder)
+                except Exception:
+                    pass
+
+                # Limpiar índice del caso (después)
+                index_path = self.cache_manager.index_dir / f"{case_id}.json"
+                if index_path.exists():
+                    index_path.unlink()
                 
                 cleared_cases.append(case_id)
             except Exception as e:
@@ -383,10 +439,18 @@ class ReplayService:
             if index_path.exists():
                 index_path.unlink()
             
-            # Limpiar carpeta reorganizada si existe
-            for folder in self.cache_manager.cache_dir.iterdir():
-                if folder.is_dir() and case_id in folder.name:
-                    shutil.rmtree(folder)
+            # Limpiar carpeta reorganizada si existe (Nombre - Reclamo)
+            try:
+                insured = (case_index or {}).get('insured_name') or ""
+                claim = (case_index or {}).get('claim_number') or ""
+                if insured or claim:
+                    s_insured = self.cache_manager._sanitize_filename(insured)
+                    s_claim = self.cache_manager._sanitize_filename(claim or case_id)
+                    case_folder = self.cache_manager.cache_dir / f"{s_insured} - {s_claim}"
+                    if case_folder.exists():
+                        shutil.rmtree(case_folder)
+            except Exception:
+                pass
             
             # Limpiar archivos de status/progress
             base = os.getenv("FS_DATA_DIR", "data")
@@ -422,18 +486,42 @@ class ReplayService:
                 case_id = index_file.stem
                 if case_id not in valid_cases:
                     logger.info(f"Eliminando índice huérfano: {case_id}")
-                    index_file.unlink()
-                    orphan_count += 1
-                    
-                    # Eliminar archivos de caché asociados
+                    # Leer primero para conocer archivos asociados, luego eliminar el índice
+                    case_data = None
                     try:
-                        with open(index_file, 'r') as f:
+                        with open(index_file, 'r', encoding='utf-8') as f:
                             case_data = json.load(f)
-                        for doc_path_str in case_data.get("cache_files", []):
+                    except Exception:
+                        case_data = None
+                    
+                    # Eliminar archivos de caché asociados (shards)
+                    try:
+                        for doc_path_str in (case_data or {}).get("cache_files", []):
                             cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
                             if cache_path.exists():
                                 cache_path.unlink()
                                 orphan_count += 1
+                    except Exception:
+                        pass
+                    
+                    # Eliminar carpeta reorganizada si existiera (Nombre - Reclamo)
+                    try:
+                        insured = (case_data or {}).get('insured_name') or ""
+                        claim = (case_data or {}).get('claim_number') or ""
+                        if insured or claim:
+                            s_insured = self.cache_manager._sanitize_filename(insured)
+                            s_claim = self.cache_manager._sanitize_filename(claim or case_id)
+                            case_folder = self.cache_manager.cache_dir / f"{s_insured} - {s_claim}"
+                            if case_folder.exists():
+                                shutil.rmtree(case_folder)
+                                orphan_count += 1
+                    except Exception:
+                        pass
+                    
+                    # Eliminar índice al final
+                    try:
+                        index_file.unlink()
+                        orphan_count += 1
                     except Exception:
                         pass
             

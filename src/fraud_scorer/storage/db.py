@@ -113,6 +113,8 @@ def init_db() -> None:
             );
             """
         )
+        # Índice útil para búsquedas por caso
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_runs_case_id ON runs(case_id);")
 
         # ai_analyses
         conn.execute(

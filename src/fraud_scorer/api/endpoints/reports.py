@@ -12,7 +12,6 @@ from datetime import datetime
 import logging
 
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
-from fraud_scorer.processors.ai.document_analyzer import AIDocumentAnalyzer
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.models.feedback import FeedbackPayload
 from fraud_scorer.storage.feedback import save_feedback_from_json, validate_feedback_data
@@ -240,7 +239,6 @@ async def delete_report(process_id: str):
 async def analyze_single_document(
     file: UploadFile = File(...),
     extract_entities: bool = True,
-    detect_fraud: bool = True
 ):
     """
     Analiza un documento individual y retorna información estructurada
@@ -269,16 +267,7 @@ async def analyze_single_document(
         
         if extract_entities:
             response["entities"] = ocr_result.get("entities", [])
-        
-        if detect_fraud:
-            # Análisis rápido de fraude
-            ai_analyzer = AIDocumentAnalyzer()
-            fraud_analysis = await ai_analyzer.analyze_document(
-                ocr_result,
-                str(temp_file)
-            )
-            response["fraud_indicators"] = fraud_analysis.get("alerts", [])
-            response["risk_level"] = fraud_analysis.get("risk_level", "low")
+        # Detección de fraude eliminada por completo
         
         # Limpiar archivo temporal
         temp_file.unlink()
@@ -321,18 +310,7 @@ async def get_available_templates():
                     "Conclusión y Recomendación"
                 ]
             },
-            {
-                "id": "fraud_focus",
-                "name": "Enfoque en Fraude",
-                "description": "Plantilla especializada en detección de fraude",
-                "sections": [
-                    "Información General",
-                    "Indicadores de Fraude",
-                    "Evidencia Documental",
-                    "Validaciones Externas",
-                    "Conclusión"
-                ]
-            }
+            
         ]
     }
 
@@ -354,7 +332,6 @@ async def _process_documents_and_generate_report(
         
         # Inicializar procesadores
         ocr_processor = AzureOCRProcessor()
-        ai_analyzer = AIDocumentAnalyzer()
         template_processor = AIReportGenerator()
         
         # Procesar cada documento con OCR
@@ -375,11 +352,9 @@ async def _process_documents_and_generate_report(
             ocr_result['document_type'] = _detect_document_type(Path(file_path).name, ocr_result)
             ocr_results.append(ocr_result)
         
-        # Análisis con AI
+        # Fase de fraude eliminada
         processing_status[process_id]["progress"] = 60
-        processing_status[process_id]["message"] = "Analizando documentos con AI..."
-        
-        ai_analysis = await ai_analyzer.analyze_claim_documents(ocr_results)
+        processing_status[process_id]["message"] = "Consolidando y generando informe..."
         
         # Extraer información y generar informe
         processing_status[process_id]["progress"] = 80
@@ -423,7 +398,6 @@ async def _process_documents_and_generate_report(
         # Generar el reporte con los datos consolidados
         template_processor.generate_report(
             consolidated_data=consolidated,
-            ai_analysis=ai_analysis,
             output_path=report_path
         )
         
@@ -502,16 +476,8 @@ def get_case_data_for_report(case_id: str) -> Dict[str, Any]:
             (case_id,)
         ).fetchall()
         
-        # Obtener análisis de AI más reciente
-        ai_analyses = conn.execute(
-            """
-            SELECT ai.* FROM ai_analyses ai
-            JOIN documents d ON d.id = ai.document_id
-            WHERE d.case_id = ?
-            ORDER BY ai.processed_at DESC
-            """,
-            (case_id,)
-        ).fetchall()
+        # (Análisis de AI eliminado de la vista)
+        ai_analyses = []
         
         # Buscar datos extraídos consolidados en el cache
         import json
@@ -533,7 +499,7 @@ def get_case_data_for_report(case_id: str) -> Dict[str, Any]:
         return {
             "case": dict(case),
             "documents": [dict(doc) for doc in documents],
-            "ai_analyses": [dict(analysis) for analysis in ai_analyses],
+            "ai_analyses": [],
             "consolidated_data": consolidated_data
         }
 

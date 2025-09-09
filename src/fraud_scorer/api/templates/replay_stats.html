@@ -586,20 +586,16 @@
                     </div>
                     <div class="performance-metrics">
                         <div class="performance-card">
-                            <div class="performance-value" id="cacheHitRate">98%</div>
-                            <div class="performance-label">Tasa de Acierto</div>
+                            <div class="performance-value" id="cacheHitRate">N/A</div>
+                            <div class="performance-label">Tasa de Acierto OCR</div>
                         </div>
                         <div class="performance-card">
-                            <div class="performance-value" id="avgProcessTime">2.3s</div>
-                            <div class="performance-label">Tiempo Promedio</div>
+                            <div class="performance-value" id="timeSaved">N/A</div>
+                            <div class="performance-label">Tiempo Ahorrado</div>
                         </div>
                         <div class="performance-card">
-                            <div class="performance-value" id="successRate">100%</div>
-                            <div class="performance-label">Tasa de Éxito</div>
-                        </div>
-                        <div class="performance-card">
-                            <div class="performance-value" id="spaceSaved">85%</div>
-                            <div class="performance-label">Ahorro de Espacio</div>
+                            <div class="performance-value" id="spaceSaved">N/A</div>
+                            <div class="performance-label">Espacio Ahorrado</div>
                         </div>
                     </div>
                 </div>
@@ -699,7 +695,7 @@
             if (!statisticsData) return;
 
             const statsData = statisticsData.data || statisticsData;
-            const { case_count, file_count, total_size_mb } = statsData;
+            const { case_count, file_count, total_size_mb, ocr_hits, ocr_misses, bytes_saved, ms_saved } = statsData;
             const cases = statisticsData.cases ? (statisticsData.cases.data || statisticsData.cases) : [];
 
             // Main statistics
@@ -713,16 +709,25 @@
             document.getElementById('averageDocs').textContent = avgDocs;
 
             // System information
-            document.getElementById('cacheDirectory').textContent = 'data/ocr_cache';
+            document.getElementById('cacheDirectory').textContent = statsData.cache_directory || 'data/ocr_cache';
             document.getElementById('availableSpace').textContent = calculateAvailableSpace(total_size_mb || 0);
-            document.getElementById('lastCleanup').textContent = 'Nunca';
-            document.getElementById('compressionRate').textContent = '75%';
+            document.getElementById('lastCleanup').textContent = '—';
+            document.getElementById('compressionRate').textContent = '—';
 
             // Additional info
             document.getElementById('casesGrowth').textContent = `+${case_count || 0} total`;
             document.getElementById('filesInfo').textContent = 'Archivos OCR';
             document.getElementById('storagePath').textContent = 'data/ocr_cache';
             document.getElementById('avgInfo').textContent = 'Por caso procesado';
+
+            // Performance metrics (from cache_stats global)
+            const hits = Number(ocr_hits||0), misses = Number(ocr_misses||0);
+            const totalReq = hits + misses;
+            document.getElementById('cacheHitRate').textContent = totalReq>0 ? `${((hits/totalReq)*100).toFixed(1)}%` : 'N/A';
+            const bytesMB = Number(bytes_saved||0) / (1024*1024);
+            document.getElementById('spaceSaved').textContent = bytesMB>0 ? `${bytesMB.toFixed(1)} MB` : '0 MB';
+            const ms = Number(ms_saved||0);
+            document.getElementById('timeSaved').textContent = ms>0 ? `${(ms/1000).toFixed(2)} s` : '0 s';
 
             // Render recent cases timeline
             renderRecentCases(cases || []);

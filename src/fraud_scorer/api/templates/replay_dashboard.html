@@ -274,6 +274,161 @@
                 font-size: 16px;
             }
         }
+
+        /* Maintenance Tools Styles */
+        .maintenance-tools {
+            background: linear-gradient(145deg, #f8f9fa 0%, #ffffff 100%);
+            border: 2px solid #e9ecef;
+            border-radius: 20px;
+            padding: 35px;
+            margin-top: 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .maintenance-tools::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, #10b981 0%, #059669 50%, #dc3545 100%);
+        }
+
+        .maintenance-header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .maintenance-header h3 {
+            color: #333;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .maintenance-header p {
+            color: #666;
+            font-size: 16px;
+            font-weight: 500;
+        }
+
+        .maintenance-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: start;
+        }
+
+        .maintenance-action {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .maintenance-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            width: fit-content;
+            min-width: 200px;
+            justify-content: center;
+        }
+
+        .maintenance-btn.reconcile {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+        }
+
+        .maintenance-btn.purge {
+            background: linear-gradient(135deg, #dc3545 0%, #b02a37 100%);
+        }
+
+        .maintenance-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.25);
+        }
+
+        .maintenance-btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-icon {
+            font-size: 18px;
+        }
+
+        .btn-text {
+            font-weight: 600;
+        }
+
+        .purge-controls {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .purge-input {
+            padding: 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 12px;
+            font-size: 16px;
+            min-width: 220px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .purge-input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .maintenance-description {
+            color: #777;
+            font-size: 14px;
+            line-height: 1.5;
+            margin: 0;
+        }
+
+        /* Responsive for maintenance tools */
+        @media (max-width: 768px) {
+            .maintenance-grid {
+                grid-template-columns: 1fr;
+                gap: 25px;
+            }
+            
+            .maintenance-tools {
+                padding: 25px 20px;
+            }
+            
+            .purge-controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .maintenance-btn {
+                min-width: 100%;
+            }
+            
+            .purge-input {
+                min-width: 100%;
+                margin-bottom: 10px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -363,6 +518,39 @@
                         <div class="action-title">Estadísticas detalladas</div>
                         <div class="action-description">
                             Ver información completa sobre el sistema de cache y casos procesados
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Maintenance Tools -->
+                <div class="maintenance-tools">
+                    <div class="maintenance-header">
+                        <h3>Herramientas de Mantenimiento</h3>
+                        <p>Gestión avanzada del sistema y base de datos</p>
+                    </div>
+                    
+                    <div class="maintenance-grid">
+                        <div class="maintenance-action">
+                            <button class="maintenance-btn reconcile" onclick="reconcileNowReplay()">
+                                <span class="btn-icon">🔧</span>
+                                <span class="btn-text">Reconciliar Ahora</span>
+                            </button>
+                            <p class="maintenance-description">
+                                Actualiza estadísticas y limpia registros huérfanos tras cambios manuales
+                            </p>
+                        </div>
+                        
+                        <div class="maintenance-action">
+                            <div class="purge-controls">
+                                <input id="deepPurgeCaseIdReplay" type="text" placeholder="CASE-YYYY-XXXX" class="purge-input"/>
+                                <button class="maintenance-btn purge" onclick="deepPurgeReplay()">
+                                    <span class="btn-icon">🗑️</span>
+                                    <span class="btn-text">Deep Purge</span>
+                                </button>
+                            </div>
+                            <p class="maintenance-description">
+                                Elimina completamente un caso (archivos y registros en base de datos)
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -458,6 +646,32 @@
                 loadDashboard();
             }
         });
+
+        async function reconcileNowReplay() {
+            try {
+                const r = await fetch('/replay/api/stats'); // ejecuta reconciliación
+                if (!r.ok) throw new Error('Error en reconciliación');
+                await loadDashboard();
+                alert('Reconciliación completada. Estadísticas actualizadas.');
+            } catch (e) {
+                alert('No se pudo reconciliar: ' + (e?.message || e));
+            }
+        }
+
+        async function deepPurgeReplay() {
+            const cid = (document.getElementById('deepPurgeCaseIdReplay').value || '').trim();
+            if (!cid) { alert('Ingrese un Case ID válido'); return; }
+            if (!confirm(`Esto eliminará completamente ${cid} (FS + DB). ¿Desea continuar?`)) return;
+            try {
+                const r = await fetch(`/replay/api/deep-purge/${encodeURIComponent(cid)}`, { method: 'DELETE' });
+                const j = await r.json();
+                if (!r.ok || !j.success) throw new Error(j.detail || j.message || 'Error en deep purge');
+                await loadDashboard();
+                alert(`Caso ${cid} eliminado completamente.`);
+            } catch (e) {
+                alert('No se pudo eliminar: ' + (e?.message || e));
+            }
+        }
     </script>
 </body>
 </html>

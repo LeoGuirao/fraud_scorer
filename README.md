@@ -1,14 +1,13 @@
 # 🔍 Fraud Scorer v2.0  
-**Sistema Inteligente de Análisis de Siniestros con Detección de Fraude**  
+**Sistema Inteligente de Análisis de Siniestros**  
 
-Un sistema empresarial que combina OCR avanzado con IA (GPT-4) para analizar documentos de siniestros, extraer información clave y detectar posibles indicadores de fraude de manera automatizada.  
+Un sistema empresarial que combina OCR avanzado con IA (GPT-4) para analizar documentos de siniestros, extraer información clave y generar reportes profesionales de manera automatizada.  
 
 ---
 
 ## 🎯 Características Principales
 - **OCR Inteligente**: Procesamiento de documentos con Azure Document Intelligence  
 - **Extracción con IA**: Uso de GPT-4 para extracción semántica de campos  
-- **Detección de Fraude**: Análisis automático de inconsistencias y patrones sospechosos  
 - **Sistema de Cache**: Reutilización inteligente de resultados OCR  
 - **Modo Replay**: Reprocesamiento de casos sin re-escanear documentos  
 - **Generación de Reportes**: Informes HTML/PDF profesionales con análisis detallado  
@@ -134,8 +133,7 @@ fraud_scorer/
 2. 🔍 **OCR** → Extracción de texto  
 3. 🧠 **Extracción IA** → GPT-4 identifica campos clave  
 4. 🔄 **Consolidación** → Resolución de conflictos  
-5. ⚠️ **Análisis** → Detección de inconsistencias y fraude  
-6. 📊 **Reporte** → Informe HTML/PDF  
+5. 📊 **Reporte** → Informe HTML/PDF  
 
 ---
 

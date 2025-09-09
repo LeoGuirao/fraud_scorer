@@ -289,15 +289,7 @@ def build_docs_for_template_from_db(case_id: str) -> Tuple[List[Dict[str, Any]],
 # -------------------------------------------------
 # Riesgo / resumen
 # -------------------------------------------------
-def summarize_risk(fraud_score_0_1: float) -> str:
-    """
-    Convierte score [0,1] a etiqueta textual.
-    """
-    if fraud_score_0_1 < 0.3:
-        return "bajo"
-    if fraud_score_0_1 < 0.6:
-        return "medio"
-    return "alto"
+# (Función summarize_risk eliminada; ya no se calcula riesgo de fraude)
 
 
 # -------------------------------------------------
@@ -306,7 +298,6 @@ def summarize_risk(fraud_score_0_1: float) -> str:
 def render_report(
     template_processor: Any,
     docs_for_template: List[Dict[str, Any]],
-    ai_analysis: Dict[str, Any],
     output_dir: Path,
     default_name: str
 ) -> Tuple[Path, Optional[Path]]:
@@ -339,7 +330,7 @@ def render_report(
     html_path = output_dir / f"INF-{s_insured}-{s_claim}.html"
     
     # TODO: Cuando se implemente extract_from_documents, usar:
-    # informe = template_processor.extract_from_documents(docs_for_template, ai_analysis)
+    # informe = template_processor.extract_from_documents(docs_for_template)
     # template_processor.generate_report(informe, str(html_path))
     
     # Por ahora, crear un archivo vacío o usar un template básico

@@ -66,6 +66,15 @@ async def get_stats_data():
     Obtiene las estadísticas del cache OCR para mostrar en el dashboard.
     """
     try:
+        # Reconciliar cambios manuales: limpiar orfandad FS + DB antes de calcular
+        try:
+            await replay_service.purge_orphans()
+        except Exception:
+            pass
+        try:
+            replay_service.cleanup_db_orphans()
+        except Exception:
+            pass
         stats = replay_service.get_cache_stats()
         return {
             "success": True,
@@ -84,6 +93,15 @@ async def get_cases_data():
     Lista todos los casos disponibles para replay desde el cache.
     """
     try:
+        # Reconciliar antes de listar
+        try:
+            await replay_service.purge_orphans()
+        except Exception:
+            pass
+        try:
+            replay_service.cleanup_db_orphans()
+        except Exception:
+            pass
         cases = replay_service.list_available_cases()
         return {
             "success": True,
@@ -151,7 +169,6 @@ async def process_replay_api(payload: ReplayConfigPayload):
                 "case_id": result["case_id"],
                 "output_path": result["output_path"],
                 "replay_date": result["replay_date"],
-                "fraud_analysis": result.get("fraud_analysis"),
                 "document_count": len(result.get("extraction_results", []))
             }
         }
@@ -171,6 +188,10 @@ async def clear_cache_api(payload: CacheClearPayload):
     """
     try:
         result = replay_service.clear_cache(payload.cases)
+        try:
+            replay_service.cleanup_db_orphans()
+        except Exception:
+            pass
         return {
             "success": True,
             "message": result["message"],
@@ -190,6 +211,10 @@ async def clear_single_case_cache(case_id: str):
     """
     try:
         result = replay_service.clear_cache([case_id])
+        try:
+            replay_service.cleanup_db_orphans()
+        except Exception:
+            pass
         
         if result["status"] == "success":
             return {
@@ -211,3 +236,19 @@ async def clear_single_case_cache(case_id: str):
             status_code=500,
             detail=f"Error limpiando cache: {str(e)}"
         )
+
+@router.delete("/api/deep-purge/{case_id}")
+async def deep_purge_case_api(case_id: str):
+    """
+    Elimina un caso de forma profunda: artefactos de FS + filas en DB.
+    """
+    try:
+        ok = await replay_service.deep_purge_case(case_id)
+        if ok:
+            return {"success": True, "message": f"Caso {case_id} eliminado completamente"}
+        raise HTTPException(status_code=500, detail=f"No se pudo eliminar completamente el caso {case_id}")
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error en deep purge {case_id}: {e}")
+        raise HTTPException(status_code=500, detail="Error interno durante deep purge")

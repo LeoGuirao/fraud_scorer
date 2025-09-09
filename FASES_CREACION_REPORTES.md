@@ -2,7 +2,7 @@
 
 ## Descripción General
 
-Fraud Scorer v2.0 procesa casos de siniestros mediante un pipeline de 6 fases que transforma documentos físicos en reportes analíticos profesionales con detección automatizada de fraude.
+Fraud Scorer v2.0 procesa casos de siniestros mediante un pipeline de 5 fases que transforma documentos físicos en reportes analíticos profesionales.
 
 ---
 
@@ -65,7 +65,7 @@ Fraud Scorer v2.0 procesa casos de siniestros mediante un pipeline de 6 fases qu
 ---
 
 ### **FASE 3: Consolidación Inteligente**
-**Archivo**: `scripts/run_report.py:754-834`  
+**Archivo**: `scripts/run_report.py`  
 **Componente**: `AIConsolidator`
 
 #### Funcionalidades:
@@ -75,25 +75,8 @@ Fraud Scorer v2.0 procesa casos de siniestros mediante un pipeline de 6 fases qu
 - 🗃️ **Actualización automática** de índices de cache
 - 📁 **Reorganización de estructura** con nomenclatura consistente
 
----
-
-### **FASE 4: Análisis de Fraude**
-**Archivo**: `scripts/run_report.py:836-864`  
-**Componente**: `AIDocumentAnalyzer`
-
-#### Funcionalidades:
-- 🎯 **Cálculo de Fraud Score** (0-100%)
-- 🔍 **Detección de inconsistencias** automática
-- ⚠️ **Identificación de patrones sospechosos**
-- 📈 **Clasificación de riesgo**:
-  - 🟢 **BAJO**: < 30%
-  - 🟡 **MEDIO**: 30-60%
-  - 🔴 **ALTO**: > 60%
-
----
-
-### **FASE 5: Generación del Reporte**
-**Archivo**: `scripts/run_report.py:866-940`  
+### **FASE 4: Generación del Reporte**
+**Archivo**: `scripts/run_report.py`  
 **Componente**: `AIReportGenerator`
 
 #### Archivos clave:
@@ -115,10 +98,8 @@ Fraud Scorer v2.0 procesa casos de siniestros mediante un pipeline de 6 fases qu
 {ASEGURADO}_{SINIESTRO}_RESULTADOS.json # Datos completos + métricas
 ```
 
----
-
-### **FASE 6: Almacenamiento y Organización**
-**Archivo**: `scripts/run_report.py:942-1036`
+### **FASE 5: Almacenamiento y Organización**
+**Archivo**: `scripts/run_report.py`
 
 #### Estructura de archivos:
 ```
@@ -201,7 +182,6 @@ ENABLE_HDI_SPECIAL_RULES=true        # Reglas especiales HDI
 ### **Precisión:**
 - 🎯 **Extracción de campos**: >95%
 - 🎯 **Clasificación documentos**: >90%
-- 🎯 **Detección fraude**: Variable según complejidad
 
 ### **Optimización con cache:**
 - ⚡ **Reducción tiempo**: -80% en reprocesamiento

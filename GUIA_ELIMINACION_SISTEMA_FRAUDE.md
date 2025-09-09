@@ -437,3 +437,20 @@ python scripts/run_report.py /ruta/a/documentos --out data/reports --title "Test
 ---
 
 **⚠️ IMPORTANTE**: Esta guía elimina permanentemente el sistema de análisis de fraude. Asegúrate de tener un backup completo antes de proceder.
+
+---
+
+## 🔧 Mejoras y Ajustes Adicionales (recomendados)
+
+- Progreso del pipeline: eliminar la etapa `analyze` de `_ProgressEmitter` y de los tiempos por defecto para cálculo de ETA.
+- API Web (`api/main.py`): actualizar la descripción para quitar referencias a “detección de fraude”.
+- Interfaz Web (templates):
+  - `api/templates/index.html`: reemplazar textos que mencionan “detección de fraude” y “scoring de riesgo” por descripciones neutrales de reporte.
+  - `api/templates/upload.html`: cambiar “Evaluando riesgo de fraude…” por “Generando reporte…”.
+  - `api/templates/replay_config.html`: cambiar “Analizando fraude…” por “Preparando reporte…”.
+- UI de Replay (`ui/replay_ui.py`): eliminar el bloque que imprime el “Análisis de Fraude” y el score.
+- Endpoints de Reportes:
+  - Ignorar `detect_fraud` en vista previa y remover agregado de `fraud_indicators`/`risk_level`.
+  - Eliminar la plantilla `fraud_focus` de `get_available_templates`.
+- Validación extendida:
+  - Ejecutar búsquedas adicionales: `grep -r "risk_level"`, `grep -r "fraud_indicators"` y `grep -r "ai_analysis"` en `src/` y `scripts/`.

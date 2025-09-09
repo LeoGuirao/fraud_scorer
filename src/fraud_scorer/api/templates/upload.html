@@ -371,16 +371,7 @@
                     <span class="result-label">Caso ID:</span>
                     <span class="result-value" id="caseId">-</span>
                 </div>
-                <div class="result-row">
-                    <span class="result-label">Fraud Score:</span>
-                    <span class="result-value" id="fraudScore">-</span>
-                </div>
-                <div class="result-row">
-                    <span class="result-label">Nivel de Riesgo:</span>
-                    <span class="result-value">
-                        <span class="risk-badge" id="riskLevel">-</span>
-                    </span>
-                </div>
+                
             </div>
             <a href="#" class="view-report-btn" id="viewReportBtn" target="_blank">
                 Validar y Corregir Datos
@@ -594,7 +585,7 @@
                     } else if (status.progress < 75) {
                         detailedStatus.textContent = '🧠 Consolidando información...';
                     } else if (status.progress < 90) {
-                        detailedStatus.textContent = '📈 Evaluando riesgo de fraude...';
+                        detailedStatus.textContent = '📝 Generando reporte...';
                     } else {
                         detailedStatus.textContent = '📝 Generando reporte final...';
                     }
@@ -678,13 +669,16 @@
             
             // Llenar información
             document.getElementById('caseId').textContent = status.case_id || '-';
-            document.getElementById('fraudScore').textContent = 
-                status.fraud_score ? `${(status.fraud_score * 100).toFixed(1)}%` : '-';
-            
-            // Nivel de riesgo con clase apropiada
+            // Campos de riesgo/fraude removidos del sistema
             const riskLevel = document.getElementById('riskLevel');
-            riskLevel.textContent = status.risk_level || '-';
-            riskLevel.className = `risk-badge risk-${(status.risk_level || 'bajo').toLowerCase()}`;
+            if (riskLevel) {
+                riskLevel.textContent = '-';
+                riskLevel.className = 'risk-badge';
+            }
+            const fraudScoreEl = document.getElementById('fraudScore');
+            if (fraudScoreEl) {
+                fraudScoreEl.textContent = '-';
+            }
             
             // Botón de reporte
             const viewReportBtn = document.getElementById('viewReportBtn');
