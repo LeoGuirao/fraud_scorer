@@ -289,6 +289,102 @@
       font-family: 'Source Sans Pro', sans-serif;
     }
 
+    /* Nueva sección de análisis */
+    .analysis-section {
+      margin-top: 32px;
+      padding: 24px;
+      background: var(--card-primary);
+      border-radius: 6px;
+      border: 1px solid var(--slate-200);
+      box-shadow: var(--shadow-md);
+      position: relative;
+    }
+
+    .analysis-section::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, 
+        var(--primary-navy) 0%, 
+        var(--amber-600) 100%);
+    }
+
+    .analysis-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--slate-800);
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 3px solid var(--slate-200);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: 'Source Sans Pro', sans-serif;
+      letter-spacing: -0.02em;
+    }
+
+    .analysis-title i {
+      font-size: 24px;
+      color: var(--primary-navy);
+    }
+
+    .document-analysis {
+      margin-bottom: 24px;
+      padding: 20px;
+      background: var(--slate-50);
+      border-radius: 6px;
+      border: 1px solid var(--slate-200);
+      box-shadow: var(--shadow-sm);
+      position: relative;
+    }
+
+    .document-analysis::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, 
+        var(--accent-blue) 0%, 
+        var(--primary-blue) 100%);
+    }
+
+    .document-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--slate-800);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .document-title i {
+      font-size: 18px;
+      color: var(--primary-blue);
+    }
+
+    .document-content {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--slate-700);
+      font-family: 'Source Sans Pro', sans-serif;
+      text-align: justify;
+    }
+
+    .document-content p {
+      margin-bottom: 12px;
+    }
+
+    .document-content p:last-child {
+      margin-bottom: 0;
+    }
+
     /* Footer */
     .footer {
       margin-top: 24px;
@@ -326,6 +422,14 @@
       .header h1 {
         font-size: 16px;
       }
+
+      .analysis-title {
+        font-size: 18px;
+      }
+
+      .document-title {
+        font-size: 14px;
+      }
     }
 
     /* Print */
@@ -352,7 +456,41 @@
       .primary-value.highlight {
         color: var(--success-dark) !important;
       }
+
+      .analysis-title {
+        color: var(--slate-800) !important;
+      }
+
+      .document-title {
+        color: var(--slate-800) !important;
+      }
     }
+
+    /* Risk level badges */
+    .risk-badge {
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+    }
+    .risk-badge.critico { background: #991b1b; }
+    .risk-badge.alto { background: #ef4444; }
+    .risk-badge.medio { background: #f59e0b; }
+    .risk-badge.bajo { background: #16a34a; }
+
+    .severity-badge {
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 10px;
+      font-weight: 700;
+      color: white;
+      margin-left: 6px;
+    }
+    .severity-badge.critico { background: #991b1b; }
+    .severity-badge.alto { background: #ef4444; }
+    .severity-badge.medio { background: #f59e0b; }
+    .severity-badge.bajo { background: #16a34a; }
   </style>
 </head>
 <body>
@@ -436,6 +574,81 @@
         </div>
 
       </div>
+
+      {% if mostrar_seccion_fraude %}
+      <!-- Análisis de Fraude por Documento -->
+      <div class="analysis-section">
+        <h2 class="analysis-title"><i class="ri-search-eye-line"></i>Análisis de Fraude por Documento</h2>
+        
+        {% for documento in documentos_analizados %}
+        <div class="document-analysis">
+          <h3 class="document-title"><i class="{{ documento.icono }}"></i>{{ documento.titulo }}</h3>
+          <div class="document-content">
+            <!-- Metadatos del análisis -->
+            <div style="display:flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-bottom: 10px;">
+              <span class="risk-badge {{ documento.risk_level }}">
+                {{ documento.risk_level|upper }}
+              </span>
+              <span style="font-size:12px; color: var(--slate-600);">Archivo: <strong>{{ documento.nombre_archivo }}</strong></span>
+              <span style="font-size:12px; color: var(--slate-600);">Score: <strong>{{ documento.fraud_score }}</strong></span>
+              <span style="font-size:12px; color: var(--slate-600);">Confianza: <strong>{{ documento.confidence }}</strong></span>
+            </div>
+
+            <!-- Análisis narrativo -->
+            {% if documento.analisis_completo|trim %}
+            <div style="margin: 12px 0; padding: 10px; background: var(--slate-50); border-radius: 4px; border-left: 3px solid var(--primary-blue);">
+              <div style="font-weight: 600; margin-bottom: 8px; color: var(--primary-navy); font-size: 13px;">Análisis Detallado</div>
+              <div style="font-size: 12px; line-height: 1.6; color: var(--slate-700); white-space: pre-wrap;">{{ documento.analisis_completo }}</div>
+            </div>
+            {% endif %}
+
+            <!-- Indicadores -->
+            {% if documento.analisis.indicadores %}
+            <div style="margin-top: 8px;">
+              <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">Indicadores de Riesgo</div>
+              <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
+                {% for ind in documento.analisis.indicadores %}
+                <li style="margin: 4px 0;">
+                  <span style="font-weight: 600;">{{ ind.tipo }}</span> — {{ ind.descripcion }}
+                  <span class="severity-badge {{ ind.severidad }}">
+                    {{ ind.severidad|upper }}
+                  </span>
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            <!-- Evidencia -->
+            {% if documento.analisis.evidencia %}
+            <div style="margin-top: 8px;">
+              <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">Evidencia</div>
+              <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
+                {% for ev in documento.analisis.evidencia %}
+                <li style="margin: 4px 0;">{{ ev }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+            <!-- Recomendaciones -->
+            {% if documento.analisis.recomendaciones %}
+            <div style="margin-top: 8px;">
+              <div style="font-weight: 600; font-size: 13px; margin-bottom: 6px;">Recomendaciones</div>
+              <ul style="margin: 0; padding-left: 20px; font-size: 12px;">
+                {% for rec in documento.analisis.recomendaciones %}
+                <li style="margin: 4px 0;">{{ rec }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+
+          </div>
+        </div>
+        {% endfor %}
+
+      </div>
+      {% endif %}
 
       <!-- Footer -->
       <div class="footer">

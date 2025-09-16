@@ -315,6 +315,13 @@ class OCRCacheManager:
                 if cached:
                     if debug:
                         logger.debug(f"OCR_CACHE_DEBUG: lectura desde DB por hash: {file_hash} -> doc_id {doc_id}")
+                    # Importante: rehidratar a FS para que exista caché físico
+                    # y luego pueda reorganizarse a la estructura humana.
+                    try:
+                        self.save_cache(document_path, cached, case_id)
+                    except Exception as write_err:
+                        # No bloquear por fallo de escritura; ya tenemos los datos en memoria/DB
+                        logger.debug(f"No se pudo materializar cache en FS desde DB: {write_err}")
                     return cached
             except Exception as e:
                 logger.debug(f"Fallback DB cache fallo para {document_path}: {e}")

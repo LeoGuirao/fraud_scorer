@@ -1,0 +1,130 @@
+metadata:
+  type: facturas_comerciales_internacionales
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-01-15"
+  description: "Guía especializada para el análisis de facturas internacionales ligadas a operaciones de importación/exportación como comprobante de origen y propiedad de mercancía"
+
+definition:
+  nature: "Documento fiscal internacional que acredita propiedad y origen de mercancías importadas o exportadas"
+  legal_importance: "Alta - Es la evidencia principal de adquisición legítima de mercancías"
+  critical_elements:
+    - emisor_extranjero
+    - nombre_asegurado
+    - descripcion_mercancias
+    - cantidad_facturada
+    - valor_factura
+    - moneda
+    - fecha_factura
+    - numero_factura
+    - pedimento_aduanal
+    - comprobante_pago
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad formal de la factura (emisor, número, fecha, divisa, sello o autenticidad).
+    2. Validar que la fecha de emisión sea previa a la fecha del siniestro.
+    3. Revisar que la factura esté emitida a nombre del asegurado (titular de la cobertura).
+    4. Analizar coherencia entre cantidad facturada y cantidad reclamada.
+    5. Confirmar correspondencia entre pedimentos aduanales, comprobantes de pago y la mercancía descrita.
+    6. Identificar discrepancias graves (factura a tercero, reclamación mayor a la mercancía facturada).
+    7. Señalar hallazgos relevantes como excedentes de mercancía que no invalidan la reclamación.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: factura_no_a_nombre_del_asegurado
+        detection: "La factura está emitida a un tercero distinto al asegurado"
+        severity: "critico"
+      - pattern: reclamo_mayor_facturado
+        detection: "El monto o la cantidad reclamada excede lo indicado en la factura"
+        severity: "critico"
+    medium_risk:
+      - pattern: fecha_posterior_siniestro
+        detection: "La fecha de la factura es posterior a la fecha de ocurrencia del siniestro"
+        severity: "medio"
+      - pattern: pedimento_invalido
+        detection: "El pedimento aduanal o comprobante de pago es inexistente o inválido"
+        severity: "medio"
+    low_risk:
+      - pattern: errores_formato_menores
+        detection: "Errores tipográficos o de captura menores que no afectan la validez"
+        severity: "bajo"
+
+  validation_rules:
+    fecha_factura:
+      type: pattern
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+    numero_factura:
+      type: pattern
+      pattern: "^[A-Z0-9-]{3,20}$"
+    valor_factura:
+      type: pattern
+      pattern: "^[0-9]+(\\.[0-9]{2})?$"
+    moneda:
+      type: list
+      values: ["USD", "EUR", "MXN", "JPY", "CNY", "GBP"]
+    cantidad_facturada:
+      type: range
+      min: 1
+      max: 1000000
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - denuncia_de_los_hechos
+    - poliza_de_la_aseguradora
+    - pedimentos_aduanales
+    - comprobantes_de_pago
+
+response_template:
+  output_format:
+    documento_analizado: "facturas_comerciales_internacionales"
+    analisis_completo: |
+      Análisis detallado de la factura internacional considerando:
+      - Legitimidad de la emisión (emisor, asegurado, autenticidad).
+      - Fecha de emisión y coherencia con el siniestro.
+      - Correspondencia entre cantidad reclamada y cantidad facturada.
+      - Revisión de pedimentos y comprobantes de pago.
+      - Hallazgos adicionales relevantes (excedente de mercancía que no invalida el reclamo).
+      [Generar 3-5 párrafos claros, concisos y con enfoque profesional]
+
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documental:
+      numero_factura_valido: true
+      fecha_valida: true
+      autenticidad_comprobada: true
+      errores_formato: []
+
+    coherencia_temporal:
+      fecha_previa_siniestro: true
+      detalle_temporal: ""
+
+    consistencia_facturacion:
+      nombre_asegurado_correcto: true
+      cantidad_vs_reclamo: "coherente|incoherente"
+      excedente_mercancia: true
+      valor_vs_reclamo: "coherente|incoherente"
+
+    validacion_cruzada:
+      pedimento_aduanal: "pendiente"
+      comprobante_pago: "pendiente"
+      carta_reclamacion: "pendiente"
+
+    validation_tasks:
+      - tarea: "Verificar pedimento aduanal en sistema oficial"
+        fuente: "Sistema SAT / Aduanas"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar coincidencia de nombre de asegurado en factura"
+        fuente: "Factura comercial"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cruzar valor de la mercancía con carta de reclamación"
+        fuente: "Carta de reclamación"
+        prioridad: "media"
+        estado: "pendiente"

@@ -13,8 +13,8 @@ import logging
 
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
-from fraud_scorer.models.feedback import FeedbackPayload
-from fraud_scorer.storage.feedback import save_feedback_from_json, validate_feedback_data
+from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
+from fraud_scorer.templates.fraud_report_generator import FraudReportGenerator
 from fraud_scorer.storage.cases import get_case_by_id
 from fraud_scorer.storage.db import get_conn
 
@@ -35,7 +35,8 @@ async def generate_report(
     background_tasks: BackgroundTasks,
     files: List[UploadFile] = File(...),
     claim_number: Optional[str] = None,
-    expedited: bool = False
+    expedited: bool = False,
+    fraud: bool = False,
 ):
     """
     Genera un informe de siniestro a partir de los documentos proporcionados
@@ -85,7 +86,8 @@ async def generate_report(
             result = await _process_documents_and_generate_report(
                 process_id, 
                 saved_files, 
-                claim_number
+                claim_number,
+                fraud
             )
             return {
                 "process_id": process_id,
@@ -100,7 +102,8 @@ async def generate_report(
                 _process_documents_and_generate_report,
                 process_id,
                 saved_files,
-                claim_number
+                claim_number,
+                fraud
             )
             
             return {
@@ -319,7 +322,8 @@ async def get_available_templates():
 async def _process_documents_and_generate_report(
     process_id: str,
     file_paths: List[str],
-    claim_number: Optional[str] = None
+    claim_number: Optional[str] = None,
+    fraud: bool = False,
 ) -> Dict[str, Any]:
     """
     Procesa los documentos y genera el informe completo
@@ -347,10 +351,22 @@ async def _process_documents_and_generate_report(
             processing_status[process_id]["message"] = f"Procesando documento {idx + 1} de {total_files}"
             
             # OCR
-            ocr_result = ocr_processor.analyze_document(file_path)
-            ocr_result['file_name'] = Path(file_path).name
-            ocr_result['document_type'] = _detect_document_type(Path(file_path).name, ocr_result)
-            ocr_results.append(ocr_result)
+            ocr_obj = ocr_processor.analyze_document(file_path)
+            # Normalizar OCRResult a dict
+            if hasattr(ocr_obj, 'text'):
+                ocr_dict = {
+                    'text': getattr(ocr_obj, 'text', '') or '',
+                    'key_value_pairs': getattr(ocr_obj, 'key_values', {}) or {},
+                    'tables': getattr(ocr_obj, 'tables', []) or [],
+                    'confidence': getattr(ocr_obj, 'confidence', {}) or {},
+                    'metadata': getattr(ocr_obj, 'metadata', {}) or {},
+                    'errors': getattr(ocr_obj, 'errors', []) or [],
+                }
+            else:
+                ocr_dict = ocr_obj
+            ocr_dict['file_name'] = Path(file_path).name
+            ocr_dict['document_type'] = _detect_document_type(Path(file_path).name, ocr_dict)
+            ocr_results.append(ocr_dict)
         
         # Fase de fraude eliminada
         processing_status[process_id]["progress"] = 60
@@ -371,7 +387,11 @@ async def _process_documents_and_generate_report(
         # Extraer campos de cada documento
         extractions = []
         for ocr_result in ocr_results:
-            extraction = await extractor.extract_fields(ocr_result)
+            extraction = await extractor.extract_from_document(
+                ocr_result=ocr_result,
+                document_name=ocr_result.get('file_name', 'documento'),
+                document_type=ocr_result.get('document_type'),
+            )
             extractions.append(extraction)
         
         # Consolidar extracciones
@@ -395,11 +415,40 @@ async def _process_documents_and_generate_report(
         report_filename = f"INF-{s_insured}-{s_claim}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.html"
         report_path = REPORTS_DIR / report_filename
         
-        # Generar el reporte con los datos consolidados
-        template_processor.generate_report(
-            consolidated_data=consolidated,
-            output_path=report_path
-        )
+        # Generar el reporte
+        if fraud:
+            try:
+                analyzer = FraudAnalyzer()
+                docs_for_analysis = []
+                for ocr, ext in zip(ocr_results, extractions):
+                    docs_for_analysis.append({
+                        'id': str(uuid.uuid4()),
+                        'name': ocr.get('file_name', 'documento'),
+                        'type': ocr.get('document_type', 'otro'),
+                        'ocr': ocr,
+                        'extraction': ext,
+                    })
+                fraud_analyses = await analyzer.analyze_batch(
+                    documents=docs_for_analysis,
+                    case_id=process_id,
+                    parallel_limit=3,
+                    context={'claim_number': claim_number},
+                )
+                fraud_gen = FraudReportGenerator()
+                report_data = fraud_gen.prepare_fraud_report_data(
+                    consolidated_data=consolidated,
+                    fraud_analyses=fraud_analyses,
+                    documents_metadata=[{'name': o['file_name'], 'type': o['document_type']} for o in ocr_results],
+                )
+                html_content = fraud_gen.render_html_template('report_template.html', report_data)
+                # Guardar
+                with open(report_path, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+            except Exception as e:
+                logger.error(f"Fallo generando reporte con fraude: {e}. Usando plantilla estándar.")
+                template_processor.generate_report(consolidated_data=consolidated, output_path=report_path)
+        else:
+            template_processor.generate_report(consolidated_data=consolidated, output_path=report_path)
         
         # Actualizar estado final
         processing_status[process_id]["status"] = "completed"
@@ -462,142 +511,8 @@ def _detect_document_type(filename: str, ocr_result: Dict) -> str:
 
 
 def get_case_data_for_report(case_id: str) -> Dict[str, Any]:
-    """
-    Obtiene los datos completos de un caso para generar el reporte de feedback.
-    """
-    case = get_case_by_id(case_id)
-    if not case:
-        return None
-    
-    with get_conn() as conn:
-        # Obtener documentos del caso
-        documents = conn.execute(
-            "SELECT * FROM documents WHERE case_id = ? ORDER BY created_at",
-            (case_id,)
-        ).fetchall()
-        
-        # (Análisis de AI eliminado de la vista)
-        ai_analyses = []
-        
-        # Buscar datos extraídos consolidados en el cache
-        import json
-        from pathlib import Path
-        
-        pipeline_cache_dir = Path("data/temp/pipeline_cache")
-        consolidated_files = list(pipeline_cache_dir.glob("*ARCHIVO CONSOLIDADO.json"))
-        
-        consolidated_data = None
-        for file in consolidated_files:
-            if case_id in file.name:
-                try:
-                    with open(file, 'r', encoding='utf-8') as f:
-                        consolidated_data = json.load(f)
-                    break
-                except Exception as e:
-                    logger.warning(f"Error leyendo archivo consolidado {file}: {e}")
-        
-        return {
-            "case": dict(case),
-            "documents": [dict(doc) for doc in documents],
-            "ai_analyses": [],
-            "consolidated_data": consolidated_data
-        }
-
-
-@router.get("/report/{case_id}/feedback", response_class=HTMLResponse)
-async def get_interactive_report(case_id: str):
-    """
-    Genera y devuelve un reporte HTML interactivo para validación y feedback.
-    """
-    try:
-        # Obtener datos del caso
-        report_data = get_case_data_for_report(case_id)
-        if not report_data:
-            raise HTTPException(status_code=404, detail="Caso no encontrado o sin datos procesados.")
-        
-        # Generar reporte usando el template de feedback
-        generator = AIReportGenerator()
-        
-        # Renderizar usando el template de feedback
-        html_content = generator.render_html_template(
-            template_name="report_template_feedback.html",
-            data=report_data
-        )
-        return HTMLResponse(content=html_content)
-        
-    except Exception as e:
-        logger.error(f"Error generando reporte interactivo: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al generar el reporte interactivo: {e}")
-
-@router.get("/reports/{case_id}/feedback", response_class=HTMLResponse)
-async def reports_feedback(case_id: str, request: Request):
-    """
-    Ruta mejorada para el feedback que corrige el enlace del botón 'Validar información'.
-    """
-    try:
-        # Usar el método existente para obtener datos del template
-        from fraud_scorer.pipelines.data_flow import build_docs_for_template_from_db
-        data = build_docs_for_template_from_db(case_id)
-        
-        if not data:
-            raise HTTPException(status_code=404, detail="Caso no encontrado o sin datos procesados.")
-        
-        # Importar y configurar Jinja2Templates
-        from fastapi.templating import Jinja2Templates
-        from pathlib import Path
-        
-        # Obtener la ruta del template
-        project_root = Path(__file__).resolve().parents[4]
-        templates_dir = project_root / "src" / "fraud_scorer" / "templates"
-        templates = Jinja2Templates(directory=str(templates_dir))
-        
-        # Renderizar el template con los datos
-        return templates.TemplateResponse(
-            "report_template_feedback.html",
-            {"request": request, "case_id": case_id, "data": data}
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error generando reporte de feedback: {e}")
-        raise HTTPException(status_code=500, detail=f"Error al generar el reporte: {e}")
-
-
-@router.post("/report/{case_id}/submit_feedback")
-async def submit_feedback(case_id: str, payload: FeedbackPayload):
-    """
-    Recibe el JSON de feedback desde la interfaz y lo guarda en la base de datos.
-    """
-    try:
-        # Validar que el caso exista
-        case = get_case_by_id(case_id)
-        if not case:
-            raise HTTPException(status_code=404, detail="Caso no encontrado")
-        
-        # Convertir payload a lista de diccionarios
-        feedback_data = [item.model_dump() for item in payload.feedback]
-        
-        # Validar datos
-        if not validate_feedback_data(feedback_data):
-            raise HTTPException(status_code=400, detail="Datos de feedback inválidos")
-        
-        # Guardar feedback
-        save_feedback_from_json(case_id, feedback_data)
-        
-        logger.info(f"Feedback guardado para caso {case_id}: {len(feedback_data)} elementos")
-        
-        return {
-            "status": "success", 
-            "message": "Feedback recibido y guardado correctamente.",
-            "items_saved": len(feedback_data)
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error guardando feedback: {e}")
-        raise HTTPException(status_code=500, detail=f"No se pudo guardar el feedback: {e}")
+    # (Función eliminada junto con el sistema de feedback)
+    raise NotImplementedError("Feedback deshabilitado")
 
 
 # Endpoint para obtener estadísticas

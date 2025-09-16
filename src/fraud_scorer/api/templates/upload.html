@@ -3,8 +3,53 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fraud Scorer - Sistema de Análisis</title>
+    <title>Fraud Scorer - Sistema de Análisis de Siniestros</title>
+    
+    <!-- Fuentes profesionales -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet"/>
+    
     <style>
+        :root {
+            /* Corporate Banking Color Palette */
+            --primary-navy: #1e3a8a;
+            --primary-blue: #3b82f6;
+            --accent-blue: #60a5fa;
+            --light-blue: #dbeafe;
+            
+            --success-dark: #166534;
+            --success-medium: #16a34a;
+            --success-light: #bbf7d0;
+            
+            --slate-900: #0f172a;
+            --slate-800: #1e293b;
+            --slate-700: #334155;
+            --slate-600: #475569;
+            --slate-500: #64748b;
+            --slate-400: #94a3b8;
+            --slate-300: #cbd5e1;
+            --slate-200: #e2e8f0;
+            --slate-100: #f1f5f9;
+            --slate-50: #f8fafc;
+            
+            --amber-600: #d97706;
+            --amber-100: #fef3c7;
+            
+            --danger-600: #dc2626;
+            --danger-100: #fef2f2;
+            
+            --bg-primary: #fafbfc;
+            --bg-secondary: #f5f7fa;
+            --card-primary: #ffffff;
+            
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+            --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+        }
+
         * {
             margin: 0;
             padding: 0;
@@ -12,102 +57,259 @@
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: 'Source Sans Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
+            color: var(--slate-800);
+            font-size: 13px;
+            line-height: 1.5;
             min-height: 100vh;
+            padding: 20px;
+            letter-spacing: 0.01em;
+        }
+
+        .page-container {
+            max-width: 900px;
+            min-height: calc(100vh - 40px);
+            margin: 0 auto;
+            background: var(--card-primary);
+            border-radius: 8px;
+            border: 1px solid var(--slate-200);
+            box-shadow: var(--shadow-xl);
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, 
+                var(--primary-navy) 0%, 
+                var(--primary-blue) 50%, 
+                var(--success-medium) 100%);
+        }
+
+        /* Navigation */
+        .navigation {
+            display: flex;
+            justify-content: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .nav-btn {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--slate-600);
+            color: white;
+            text-decoration: none;
+            padding: 10px 18px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            border: none;
+            cursor: pointer;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        .nav-btn:hover {
+            background: var(--slate-700);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            margin-bottom: 32px;
+            padding: 24px 20px;
+            background: var(--slate-50);
+            border-radius: 6px;
+            border: 1px solid var(--slate-200);
+            box-shadow: var(--shadow-sm);
+            position: relative;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                var(--primary-blue) 0%, 
+                var(--success-medium) 100%);
+        }
+
+        .header h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--primary-navy);
+            letter-spacing: -0.5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            gap: 12px;
         }
 
-        .container {
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-            padding: 40px;
-            max-width: 600px;
-            width: 100%;
+        .header h1 i {
+            font-size: 28px;
+            color: var(--primary-blue);
         }
 
-        .logo {
-            text-align: center;
-            margin-bottom: 30px;
+        .header p {
+            color: var(--slate-600);
+            font-size: 15px;
+            font-weight: 400;
+            margin-top: 4px;
         }
 
-        .logo h1 {
-            color: #333;
-            font-size: 32px;
-            margin-bottom: 10px;
+        /* Content Sections */
+        .content-section {
+            background: var(--card-primary);
+            padding: 24px;
+            border-radius: 8px;
+            border: 1px solid var(--slate-200);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 24px;
+            position: relative;
+            transition: all 0.2s ease;
         }
 
-        .logo p {
-            color: #666;
-            font-size: 14px;
+        .content-section::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, 
+                var(--primary-blue) 0%, 
+                var(--success-medium) 100%);
         }
 
+        .content-section:hover {
+            box-shadow: var(--shadow-lg);
+            transform: translateY(-1px);
+        }
+
+        /* Upload Section */
         .upload-area {
-            border: 3px dashed #ddd;
-            border-radius: 15px;
-            padding: 40px;
+            border: 2px dashed var(--slate-300);
+            border-radius: 8px;
+            padding: 48px 24px;
             text-align: center;
-            transition: all 0.3s;
+            transition: all 0.3s ease;
             cursor: pointer;
             position: relative;
-            background: #fafafa;
+            background: var(--slate-50);
+            margin-bottom: 20px;
         }
 
         .upload-area:hover {
-            border-color: #667eea;
-            background: #f0f0ff;
+            border-color: var(--primary-blue);
+            background: var(--light-blue);
+            transform: scale(1.01);
         }
 
         .upload-area.dragover {
-            border-color: #667eea;
-            background: #e8e8ff;
+            border-color: var(--success-medium);
+            background: var(--success-light);
             transform: scale(1.02);
+            box-shadow: var(--shadow-lg);
         }
 
         .upload-icon {
             font-size: 48px;
-            color: #667eea;
-            margin-bottom: 20px;
+            color: var(--primary-blue);
+            margin-bottom: 16px;
+        }
+
+        .upload-icon i {
+            font-size: 48px;
         }
 
         .upload-text {
-            color: #333;
+            color: var(--slate-700);
             font-size: 18px;
-            margin-bottom: 10px;
+            font-weight: 600;
+            margin-bottom: 8px;
         }
 
         .upload-subtext {
-            color: #999;
+            color: var(--slate-500);
             font-size: 14px;
+            font-weight: 400;
         }
 
         input[type="file"] {
             display: none;
         }
 
+        /* Supported formats info */
+        .formats-info {
+            text-align: center;
+            margin-bottom: 20px;
+            padding: 16px;
+            background: var(--slate-50);
+            border-radius: 6px;
+            color: var(--slate-600);
+            font-size: 13px;
+            border: 1px solid var(--slate-200);
+        }
+
+        .formats-info strong {
+            color: var(--slate-700);
+            font-weight: 600;
+        }
+
+        /* File List */
         .file-list {
-            margin-top: 20px;
-            max-height: 200px;
+            margin-bottom: 24px;
+            max-height: 300px;
             overflow-y: auto;
         }
 
         .file-item {
-            background: #f8f9fa;
-            padding: 10px 15px;
-            border-radius: 8px;
+            background: var(--slate-50);
+            padding: 12px 16px;
+            border-radius: 6px;
             margin-bottom: 8px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border: 1px solid var(--slate-200);
+            transition: all 0.2s ease;
+        }
+
+        .file-item:hover {
+            background: var(--light-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .file-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex: 1;
+        }
+
+        .file-icon {
+            color: var(--primary-blue);
+            font-size: 16px;
         }
 
         .file-name {
-            color: #333;
+            color: var(--slate-700);
             font-size: 14px;
+            font-weight: 500;
             flex: 1;
             white-space: nowrap;
             overflow: hidden;
@@ -115,43 +317,55 @@
         }
 
         .file-size {
-            color: #999;
+            color: var(--slate-500);
             font-size: 12px;
             margin-left: 10px;
+            font-family: 'IBM Plex Mono', monospace;
         }
 
         .remove-file {
-            color: #ff4444;
+            color: var(--danger-600);
             cursor: pointer;
-            padding: 5px;
-            font-size: 18px;
+            padding: 4px;
+            font-size: 16px;
+            transition: all 0.2s ease;
         }
 
+        .remove-file:hover {
+            color: var(--slate-900);
+            background: var(--danger-100);
+            border-radius: 4px;
+        }
+
+        /* Buttons */
         .button-group {
             display: flex;
-            gap: 10px;
-            margin-top: 30px;
+            gap: 12px;
+            margin-top: 24px;
         }
 
         .btn {
             flex: 1;
-            padding: 15px;
+            padding: 14px 20px;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.3s;
+            transition: all 0.2s ease;
+            font-family: 'Source Sans Pro', sans-serif;
+            letter-spacing: 0.025em;
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-navy) 100%);
             color: white;
+            box-shadow: var(--shadow-sm);
         }
 
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
         }
 
         .btn-primary:disabled {
@@ -161,29 +375,31 @@
         }
 
         .btn-secondary {
-            background: #f8f9fa;
-            color: #333;
-            border: 2px solid #ddd;
+            background: var(--slate-50);
+            color: var(--slate-700);
+            border: 1px solid var(--slate-300);
         }
 
         .btn-secondary:hover {
-            background: #e9ecef;
+            background: var(--slate-100);
+            border-color: var(--slate-400);
         }
 
+        /* Processing Section */
         .processing {
             display: none;
             text-align: center;
-            padding: 40px;
+            padding: 40px 24px;
         }
 
         .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f3f3;
-            border-top: 4px solid #667eea;
+            width: 48px;
+            height: 48px;
+            border: 3px solid var(--slate-200);
+            border-top: 3px solid var(--primary-blue);
             border-radius: 50%;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 24px;
         }
 
         @keyframes spin {
@@ -191,55 +407,327 @@
             100% { transform: rotate(360deg); }
         }
 
+        .processing h2 {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--slate-800);
+            margin-bottom: 20px;
+        }
+
         .progress-bar {
             width: 100%;
             height: 8px;
-            background: #f0f0f0;
+            background: var(--slate-200);
             border-radius: 4px;
             overflow: hidden;
-            margin-top: 20px;
+            margin: 20px 0;
         }
 
         .progress-fill {
             height: 100%;
-            background: linear-gradient(90deg, #667eea, #764ba2);
+            background: linear-gradient(90deg, var(--primary-blue), var(--success-medium));
             width: 0%;
-            transition: width 0.3s;
+            transition: width 0.3s ease;
         }
 
         .status-message {
-            color: #666;
-            margin-top: 15px;
+            color: var(--slate-600);
+            margin-bottom: 16px;
             font-size: 14px;
+            font-weight: 500;
         }
 
+        .status-details {
+            margin-top: 16px;
+            padding: 16px;
+            background: var(--slate-50);
+            border-radius: 6px;
+            font-size: 13px;
+            color: var(--slate-600);
+            border: 1px solid var(--slate-200);
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .status-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .status-label {
+            font-weight: 500;
+            color: var(--slate-700);
+        }
+
+        .status-value {
+            font-family: 'IBM Plex Mono', monospace;
+            font-weight: 500;
+        }
+
+        .btn-cancel {
+            margin-top: 20px;
+            background: var(--danger-600);
+            color: white;
+            padding: 12px 24px;
+            min-width: 180px;
+        }
+
+        .btn-cancel:hover {
+            background: var(--slate-700);
+        }
+
+        /* Review Section */
+        .review {
+            display: none;
+            padding: 32px 24px;
+        }
+
+        .review h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--slate-800);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            justify-content: center;
+        }
+
+        .review h2 i {
+            font-size: 28px;
+            color: var(--primary-blue);
+        }
+
+        .review-subtitle {
+            color: var(--slate-600);
+            font-size: 15px;
+            margin-bottom: 24px;
+            background: var(--amber-100);
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 4px solid var(--amber-600);
+            font-weight: 500;
+        }
+
+        .review-stats {
+            display: flex;
+            justify-content: center;
+            gap: 24px;
+            margin: 24px 0;
+            padding: 16px;
+            background: var(--slate-50);
+            border-radius: 6px;
+            font-size: 13px;
+            border: 1px solid var(--slate-200);
+        }
+
+        .stat-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--slate-600);
+        }
+
+        .stat-item i {
+            font-size: 16px;
+            color: var(--primary-blue);
+        }
+
+        .stat-value {
+            font-weight: 700;
+            color: var(--slate-800);
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .documents-list {
+            margin: 24px 0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .document-review-item {
+            background: var(--slate-50);
+            border: 1px solid var(--slate-200);
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .document-review-item:hover {
+            border-color: var(--primary-blue);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-1px);
+        }
+
+        .document-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 16px;
+        }
+
+        .document-name {
+            color: var(--slate-800);
+            font-weight: 600;
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .document-name i {
+            font-size: 18px;
+            color: var(--primary-blue);
+        }
+
+        .confidence-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .confidence-high {
+            background: var(--success-light);
+            color: var(--success-dark);
+        }
+
+        .confidence-medium {
+            background: var(--amber-100);
+            color: var(--amber-600);
+        }
+
+        .confidence-low {
+            background: var(--danger-100);
+            color: var(--danger-600);
+        }
+
+        .classification-control {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .classification-label {
+            color: var(--slate-600);
+            font-size: 13px;
+            font-weight: 600;
+            min-width: 140px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: 'IBM Plex Mono', monospace;
+        }
+
+        .classification-select {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid var(--slate-300);
+            border-radius: 6px;
+            font-size: 13px;
+            background: white;
+            transition: all 0.2s ease;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        .classification-select:focus {
+            outline: none;
+            border-color: var(--primary-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .classification-select.changed {
+            border-color: var(--amber-600);
+            background: var(--amber-100);
+        }
+
+        .review-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-top: 32px;
+        }
+
+        .btn-review {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 160px;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        .btn-approve {
+            background: linear-gradient(135deg, var(--success-medium) 0%, var(--success-dark) 100%);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-approve:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-back {
+            background: var(--slate-50);
+            color: var(--slate-700);
+            border: 1px solid var(--slate-300);
+        }
+
+        .btn-back:hover {
+            background: var(--slate-100);
+            border-color: var(--slate-400);
+        }
+
+        /* Result Section */
         .result {
             display: none;
-            padding: 30px;
-            background: #f0fff4;
-            border-radius: 15px;
-            border: 2px solid #4caf50;
+            padding: 32px 24px;
+            background: var(--success-light);
+            border-radius: 8px;
+            border: 2px solid var(--success-medium);
+            margin: 24px 0;
         }
 
         .result-success {
-            color: #2e7d32;
+            color: var(--success-dark);
             font-size: 24px;
-            margin-bottom: 15px;
+            font-weight: 700;
+            margin-bottom: 20px;
             text-align: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .result-success i {
+            font-size: 28px;
         }
 
         .result-info {
             background: white;
             padding: 20px;
-            border-radius: 10px;
-            margin-top: 20px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid var(--slate-200);
         }
 
         .result-row {
             display: flex;
             justify-content: space-between;
+            align-items: center;
             padding: 10px 0;
-            border-bottom: 1px solid #eee;
+            border-bottom: 1px solid var(--slate-200);
         }
 
         .result-row:last-child {
@@ -247,136 +735,257 @@
         }
 
         .result-label {
-            color: #666;
-            font-size: 14px;
+            color: var(--slate-600);
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-family: 'IBM Plex Mono', monospace;
         }
 
         .result-value {
-            color: #333;
+            color: var(--slate-800);
             font-weight: 600;
             font-size: 14px;
-        }
-
-        .risk-badge {
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-            text-transform: uppercase;
-        }
-
-        .risk-bajo {
-            background: #e8f5e9;
-            color: #2e7d32;
-        }
-
-        .risk-medio {
-            background: #fff3e0;
-            color: #f57c00;
-        }
-
-        .risk-alto {
-            background: #ffebee;
-            color: #c62828;
+            font-family: 'IBM Plex Mono', monospace;
         }
 
         .view-report-btn {
             display: block;
             width: 100%;
-            padding: 15px;
-            margin-top: 20px;
-            background: #4caf50;
+            padding: 16px;
+            margin-bottom: 12px;
+            background: linear-gradient(135deg, var(--success-medium) 0%, var(--success-dark) 100%);
             color: white;
             border: none;
-            border-radius: 10px;
-            font-size: 16px;
+            border-radius: 6px;
+            font-size: 15px;
             font-weight: 600;
             cursor: pointer;
             text-decoration: none;
             text-align: center;
+            transition: all 0.2s ease;
         }
 
         .view-report-btn:hover {
-            background: #45a049;
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .page-container {
+                margin: 8px;
+                padding: 16px;
+            }
+            
+            .header h1 {
+                font-size: 20px;
+            }
+            
+            .review-stats {
+                flex-direction: column;
+                gap: 12px;
+            }
+            
+            .button-group,
+            .review-actions {
+                flex-direction: column;
+            }
+            
+            .classification-control {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .classification-label {
+                min-width: auto;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 8px;
+            }
+            
+            .upload-area {
+                padding: 32px 16px;
+            }
+            
+            .upload-icon {
+                font-size: 36px;
+            }
+            
+            .upload-text {
+                font-size: 16px;
+            }
+        }
+
+        /* Print styles */
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            
+            .page-container {
+                box-shadow: none;
+                border: none;
+                background: white;
+                max-width: none;
+                margin: 0;
+                padding: 20mm;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="page-container">
         <!-- Navigation Bar -->
-        <div style="display: flex; justify-content: flex-start; margin-bottom: 20px;">
-            <a href="/" style="display: flex; align-items: center; gap: 8px; background: #6c757d; color: white; border: none; padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px; text-decoration: none; transition: all 0.3s;" onmouseover="this.style.background='#5a6268'; this.style.transform='translateY(-1px)'" onmouseout="this.style.background='#6c757d'; this.style.transform='translateY(0)'">
-                ← Volver al Menú Principal
+        <div class="navigation">
+            <a href="/" class="nav-btn">
+                <i class="ri-arrow-left-line"></i>
+                Volver al Menú Principal
             </a>
         </div>
         
-        <!-- Logo y título -->
-        <div class="logo">
-            <h1>🔍 Fraud Scorer</h1>
+        <!-- Header -->
+        <div class="header">
+            <h1>
+                <i class="ri-search-eye-line"></i>
+                Fraud Scorer
+            </h1>
             <p>Sistema Inteligente de Análisis de Siniestros</p>
         </div>
 
-        <!-- Área de carga -->
-        <div id="uploadSection">
+        <!-- Upload Section -->
+        <div class="content-section" id="uploadSection">
             <div class="upload-area" id="uploadArea">
                 <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv">
-                <div class="upload-icon">📁</div>
+                <div class="upload-icon">
+                    <i class="ri-upload-cloud-2-line"></i>
+                </div>
                 <div class="upload-text">Arrastra los documentos aquí</div>
                 <div class="upload-subtext">o haz clic para seleccionar archivos</div>
             </div>
             
-            <div style="text-align: center; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 8px; color: #666; font-size: 14px;">
+            <div class="formats-info">
                 <strong>Formatos soportados:</strong> PDF, JPG, PNG, DOCX, XLSX, CSV
             </div>
 
             <div class="file-list" id="fileList"></div>
 
             <div class="button-group">
-                <button class="btn btn-secondary" onclick="clearFiles()">Limpiar</button>
+                <button class="btn btn-secondary" onclick="clearFiles()">
+                    <i class="ri-delete-bin-line"></i>
+                    Limpiar
+                </button>
                 <button class="btn btn-primary" id="analyzeBtn" onclick="startAnalysis()" disabled>
+                    <i class="ri-scan-line"></i>
                     Analizar Documentos
                 </button>
             </div>
         </div>
 
-        <!-- Sección de procesamiento -->
-        <div class="processing" id="processingSection">
+        <!-- Processing Section -->
+        <div class="content-section processing" id="processingSection">
             <div class="spinner"></div>
             <h2>Procesando documentos...</h2>
             <div class="progress-bar">
                 <div class="progress-fill" id="progressFill"></div>
             </div>
             <div class="status-message" id="statusMessage">Iniciando análisis...</div>
-            <div style="margin-top: 15px; padding: 10px; background: #f0f8ff; border-radius: 5px; font-size: 14px; color: #555;">
-                <div id="detailedStatus" style="margin-bottom: 5px;"></div>
-                <div id="documentProgress" style="font-weight: bold;"></div>
-                <div id="timeInfo" style="margin-top: 10px; display: flex; justify-content: space-around; font-size: 13px; color: #666;">
-                    <span>⏱️ Tiempo transcurrido: <span id="elapsedTime">0:00</span></span>
-                    <span>⏳ Tiempo estimado: <span id="estimatedTime">calculando...</span></span>
+            
+            <div class="status-details">
+                <div class="status-row">
+                    <span class="status-label">Estado actual:</span>
+                    <span class="status-value" id="detailedStatus">Preparando...</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Progreso de documentos:</span>
+                    <span class="status-value" id="documentProgress">-</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Tiempo transcurrido:</span>
+                    <span class="status-value" id="elapsedTime">0:00</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Tiempo estimado:</span>
+                    <span class="status-value" id="estimatedTime">calculando...</span>
                 </div>
             </div>
-            <button class="btn btn-secondary" id="cancelBtn" onclick="cancelProcess()" style="margin-top: 20px; background: #dc3545; border-color: #dc3545;" onmouseover="this.style.backgroundColor='#c82333'" onmouseout="this.style.backgroundColor='#dc3545'">
-                🛑 Cancelar Proceso
+            
+            <button class="btn btn-cancel" id="cancelBtn" onclick="cancelProcess()">
+                <i class="ri-stop-circle-line"></i>
+                Cancelar Proceso
             </button>
-            <div id="cancelStatus" style="display:none; margin-top: 10px; padding: 10px; background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; border-radius: 5px;">
-                <span>🧹 Cancelando y limpiando archivos temporales...</span>
+            
+            <div id="cancelStatus" style="display:none; margin-top: 16px; padding: 12px; background-color: var(--amber-100); color: var(--amber-600); border: 1px solid var(--amber-600); border-radius: 6px;">
+                <i class="ri-loader-4-line"></i>
+                Cancelando y limpiando archivos temporales...
             </div>
         </div>
 
-        <!-- Sección de resultados -->
-        <div class="result" id="resultSection">
-            <div class="result-success">✅ Análisis Completado</div>
+        <!-- Review Section -->
+        <div class="content-section review" id="reviewSection">
+            <h2>
+                <i class="ri-task-line"></i>
+                Revisar Clasificaciones
+            </h2>
+            <div class="review-subtitle">
+                <strong>Revisión requerida:</strong> Por favor verifica que cada documento esté correctamente clasificado antes de continuar con la extracción.
+            </div>
+            
+            <div class="review-stats" id="reviewStats">
+                <div class="stat-item">
+                    <i class="ri-file-list-3-line"></i>
+                    Total de documentos: <span class="stat-value" id="totalDocs">0</span>
+                </div>
+                <div class="stat-item">
+                    <i class="ri-checkbox-circle-line"></i>
+                    Alta confianza: <span class="stat-value" id="highConfidenceDocs">0</span>
+                </div>
+                <div class="stat-item">
+                    <i class="ri-error-warning-line"></i>
+                    Requiere revisión: <span class="stat-value" id="lowConfidenceDocs">0</span>
+                </div>
+            </div>
+
+            <div class="documents-list" id="documentsList">
+                <!-- Generado dinámicamente -->
+            </div>
+
+            <div class="review-actions">
+                <button class="btn-review btn-back" onclick="goBackToProcessing()">
+                    <i class="ri-arrow-left-line"></i>
+                    Volver
+                </button>
+                <button class="btn-review btn-approve" id="approveBtn" onclick="approveAndContinue()">
+                    <i class="ri-check-double-line"></i>
+                    Continuar con Extracción
+                </button>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="content-section result" id="resultSection">
+            <div class="result-success">
+                <i class="ri-checkbox-circle-fill"></i>
+                Análisis Completado
+            </div>
             <div class="result-info">
                 <div class="result-row">
                     <span class="result-label">Caso ID:</span>
                     <span class="result-value" id="caseId">-</span>
                 </div>
-                
             </div>
             <a href="#" class="view-report-btn" id="viewReportBtn" target="_blank">
-                Validar y Corregir Datos
+                <i class="ri-file-text-line"></i>
+                Visualizar Reporte
             </a>
             <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="resetForm()">
+                <i class="ri-refresh-line"></i>
                 Analizar Otro Caso
             </button>
         </div>
@@ -384,6 +993,8 @@
 
     <script>
         let selectedFiles = [];
+        let currentCaseId = null;
+        let originalClassifications = {};
         
         // Configurar área de carga
         const uploadArea = document.getElementById('uploadArea');
@@ -429,6 +1040,12 @@
                 const fileItem = document.createElement('div');
                 fileItem.className = 'file-item';
                 
+                const fileInfo = document.createElement('div');
+                fileInfo.className = 'file-info';
+                
+                const fileIcon = document.createElement('i');
+                fileIcon.className = 'file-icon ri-file-3-line';
+                
                 const fileName = document.createElement('span');
                 fileName.className = 'file-name';
                 fileName.textContent = file.name;
@@ -437,12 +1054,14 @@
                 fileSize.className = 'file-size';
                 fileSize.textContent = formatFileSize(file.size);
                 
-                const removeBtn = document.createElement('span');
-                removeBtn.className = 'remove-file';
-                removeBtn.textContent = '×';
+                const removeBtn = document.createElement('i');
+                removeBtn.className = 'remove-file ri-close-line';
                 removeBtn.onclick = () => removeFile(index);
                 
-                fileItem.appendChild(fileName);
+                fileInfo.appendChild(fileIcon);
+                fileInfo.appendChild(fileName);
+                
+                fileItem.appendChild(fileInfo);
                 fileItem.appendChild(fileSize);
                 fileItem.appendChild(removeBtn);
                 fileList.appendChild(fileItem);
@@ -553,65 +1172,47 @@
                     elapsedTimeEl.textContent = formatTime(elapsedSeconds);
                     
                     // Estimar tiempo restante
-                    if (progress > 5) {  // Solo estimar después de 5% de progreso
+                    if (progress > 5) {
                         estimatedTimeEl.textContent = estimateRemainingTime(progress, elapsedSeconds);
                     }
                     
                     // Actualizar estado detallado
                     if (status.current_document && status.total_documents) {
-                        documentProgress.textContent = `Documento ${status.current_document} de ${status.total_documents}`;
+                        documentProgress.textContent = `${status.current_document}/${status.total_documents}`;
                     }
                     
-                    // Mostrar nombre del documento actual si está disponible
-                    if (status.current_document_name) {
-                        documentProgress.textContent += `: ${status.current_document_name}`;
-                    }
-                    
-                    // Mostrar eventos recientes si están disponibles
-                    if (status.recent_events && status.recent_events.length > 0) {
-                        const latestEvent = status.recent_events[status.recent_events.length - 1];
-                        if (latestEvent.document) {
-                            detailedStatus.textContent = `📄 ${latestEvent.document}`;
-                        } else {
-                            detailedStatus.textContent = latestEvent.message;
-                        }
-                    }
-                    
-                    // Mostrar detalles adicionales según el progreso
+                    // Mostrar detalles según el progreso
                     if (status.progress < 30) {
-                        detailedStatus.textContent = '🔍 Extrayendo texto con OCR...';
+                        detailedStatus.textContent = 'Extrayendo texto con OCR...';
                     } else if (status.progress < 50) {
-                        detailedStatus.textContent = '🤖 Analizando con Inteligencia Artificial...';
+                        detailedStatus.textContent = 'Clasificando documentos...';
                     } else if (status.progress < 75) {
-                        detailedStatus.textContent = '🧠 Consolidando información...';
+                        detailedStatus.textContent = 'Extrayendo información...';
                     } else if (status.progress < 90) {
-                        detailedStatus.textContent = '📝 Generando reporte...';
+                        detailedStatus.textContent = 'Consolidando datos...';
                     } else {
-                        detailedStatus.textContent = '📝 Generando reporte final...';
+                        detailedStatus.textContent = 'Generando reporte...';
                     }
                     
-                    if (status.status === 'completed') {
-                        // Mostrar resultados
+                    // Manejar estados
+                    if (status.status === 'awaiting_review') {
+                        currentCaseId = status.case_id;
+                        cancelBtn.disabled = true;
+                        await showReviewSection(status);
+                    } else if (status.status === 'completed') {
                         cancelBtn.disabled = true;
                         showResults(status);
                     } else if (status.status === 'error') {
                         cancelBtn.disabled = true;
                         throw new Error(status.message);
                     } else if (status.status === 'cancelled') {
-                        // Mostrar estado de cancelación
                         cancelBtn.style.display = 'none';
                         document.getElementById('cancelStatus').style.display = 'block';
-                        progressBar.style.backgroundColor = '#ffc107';
-                        statusText.textContent = 'Proceso cancelado';
-                        detailedStatus.textContent = '🧹 Limpiando archivos temporales...';
-                        
-                        // Esperar un poco antes de resetear
                         setTimeout(() => {
                             alert('Proceso cancelado exitosamente');
                             resetForm();
                         }, 2000);
                     } else {
-                        // Continuar monitoreando
                         setTimeout(checkStatus, 1000);
                     }
                 } catch (error) {
@@ -624,18 +1225,159 @@
             checkStatus();
         }
         
+        // Función para mostrar la sección de revisión
+        async function showReviewSection(status) {
+            try {
+                document.getElementById('processingSection').style.display = 'none';
+                
+                const response = await fetch(`/api/case/${currentCaseId}/classifications`);
+                const classificationData = await response.json();
+                
+                originalClassifications = {};
+                classificationData.classifications.forEach(doc => {
+                    originalClassifications[doc.filename] = doc.document_type;
+                });
+                
+                populateDocumentsList(classificationData.classifications, classificationData.document_types);
+                updateReviewStats(classificationData.classifications);
+                
+                document.getElementById('reviewSection').style.display = 'block';
+                
+            } catch (error) {
+                console.error('Error cargando clasificaciones:', error);
+                alert('Error al cargar las clasificaciones. Continuando con el proceso...');
+                approveAndContinue();
+            }
+        }
+        
+        // Función para poblar la lista de documentos
+        function populateDocumentsList(classifications, documentTypes) {
+            const documentsList = document.getElementById('documentsList');
+            documentsList.innerHTML = '';
+            
+            classifications.forEach((doc, index) => {
+                const docItem = document.createElement('div');
+                docItem.className = 'document-review-item';
+                
+                const confidence = doc.confidence || 0;
+                let confidenceClass = 'confidence-low';
+                let confidenceText = 'Baja';
+                if (confidence >= 0.8) {
+                    confidenceClass = 'confidence-high';
+                    confidenceText = 'Alta';
+                } else if (confidence >= 0.6) {
+                    confidenceClass = 'confidence-medium';
+                    confidenceText = 'Media';
+                }
+                
+                const optionsHTML = documentTypes.map(type => 
+                    `<option value="${type.value}" ${type.value === doc.document_type ? 'selected' : ''}>${type.label}</option>`
+                ).join('');
+                
+                docItem.innerHTML = `
+                    <div class="document-header">
+                        <div class="document-name">
+                            <i class="ri-file-3-line"></i>
+                            ${doc.filename}
+                        </div>
+                        <div class="confidence-badge ${confidenceClass}">
+                            ${confidenceText} (${Math.round(confidence * 100)}%)
+                        </div>
+                    </div>
+                    <div class="classification-control">
+                        <label class="classification-label">Tipo de documento:</label>
+                        <select class="classification-select" data-filename="${doc.filename}" onchange="onClassificationChange(this)">
+                            ${optionsHTML}
+                        </select>
+                    </div>
+                `;
+                
+                documentsList.appendChild(docItem);
+            });
+        }
+        
+        // Función para actualizar estadísticas
+        function updateReviewStats(classifications) {
+            const total = classifications.length;
+            const highConfidence = classifications.filter(doc => (doc.confidence || 0) >= 0.8).length;
+            const lowConfidence = total - highConfidence;
+            
+            document.getElementById('totalDocs').textContent = total;
+            document.getElementById('highConfidenceDocs').textContent = highConfidence;
+            document.getElementById('lowConfidenceDocs').textContent = lowConfidence;
+        }
+        
+        // Función para manejar cambios en clasificación
+        function onClassificationChange(selectElement) {
+            const filename = selectElement.dataset.filename;
+            const newType = selectElement.value;
+            const originalType = originalClassifications[filename];
+            
+            if (newType !== originalType) {
+                selectElement.classList.add('changed');
+            } else {
+                selectElement.classList.remove('changed');
+            }
+        }
+        
+        // Función para aprobar y continuar
+        async function approveAndContinue() {
+            try {
+                const selects = document.querySelectorAll('.classification-select');
+                const classifications = {};
+                
+                selects.forEach(select => {
+                    classifications[select.dataset.filename] = select.value;
+                });
+                
+                const response = await fetch(`/api/case/${currentCaseId}/update-classifications`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ classifications })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Error al actualizar clasificaciones');
+                }
+                
+                const continueResponse = await fetch(`/api/case/${currentCaseId}/continue-processing`, {
+                    method: 'POST'
+                });
+                
+                if (!continueResponse.ok) {
+                    throw new Error('Error al continuar procesamiento');
+                }
+                
+                document.getElementById('reviewSection').style.display = 'none';
+                document.getElementById('processingSection').style.display = 'block';
+                
+                await monitorProgress(currentProcessId);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al continuar el procesamiento: ' + error.message);
+            }
+        }
+        
+        // Función para volver al procesamiento
+        function goBackToProcessing() {
+            document.getElementById('reviewSection').style.display = 'none';
+            document.getElementById('processingSection').style.display = 'block';
+            monitorProgress(currentProcessId);
+        }
+        
         async function cancelProcess() {
             if (!currentProcessId) return;
             
-            const confirmMsg = '¿Está seguro de que desea cancelar el proceso?\n' +
-                              'Se detendrá el análisis y se eliminarán los archivos temporales.';
+            const confirmMsg = '¿Está seguro de que desea cancelar el proceso?\nSe detendrá el análisis y se eliminarán los archivos temporales.';
             
             if (confirm(confirmMsg)) {
                 try {
-                    // Deshabilitar el botón inmediatamente
                     const cancelBtn = document.getElementById('cancelBtn');
                     cancelBtn.disabled = true;
-                    cancelBtn.textContent = '🔄 Cancelando...';
+                    cancelBtn.innerHTML = '<i class="ri-loader-4-line"></i> Cancelando...';
                     
                     const response = await fetch(`/cancel/${currentProcessId}`, {
                         method: 'POST'
@@ -643,44 +1385,26 @@
                     const result = await response.json();
                     
                     if (result.success) {
-                        // Actualizar UI para mostrar que se está cancelando
-                        document.getElementById('statusText').textContent = 'Cancelando proceso...';
-                        document.getElementById('detailedStatus').textContent = result.cleanup || '🧹 Limpiando archivos temporales...';
-                        
-                        // Cambiar color de la barra de progreso
-                        document.getElementById('progressBar').style.backgroundColor = '#ffc107';
+                        document.getElementById('detailedStatus').textContent = 'Cancelando proceso...';
                     } else {
                         alert('No se pudo cancelar el proceso: ' + result.message);
                         cancelBtn.disabled = false;
-                        cancelBtn.textContent = '🛑 Cancelar Proceso';
+                        cancelBtn.innerHTML = '<i class="ri-stop-circle-line"></i> Cancelar Proceso';
                     }
                 } catch (error) {
                     console.error('Error cancelando proceso:', error);
                     alert('Error al cancelar el proceso');
-                    document.getElementById('cancelBtn').disabled = false;
-                    document.getElementById('cancelBtn').textContent = '🛑 Cancelar Proceso';
                 }
             }
         }
         
         function showResults(status) {
             document.getElementById('processingSection').style.display = 'none';
+            document.getElementById('reviewSection').style.display = 'none';
             document.getElementById('resultSection').style.display = 'block';
             
-            // Llenar información
             document.getElementById('caseId').textContent = status.case_id || '-';
-            // Campos de riesgo/fraude removidos del sistema
-            const riskLevel = document.getElementById('riskLevel');
-            if (riskLevel) {
-                riskLevel.textContent = '-';
-                riskLevel.className = 'risk-badge';
-            }
-            const fraudScoreEl = document.getElementById('fraudScore');
-            if (fraudScoreEl) {
-                fraudScoreEl.textContent = '-';
-            }
             
-            // Botón de reporte
             const viewReportBtn = document.getElementById('viewReportBtn');
             viewReportBtn.href = status.report_url || '#';
         }
@@ -688,25 +1412,20 @@
         function resetForm() {
             document.getElementById('uploadSection').style.display = 'block';
             document.getElementById('processingSection').style.display = 'none';
+            document.getElementById('reviewSection').style.display = 'none';
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('cancelStatus').style.display = 'none';
             
-            // Resetear botón de cancelar
             const cancelBtn = document.getElementById('cancelBtn');
             if (cancelBtn) {
                 cancelBtn.disabled = false;
-                cancelBtn.textContent = '🛑 Cancelar Proceso';
+                cancelBtn.innerHTML = '<i class="ri-stop-circle-line"></i> Cancelar Proceso';
                 cancelBtn.style.display = 'block';
             }
             
-            // Resetear barra de progreso
-            const progressBar = document.getElementById('progressBar');
-            if (progressBar) {
-                progressBar.style.backgroundColor = '#28a745';
-            }
-            
-            // Resetear variables globales
             currentProcessId = null;
+            currentCaseId = null;
+            originalClassifications = {};
             startTime = null;
             progressHistory = [];
             

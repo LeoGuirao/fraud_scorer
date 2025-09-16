@@ -1,0 +1,179 @@
+metadata:
+  type: cfdi_carta_porte
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-01-15"
+  description: "Guía especializada para el análisis del CFDI Carta Porte como documento clave de acreditación del traslado de mercancía"
+
+definition:
+  nature: "Documento fiscal y de transporte que acredita la legalidad y características del traslado de mercancías"
+  legal_importance: "Alta - Sin este documento no procede la cobertura del siniestro"
+  critical_elements:
+    - emisor
+    - receptor
+    - asegurado
+    - nombre_operador
+    - placas_transporte
+    - numero_serie_transporte
+    - punto_origen
+    - punto_destino
+    - fecha_emision
+    - hora_emision
+    - fecha_timbrado
+    - medio_transporte
+    - cantidad
+    - peso
+    - valor_mercancia
+    - seguro_transporte
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad y autenticidad del documento (timbrado, estructura CFDI, sellos digitales).
+    2. Validar coherencia temporal: fecha/hora de emisión y timbrado vs fecha/hora del siniestro.
+    3. Revisar consistencia de datos clave: operador, placas, serie, emisor vs asegurado.
+    4. Contrastar peso/capacidad declarada con la tarjeta de circulación.
+    5. Validar concordancia de origen/destino con denuncia y carta de reclamación.
+    6. Detectar alteraciones visuales (tipografía, colores, formatos no uniformes).
+    7. Confirmar existencia de seguro del transporte y su emisor.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: operador_no_coincidente
+        detection: "Nombre del operador difiere respecto a la denuncia o documentos relacionados"
+        severity: "critico"
+      - pattern: timbrado_posterior_siniestro
+        detection: "La hora/fecha de timbrado es posterior a la ocurrencia del siniestro"
+        severity: "critico"
+      - pattern: exceso_carga
+        detection: "Peso declarado excede capacidad de carga de la unidad"
+        severity: "critico"
+      - pattern: ausencia_carta_porte
+        detection: "Falta el CFDI Carta Porte en el expediente"
+        severity: "critico"
+      - pattern: emisor_diferente_asegurado
+        detection: "El emisor no corresponde al asegurado en caso de transporte propio"
+        severity: "alto"
+      - pattern: datos_transporte_incoherentes
+        detection: "Placas o número de serie no coinciden con la denuncia"
+        severity: "alto"
+    medium_risk:
+      - pattern: descripcion_incompleta
+        detection: "Información incompleta de mercancía (cantidad, valor, peso)"
+        severity: "medio"
+      - pattern: inconsistencias_origen_destino
+        detection: "El punto de origen/destino no coincide con la denuncia o reclamación"
+        severity: "medio"
+    low_risk:
+      - pattern: errores_formato_menores
+        detection: "Errores tipográficos o de captura menores sin impacto en la validez"
+        severity: "bajo"
+
+  validation_rules:
+    fecha_emision:
+      type: pattern
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+    hora_emision:
+      type: pattern
+      pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+    fecha_timbrado:
+      type: pattern
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+    placas_transporte:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,10}$"
+    numero_serie_transporte:
+      type: pattern
+      pattern: "^[A-HJ-NPR-Z0-9]{17}$"   # VIN estándar
+    peso:
+      type: range
+      min: 1
+      max: 60000   # 60 toneladas, ajustable según regulación
+    valor_mercancia:
+      type: pattern
+      pattern: "^[0-9]+(\\.[0-9]{2})?$"
+    medio_transporte:
+      type: list
+      values: ["camion", "camioneta", "trailer", "ferrocarril", "maritimo", "aereo"]
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - denuncia_de_los_hechos
+    - poliza_de_la_aseguradora
+    - tarjeta_de_circulacion
+    - facturas_y_pedimentos
+
+response_template:
+  output_format:
+    documento_analizado: "cfdi_carta_porte"
+    analisis_completo: |
+      Análisis detallado del CFDI Carta Porte, considerando:
+      - Integridad documental y validez del timbrado.
+      - Coherencia temporal (emisión/timbrado vs fecha del siniestro).
+      - Consistencia de datos de operador, placas, serie y medio de transporte.
+      - Concordancia de origen/destino con denuncia y reclamación.
+      - Validación de peso y capacidad del transporte contra la tarjeta de circulación.
+      - Confirmación de la existencia de seguro y de su emisor.
+      - Identificación de señales críticas de fraude o rechazo automático.
+      [Generar 3-5 párrafos claros, precisos y profesionales, sin redundancia]
+
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documental:
+      timbrado_valido: true
+      alteraciones_detectadas: []
+      estructura_correcta: true
+
+    coherencia_temporal:
+      timbrado_antes_siniestro: true
+      fecha_coherente: true
+      detalle_temporal: ""
+
+    consistencia_transporte:
+      operador_coincidente: true
+      placas_coinciden: true
+      serie_valida: true
+      capacidad_vs_peso: "coherente|incoherente"
+      seguro_transporte:
+        existe: false
+        aseguradora: ""
+        poliza: ""
+
+    origen_destino:
+      origen: ""
+      destino: ""
+      concordancia_con_denuncia: true
+      concordancia_con_reclamacion: true
+
+    emisor_receptor:
+      emisor: ""
+      receptor: ""
+      coincide_con_asegurado: true
+      transporte_propio: true
+
+    validacion_cruzada:
+      denuncia: "pendiente"
+      carta_reclamacion: "pendiente"
+      tarjeta_circulacion: "pendiente"
+
+    validation_tasks:
+      - tarea: "Confirmar vigencia del CFDI y validez del timbrado SAT"
+        fuente: "SAT - validador CFDI"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar coincidencia de operador con denuncia"
+        fuente: "Denuncia de los hechos"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Validar capacidad de carga vs peso declarado"
+        fuente: "Tarjeta de circulación"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar aseguradora del transporte"
+        fuente: "Documento CFDI y póliza del transporte"
+        prioridad: "media"
+        estado: "pendiente"

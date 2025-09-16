@@ -121,6 +121,12 @@ class ExtractionConfig:
             "fecha_ocurrencia",
             "lugar_hechos"
         ],
+        "denuncia_de_los_hechos": [
+            "numero_siniestro",
+            "tipo_siniestro",
+            "fecha_ocurrencia",
+            "lugar_hechos"
+        ],
         "acreditacion_de_propiedad_y_representacion": [],
         "narracion_de_hechos": ["tipo_siniestro"],
         "declaracion_del_asegurado": ["tipo_siniestro"],
@@ -160,8 +166,8 @@ class ExtractionConfig:
         # Aliases comunes devueltos por detectores heurísticos
         "poliza": DOCUMENT_FIELD_MAPPING["poliza_de_la_aseguradora"],
         "factura": DOCUMENT_FIELD_MAPPING["guias_y_facturas"],
-        # Mapear 'denuncia' a carpeta de investigación (documento de MP)
-        "denuncia": DOCUMENT_FIELD_MAPPING["carpeta_de_investigacion"],
+        # Mapear alias 'denuncia' al tipo canónico denuncia_de_los_hechos
+        "denuncia": DOCUMENT_FIELD_MAPPING["denuncia_de_los_hechos"],
         
         # Nuevos tipos (sin extracción de cabecera)
         "identificacion_oficial": [],
@@ -187,6 +193,7 @@ class ExtractionConfig:
         "poliza_de_la_aseguradora",
         "carta_de_reclamacion_formal_a_la_aseguradora",
         "carpeta_de_investigacion",
+        "denuncia_de_los_hechos",
         "narracion_de_hechos",
         "declaracion_del_asegurado",
     ]
@@ -348,6 +355,7 @@ class ExtractionConfig:
         "licencia_del_operador": ExtractionRoute.OCR_TEXT,
         "aviso_de_siniestro_transportista": ExtractionRoute.OCR_TEXT,
         "carpeta_de_investigacion": ExtractionRoute.OCR_TEXT,
+        "denuncia_de_los_hechos": ExtractionRoute.OCR_TEXT,
         "acreditacion_de_propiedad_y_representacion": ExtractionRoute.OCR_TEXT,
         "salida_de_almacen": ExtractionRoute.OCR_TEXT,
         "reporte_gps": ExtractionRoute.OCR_TEXT,
@@ -387,6 +395,7 @@ class ExtractionConfig:
         "poliza": FieldPriority.POLIZA,
         "poliza_seguro": FieldPriority.POLIZA,
         "denuncia": FieldPriority.DENUNCIA,
+        "denuncia_de_los_hechos": FieldPriority.DENUNCIA,
         "factura": FieldPriority.FACTURA,
         "factura_compra": FieldPriority.FACTURA,
         "peritaje": FieldPriority.PERITAJE,
@@ -441,6 +450,7 @@ class ExtractionConfig:
         "reclamacion_aseg": "carta_de_reclamacion_formal_a_la_aseguradora",
         "reclamacion_trans": "carta_de_reclamacion_formal_al_transportista",
         "investigacion": "carpeta_de_investigacion",
+        "denuncia_hechos": "denuncia_de_los_hechos",
         "acreditacion": "acreditacion_de_propiedad_y_representacion",
         "guias_facturas": "guias_y_facturas",
         "guias_consolidadas": "guias_y_facturas_consolidadas",
@@ -474,6 +484,7 @@ class ExtractionConfig:
     # Prioridades para ordenamiento de archivos
     DOCUMENT_PRIORITIES = {
         "carpeta_de_investigacion": 1,
+        "denuncia_de_los_hechos": 1,
         "informe_preliminar_del_ajustador": 2,
         "informe_final_del_ajustador": 3,
         "poliza_de_la_aseguradora": 4,
@@ -500,6 +511,7 @@ class ExtractionConfig:
 # Acceso directo para compatibilidad con tests  
 DOCUMENT_PRIORITIES = {
     "carpeta_de_investigacion": 1,
+    "denuncia_de_los_hechos": 1,
     "poliza_de_la_aseguradora": 2,
     "guias_y_facturas": 3,
     "informe_preliminar_del_ajustador": 4,
@@ -563,7 +575,7 @@ STAGING_DIR = Path("data/uploads/renombre_de_documentos")
 
 # Aliases de tipos de documentos (para nombres de archivo cortos)
 DOCUMENT_TYPE_ALIASES = {
-    "DENUNCIA": "denuncia_inicial",
+    "DENUNCIA": "denuncia_de_los_hechos",
     "FACTURA": "guias_y_facturas", 
     "GUIA": "guias_y_facturas",
     "POLIZA": "poliza_de_la_aseguradora",

@@ -138,22 +138,38 @@ def init_db() -> None:
             """
         )
 
-        # feedback
+        # fraud_analyses (análisis por documento)
         conn.execute(
             """
-            CREATE TABLE IF NOT EXISTS feedback (
-                id              INTEGER PRIMARY KEY AUTOINCREMENT,
+            CREATE TABLE IF NOT EXISTS fraud_analyses (
+                id              TEXT PRIMARY KEY,
+                document_id     TEXT NOT NULL,
                 case_id         TEXT NOT NULL,
-                field_name      TEXT NOT NULL,
-                original_value  TEXT,
-                corrected_value TEXT,
-                status          TEXT NOT NULL,
+                document_type   TEXT NOT NULL,
+                risk_level      TEXT CHECK(risk_level IN ('bajo','medio','alto','critico')),
+                fraud_score     REAL CHECK(fraud_score >= 0 AND fraud_score <= 1),
+                analisis_completo TEXT,
+                indicators      TEXT,
+                evidence        TEXT,
+                recommendations TEXT,
+                confidence      REAL,
+                analysis_model  TEXT,
+                guide_version   TEXT,
+                analysis_uuid   TEXT,
+                prompt_hash     TEXT,
                 created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
                 FOREIGN KEY(case_id) REFERENCES cases(case_id) ON DELETE CASCADE
             );
             """
         )
-        conn.execute("CREATE INDEX IF NOT EXISTS idx_feedback_case_id ON feedback(case_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_case ON fraud_analyses(case_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_risk ON fraud_analyses(risk_level);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_score ON fraud_analyses(fraud_score);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_prompt ON fraud_analyses(prompt_hash);")
+
+        # (Tabla 'feedback' eliminada del esquema)
         
         # cache_stats - Tabla para métricas de caché persistentes
         conn.execute(
@@ -352,39 +368,7 @@ def get_extracted_by_document_id(document_id: str) -> Optional[sqlite3.Row]:
         ).fetchone()
         return row
 
-# --- FEEDBACK HELPERS ---
-
-def save_feedback(case_id: str, field_name: str, original_value: Optional[str], corrected_value: Optional[str], status: str) -> str:
-    """Guarda feedback del usuario para un campo específico."""
-    feedback_id = str(uuid.uuid4())
-    with get_conn() as conn:
-        conn.execute(
-            "INSERT INTO feedback(case_id, field_name, original_value, corrected_value, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (case_id, field_name, original_value, corrected_value, status, _now())
-        )
-        return conn.lastrowid
-
-def get_feedback_by_case(case_id: str) -> List[sqlite3.Row]:
-    """Obtiene todo el feedback para un caso específico."""
-    with get_conn() as conn:
-        rows = conn.execute(
-            "SELECT * FROM feedback WHERE case_id = ? ORDER BY created_at DESC",
-            (case_id,)
-        ).fetchall()
-        return rows
-
-def get_feedback_stats(case_id: Optional[str] = None) -> Dict[str, int]:
-    """Obtiene estadísticas de feedback (global o por caso)."""
-    with get_conn() as conn:
-        if case_id:
-            query = "SELECT status, COUNT(*) as count FROM feedback WHERE case_id = ? GROUP BY status"
-            params = (case_id,)
-        else:
-            query = "SELECT status, COUNT(*) as count FROM feedback GROUP BY status"
-            params = ()
-        
-        rows = conn.execute(query, params).fetchall()
-        return {row["status"]: row["count"] for row in rows}
+# (Helpers de feedback eliminados)
 
 # --- CACHE STATS HELPERS ---
 

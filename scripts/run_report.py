@@ -38,6 +38,9 @@ from fraud_scorer.storage.cases import create_case
 from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
 from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
+from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
+from fraud_scorer.analyzers.fraud_guide_manager import FraudGuideManager
+from fraud_scorer.templates.fraud_report_generator import FraudReportGenerator
 from fraud_scorer.models.extraction import (
     DocumentExtraction,
     ConsolidatedExtraction,
@@ -148,7 +151,7 @@ class FraudAnalysisSystemV2:
     Sistema de análisis de siniestros v2.0 con IA y Cache OCR (sin legacy).
     """
 
-    def __init__(self, guided_mode: bool = True, extraction_mode: str = "auto"):
+    def __init__(self, guided_mode: bool = True, extraction_mode: str = "auto", enable_fraud: bool = True):
         # OCR + Parser
         self.ocr_processor = AzureOCRProcessor()
         self.document_parser = DocumentParser(self.ocr_processor)
@@ -163,6 +166,8 @@ class FraudAnalysisSystemV2:
         self.consolidator = AIConsolidator()
         template_path = project_root / "src" / "fraud_scorer" / "templates"
         self.report_generator = AIReportGenerator(template_dir=template_path)
+        # Control de análisis de fraude
+        self.enable_fraud = bool(enable_fraud)
 
         mode_desc = "Guiado" if self.guided_mode else "Estándar"
         logger.info(f"Sistema v2.0 inicializado - Modo: {mode_desc}, Extracción: {self.extraction_mode}")
@@ -206,6 +211,56 @@ class FraudAnalysisSystemV2:
             except Exception as e:
                 logger.warning(f"  ✗ No se pudo eliminar {path}: {e}")
         self._cleanup_paths = []
+    
+    async def _pause_for_manual_review(self, case_id: str) -> None:
+        """
+        Fase 1.4.1: Pausa controlada para revisión manual de clasificación.
+        Crea un archivo marcador '<case_id>.awaiting_review' y espera hasta
+        que exista '<case_id>.resume'. No separa procesos ni fases públicas.
+        """
+        base = os.getenv("FS_DATA_DIR", "data")
+        pc_dir = Path(base) / "temp" / "pipeline_cache"
+        pc_dir.mkdir(parents=True, exist_ok=True)
+        await_marker = pc_dir / f"{case_id}.awaiting_review"
+        resume_marker = pc_dir / f"{case_id}.resume"
+
+        # Crear marcador de espera
+        try:
+            with open(await_marker, "w", encoding="utf-8") as f:
+                f.write(json.dumps({"case_id": case_id, "ts": time.time()}))
+        except Exception:
+            # Crear vacío como fallback
+            try:
+                await_marker.touch(exist_ok=True)
+            except Exception:
+                pass
+
+        # Emitir evento de progreso si está disponible
+        if self.progress_emitter:
+            self.progress_emitter.emit("review", "started", message="Esperando revisión manual de clasificación")
+
+        # Espera activa no bloqueante con chequeo de cancelación
+        logger.info("⏸️  Pausa 1.4.1: esperando confirmación de revisión...")
+        import asyncio as _async
+        while not resume_marker.exists():
+            # Permitir cancelación cooperativa si el caller la provee
+            if self.cancellation_check and await self.cancellation_check():
+                await self.cleanup_on_cancel()
+                raise _async.CancelledError("Proceso cancelado durante revisión 1.4.1")
+            await _async.sleep(0.5)
+
+        # Limpiar marcadores y continuar
+        try:
+            resume_marker.unlink(missing_ok=True)  # type: ignore[arg-type]
+        except Exception:
+            pass
+        try:
+            await_marker.unlink(missing_ok=True)  # type: ignore[arg-type]
+        except Exception:
+            pass
+
+        if self.progress_emitter:
+            self.progress_emitter.emit("review", "done", message="Revisión confirmada; continuando")
     
     def _clean_previous_case_files(
         self,
@@ -575,6 +630,13 @@ class FraudAnalysisSystemV2:
                     else:
                         doc_data["document_type"] = doc_type
 
+                    # Guardar detalles de clasificación para revisión 1.4.1
+                    try:
+                        doc_data["classification_confidence"] = float(conf)
+                    except Exception:
+                        doc_data["classification_confidence"] = None
+                    doc_data["classification_reasons"] = reasons or []
+
                     logger.info(
                         f"  📄 {doc_data.get('filename')}: tipo={doc_data.get('document_type')} "
                         f"(conf={conf:.2f})"
@@ -591,6 +653,9 @@ class FraudAnalysisSystemV2:
                         doc_data["document_type"] = detected
                     except Exception:
                         doc_data["document_type"] = "otro"
+                    # Sin detalles de confianza disponibles en error
+                    doc_data["classification_confidence"] = None
+                    doc_data["classification_reasons"] = []
 
         await _asyncio.gather(*[_classify_doc(d) for d in ocr_results])
 
@@ -605,12 +670,47 @@ class FraudAnalysisSystemV2:
                     case_data["classified_types"] = [
                         {
                             "filename": d.get("filename"),
-                            "document_type": d.get("document_type")
+                            "document_type": d.get("document_type"),
+                            "confidence": d.get("classification_confidence"),
+                            "reasons": d.get("classification_reasons"),
                         } for d in ocr_results
                     ]
                     self.cache_manager.save_case_index(case_id, case_data)
         except Exception as e:
             logger.warning(f"No se pudo persistir mapping de tipos: {e}")
+
+        # ============================================
+        # FASE 1.4.1: Pausa para revisión manual (controlada por env)
+        # ============================================
+        try:
+            if os.getenv("ENABLE_CLASSIFICATION_REVIEW", "false").lower() == "true":
+                await self._pause_for_manual_review(case_id)
+                # Tras la revisión, recargar tipos corregidos desde el índice
+                try:
+                    case_data = self.cache_manager.get_case_index(case_id) if self.cache_manager else None
+                    if case_data and isinstance(case_data.get("classified_types"), list):
+                        type_by_file = {
+                            str(item.get("filename")): item.get("document_type")
+                            for item in case_data["classified_types"]
+                            if item and item.get("filename") and item.get("document_type")
+                        }
+                        fixes = 0
+                        for d in ocr_results:
+                            fname = d.get("filename")
+                            if not fname:
+                                continue
+                            new_t = type_by_file.get(fname)
+                            if new_t and new_t != d.get("document_type"):
+                                prev = d.get("document_type")
+                                d["document_type"] = new_t
+                                fixes += 1
+                                logger.info(f"  🔧 Tipo corregido por revisión: '{fname}': {prev} -> {new_t}")
+                        if fixes:
+                            logger.info(f"✓ Tipos actualizados desde revisión: {fixes} cambios aplicados")
+                except Exception as _e:
+                    logger.warning(f"No se pudieron aplicar tipos corregidos: {_e}")
+        except Exception as e:
+            logger.warning(f"No se pudo realizar pausa de revisión: {e}")
 
         # ============================================
         # FASE 1.5: DETECCIÓN DE TIPO DE PÓLIZA (HDI)
@@ -833,7 +933,67 @@ class FraudAnalysisSystemV2:
         if self.progress_emitter:
             self.progress_emitter.emit("consolidate", "done", message="Consolidación completada")
 
-        # Fase de fraude eliminada
+        # ============================================
+        # FASE 3.5: Análisis de Fraude por Documento (opcional)
+        # ============================================
+        fraud_analyses = []
+        if self.enable_fraud:
+            logger.info("\n🔎 FASE 3.5: Análisis de fraude por documento")
+            logger.info("-" * 40)
+            try:
+                # Emitir evento de inicio (no afecta ETA)
+                if self.progress_emitter:
+                    self.progress_emitter.emit("analyze", "started", message="Analizando documentos para fraude")
+
+                analyzer = FraudAnalyzer()
+                guide_manager = FraudGuideManager()
+                # Mapear OCR por filename
+                ocr_map = {d.get("filename"): (d.get("ocr_result") or {}) for d in ocr_results}
+                docs_for_analysis = []
+                eligible_count = 0
+                skipped_no_guide = 0
+                for ext in extractions:
+                    try:
+                        name = ext.source_document
+                        ocr_dict = ocr_map.get(name, {})
+                        doc_type = ext.document_type or "otro"
+                        # Incluir SOLO documentos con guía disponible
+                        guide = guide_manager.get_guide(doc_type)
+                        if not guide:
+                            skipped_no_guide += 1
+                            continue
+                        eligible_count += 1
+                        docs_for_analysis.append({
+                            "id": f"{case_id}:{name}",
+                            "name": name,
+                            "type": doc_type,
+                            "ocr": ocr_dict,
+                            "extraction": ext,
+                        })
+                    except Exception:
+                        continue
+
+                if skipped_no_guide:
+                    logger.info(f"ℹ️ Documentos omitidos por no tener guía: {skipped_no_guide}")
+
+                if docs_for_analysis:
+                    fraud_analyses = await analyzer.analyze_batch(
+                        documents=docs_for_analysis,
+                        case_id=case_id,
+                        parallel_limit=3,
+                        context={
+                            "claim_number": claim_number_from_data,
+                            "insured_name": insured_name_from_data,
+                        },
+                    )
+                    logger.info(f"✓ Análisis de fraude completado: {len(fraud_analyses)} documentos analizados (elegibles: {eligible_count})")
+                else:
+                    logger.info("ℹ️ No hay documentos elegibles para análisis de fraude")
+
+                if self.progress_emitter:
+                    self.progress_emitter.emit("analyze", "done", message="Análisis de fraude completado")
+            except Exception as e:
+                logger.warning(f"⚠️ Fase de fraude falló o fue omitida: {e}")
 
         # ============================================
         # FASE 4: Generación del reporte
@@ -882,12 +1042,41 @@ class FraudAnalysisSystemV2:
             logger.info(f"  ⚠️ Reemplazando archivo existente: {html_filename}")
             html_path.unlink()
         
-        html_content = self.report_generator.generate_report(
-            consolidated_data=consolidated,
-            output_path=html_path,
-            insured_name=insured_name_from_data,
-            claim_number=claim_number_from_data
-        )
+        html_content = None
+        if self.enable_fraud and fraud_analyses:
+            try:
+                fraud_gen = FraudReportGenerator(template_dir=self.report_generator.template_dir)
+                # Metadata simple por documento para trazabilidad en template
+                analyzed_names = {a.document_name for a in fraud_analyses if hasattr(a, 'document_name')}
+                docs_meta = [
+                    {"name": d.get("filename"), "type": d.get("document_type")}
+                    for d in ocr_results if d.get("filename") in analyzed_names
+                ]
+                report_data = fraud_gen.prepare_fraud_report_data(
+                    consolidated_data=consolidated,
+                    fraud_analyses=fraud_analyses,
+                    documents_metadata=docs_meta,
+                )
+                html_content = fraud_gen.render_html_template("report_template.html", report_data)
+                # Guardar HTML
+                with open(html_path, "w", encoding="utf-8") as f:
+                    f.write(html_content)
+                logger.info(f"✓ HTML generado (con fraude): {html_path}")
+            except Exception as e:
+                logger.warning(f"Fallo generando reporte con fraude: {e}. Usando plantilla estándar.")
+                html_content = self.report_generator.generate_report(
+                    consolidated_data=consolidated,
+                    output_path=html_path,
+                    insured_name=insured_name_from_data,
+                    claim_number=claim_number_from_data
+                )
+        else:
+            html_content = self.report_generator.generate_report(
+                consolidated_data=consolidated,
+                output_path=html_path,
+                insured_name=insured_name_from_data,
+                claim_number=claim_number_from_data
+            )
         logger.info(f"✓ HTML generado: {html_path}")
 
         # PDF - con nomenclatura dinámica y reemplazo
@@ -970,6 +1159,8 @@ class FraudAnalysisSystemV2:
             "policy_type": getattr(self.extractor, "policy_context", None),
             "extraction_results": [e.model_dump() for e in extractions],
             "consolidated_data": consolidated.model_dump(),
+            "fraud_enabled": bool(self.enable_fraud),
+            "fraud_analyses": [getattr(a, "model_dump", lambda: a)() for a in (fraud_analyses or [])],
             "processing_metrics": {
                 "ocr_success_rate": f"{ocr_rate:.1%}",
                 "extraction_success_rate": f"{extraction_rate:.1%}",
@@ -1029,6 +1220,8 @@ def parse_args(argv: List[str]) -> argparse.Namespace:
                   help="Solo usar heurísticas para clasificación, sin LLM")
     p.add_argument("--extract-all-fields", action="store_true",
                   help="Extraer todos los campos en Fase B (sin restricciones)")
+    # Opciones de fraude
+    p.add_argument("--no-fraud", action="store_true", help="Desactiva el análisis de fraude por documento para esta ejecución")
     
     return p.parse_args(argv)
 
@@ -1163,7 +1356,8 @@ async def main(argv: List[str]) -> None:
 
     system = FraudAnalysisSystemV2(
         guided_mode=args.guided,  # Ya tiene default=True en argparse
-        extraction_mode=args.mode if hasattr(args, 'mode') else "auto"
+        extraction_mode=args.mode if hasattr(args, 'mode') else "auto",
+        enable_fraud=not getattr(args, 'no_fraud', False),
     )
 
     try:

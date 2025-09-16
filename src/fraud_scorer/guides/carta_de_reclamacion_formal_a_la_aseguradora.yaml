@@ -1,0 +1,144 @@
+metadata:
+  type: carta_de_reclamacion_formal_a_la_aseguradora
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-01-15"
+  description: "Guía especializada para el análisis de cartas de reclamación presentadas por el asegurado ante la aseguradora"
+
+definition:
+  nature: "Documento formal de notificación de siniestro y reclamación de indemnización"
+  legal_importance: "Alta - Constituye el aviso oficial de reclamación"
+  critical_elements:
+    - fecha_carta
+    - hora_siniestro
+    - fecha_siniestro
+    - lugar_siniestro
+    - tipo_siniestro
+    - descripcion_sucesos
+    - monto_reclamado
+    - nombre_asegurado
+    - aseguradora_destinataria
+    - firma_asegurado
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad formal del documento (firma, destinatario, sellos).
+    2. Validar coherencia temporal entre fecha de siniestro y fecha de carta.
+    3. Contrastar monto reclamado con tipo de siniestro y daños descritos.
+    4. Revisar consistencia de datos clave (asegurado, póliza, mercancía, montos).
+    5. Identificar lenguaje atípico, generalidades excesivas o falta de precisión.
+    6. Señalar información adicional que pueda ayudar a fortalecer la reclamación o detectar anomalías.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: monto_excesivo
+        detection: "Monto reclamado supera cobertura de póliza o es desproporcionado respecto a daños descritos"
+        severity: "critico"
+      - pattern: documentos_no_mencionados
+        detection: "No se hace referencia a póliza, pedimento, facturas o soportes críticos"
+        severity: "alto"
+      - pattern: falta_destinatario
+        detection: "Carta no dirigida claramente a la aseguradora"
+        severity: "alto"
+    medium_risk:
+      - pattern: demora_en_reclamo
+        detection: "La carta se emite meses después del siniestro sin justificación"
+        severity: "medio"
+      - pattern: descripcion_vaga
+        detection: "Narrativa del siniestro imprecisa o excesivamente general"
+        severity: "medio"
+    low_risk:
+      - pattern: errores_formales_menores
+        detection: "Errores tipográficos o datos secundarios incompletos"
+        severity: "bajo"
+
+  validation_rules:
+    fecha_carta:
+      type: pattern
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"   # YYYY-MM-DD
+    fecha_siniestro:
+      type: pattern
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+    hora_siniestro:
+      type: pattern
+      pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+    monto_reclamado:
+      type: pattern
+      pattern: "^[0-9]+(\\.[0-9]{2})?$"
+    nombre_asegurado:
+      type: pattern
+      pattern: "^.{3,}$"
+    aseguradora_destinataria:
+      type: pattern
+      pattern: "^.{3,}$"
+    tipo_siniestro:
+      type: list
+      values: ["robo", "accidente", "incendio", "perdida", "otro"]
+
+  cross_reference_documents:
+    - poliza_de_la_aseguradora
+    - denuncia_de_los_hechos
+    - facturas_y_pedimentos
+    - reportes_policiales
+    - fotografias_y_evidencias
+
+response_template:
+  output_format:
+    documento_analizado: "carta_de_reclamacion_formal_a_la_aseguradora"
+    analisis_completo: |
+      Análisis exhaustivo de la carta de reclamación, abordando:
+      - Integridad documental (firma, destinatario, datos obligatorios).
+      - Coherencia entre fecha de carta y fecha de siniestro.
+      - Consistencia de monto reclamado respecto a los daños y cobertura.
+      - Claridad y precisión de la narrativa de los hechos.
+      - Referencias a documentos de soporte (póliza, facturas, pedimentos).
+      - Señales de posibles inconsistencias o fraude.
+      [Generar 3-5 párrafos con hallazgos específicos y contexto]
+
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documental:
+      destinatario_correcto: true
+      firma_valida: true
+      documentos_mencionados: []
+      alteraciones_detectadas: []
+
+    coherencia_temporal:
+      carta_posterior_al_siniestro: true
+      demora_excesiva: false
+      detalle_temporal: ""
+
+    consistencia_reclamo:
+      monto_razonable: true
+      cobertura_aplicable: true
+      documentos_soporte: []
+
+    partes_involucradas:
+      asegurado: ""
+      aseguradora_destinataria: ""
+      testigos_mencionados: []
+
+    validacion_cruzada:
+      concordancia_poliza: "pendiente"
+      consistencia_con_denuncia: "pendiente"
+      soportes_documentales: []
+
+    validation_tasks:
+      - tarea: "Confirmar vigencia de la póliza"
+        fuente: "Sistema interno de pólizas"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Validar monto reclamado contra facturas/pedimentos"
+        fuente: "Documentación de respaldo"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar fecha de aviso vs fecha de ocurrencia"
+        fuente: "Denuncia y reporte de siniestro"
+        prioridad: "media"
+        estado: "pendiente"
+

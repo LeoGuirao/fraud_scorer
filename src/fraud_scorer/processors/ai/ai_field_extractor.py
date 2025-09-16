@@ -567,7 +567,7 @@ class AIFieldExtractor:
             # Por defecto, asumir aseguradora
             return "carta_de_reclamacion_formal_a_la_aseguradora"
         if "denuncia" in filename_lower:
-            return "carpeta_de_investigacion"
+            return "denuncia_de_los_hechos"
         if "aviso de siniestro" in filename_lower or "aviso_de_siniestro" in filename_lower:
             return "aviso_de_siniestro_transportista"
         if "checklist" in filename_lower and "antifraude" in filename_lower:
@@ -605,7 +605,7 @@ class AIFieldExtractor:
         synonyms_to_canonical = {
             "poliza": "poliza_de_la_aseguradora",
             "factura": "guias_y_facturas",
-            "denuncia": "carpeta_de_investigacion",
+            "denuncia": "denuncia_de_los_hechos",
             "informe_preliminar": "informe_preliminar_del_ajustador",
             "informe_final": "informe_final_del_ajustador",
             "salida_de_almacen": "salida_de_almacen",
@@ -722,6 +722,7 @@ class AIFieldExtractor:
             "poliza": ["numero_poliza", "nombre_asegurado", "vigencia_inicio", "vigencia_fin"],
             "factura": ["rfc", "monto_reclamacion", "fecha_ocurrencia"],
             "denuncia": ["fecha_ocurrencia", "lugar_hechos", "tipo_siniestro"],
+            "denuncia_de_los_hechos": ["fecha_ocurrencia", "lugar_hechos", "tipo_siniestro"],
         }
         priority_fields = field_focus.get(document_type, list(self.config.REQUIRED_FIELDS)[:5])
 

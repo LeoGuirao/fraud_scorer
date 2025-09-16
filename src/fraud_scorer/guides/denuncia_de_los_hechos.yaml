@@ -1,0 +1,125 @@
+metadata:
+  type: denuncia_de_los_hechos
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-01-14"
+  description: "Guía especializada para análisis de denuncias de hechos (noticia criminal)"
+
+definition:
+  nature: "Noticia criminal formal presentada ante autoridad competente"
+  legal_importance: "Alta - Establece narrativa oficial del siniestro"
+  critical_elements:
+    - fecha_ocurrencia
+    - hora_ocurrencia
+    - lugar_hechos
+    - nombres_involucrados
+    - narrativa_cronologica
+    - medio_transporte
+    - ruta
+    - tipificacion_delito
+    - autoridad_receptora
+
+methodology:
+  analysis_approach: |
+    1. Integridad y autenticidad documental (paginación, firmas, sellos)
+    2. Coherencia temporal y espacial (fechas/horas/lugares)
+    3. Consistencia de personas y testimonios
+    4. Tipificación y cobertura del modus operandi
+    5. Señales críticas y anomalías
+
+  fraud_indicators:
+    high_risk:
+      - pattern: paginas_faltantes
+        detection: "Secuencia de páginas con omisiones (e.g., 1,2,3,5,6)"
+        severity: "critico"
+      - pattern: incoherencia_jurisdiccional
+        detection: "Lugar de hechos no corresponde con jurisdicción de la denuncia"
+        severity: "alto"
+      - pattern: tipificacion_incorrecta
+        detection: "Tipificación no corresponde a la narrativa"
+        severity: "alto"
+      - pattern: contradicciones_narrativas
+        detection: "Inconsistencias entre versiones de denunciantes/testigos"
+        severity: "alto"
+    medium_risk:
+      - pattern: modificaciones_visibles
+        detection: "Cambios en tipografía, formato o estructura"
+        severity: "medio"
+      - pattern: modus_operandi_atipico
+        detection: "Patrón descrito no usual para la cobertura reportada"
+        severity: "medio"
+    low_risk:
+      - pattern: datos_incompletos_menores
+        detection: "Faltan datos no críticos o errores menores"
+        severity: "bajo"
+
+  validation_rules:
+    numeracion_paginas:
+      type: pattern
+      pattern: "^((\\d+)(,\\s*\\d+)+)$"
+    tipificacion_delito:
+      type: list
+      values: ["robo", "abuso_de_confianza", "asalto", "hurto", "daño", "otro"]
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - poliza_de_la_aseguradora
+    - carpeta_de_investigacion
+    - reportes_policiales
+    - fotografias_y_evidencias
+
+response_template:
+  output_format:
+    documento_analizado: "denuncia_de_los_hechos"
+    analisis_completo: |
+      Análisis exhaustivo del documento donde se describe en formato narrativo detallado:
+      - Integridad documental (paginación, firmas, sellos)
+      - Coherencia temporal y espacial de los hechos narrados
+      - Consistencia entre versiones de testigos y denunciantes
+      - Validación de la tipificación del delito vs narrativa
+      - Análisis del modus operandi y su correspondencia con la cobertura
+      - Identificación de señales críticas de posible fraude
+      - Validaciones pendientes con autoridades externas
+      [Este campo debe contener 3-5 párrafos con análisis profundo y contextualizado]
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+    integridad_documental:
+      paginas_completas: true
+      alteraciones_detectadas: []
+      autenticidad_elementos: ""
+    coherencia_temporal:
+      concordancia_reclamacion: true
+      vigencia_poliza_valida: true
+      secuencia_logica: "coherente|incoherente|parcial"
+    coherencia_espacial:
+      jurisdiccion_coherente: true
+      lugar_hechos_valido: true
+    personas_involucradas:
+      denunciantes_identificados: []
+      testigos_disponibles: []
+      autoridad_investigada: { nombre: "", validacion_interna: "", observaciones: "" }
+    tipificacion_delito:
+      clasificacion_correcta: true
+      cobertura_aplicable: true
+      modus_operandi_cubierto: true
+    validacion_cruzada:
+      concordancia_documentos: {}
+      consistencia_narrativa: "consistente|inconsistente|mixta"
+      investigaciones_realizadas: []
+    task_list_investigacion:
+      personas_entrevistar: []
+      verificaciones_pendientes: []
+      documentos_solicitar: []
+    validation_tasks:
+      - tarea: "Verificar legitimidad del funcionario receptor"
+        fuente: "Directorio oficial de la fiscalía correspondiente"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Validar competencia jurisdiccional"
+        fuente: "Tabulador de jurisdicciones del Poder Judicial"
+        prioridad: "media"
+        estado: "pendiente"

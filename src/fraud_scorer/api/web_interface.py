@@ -115,6 +115,8 @@ async def log_routes():
 
 # Estado de procesamiento (en memoria para simplicidad)
 processing_status = {}
+# Mapa interno para tareas en ejecución (no se expone en respuestas)
+active_jobs: dict[str, dict] = {}
 
 class FraudScorerProcessor:
     """Clase principal para procesar documentos"""
@@ -209,7 +211,7 @@ class FraudScorerProcessor:
         elif "poliza" in filename_lower or "policy" in filename_lower:
             return "poliza"
         elif "denuncia" in filename_lower:
-            return "denuncia"
+            return "denuncia_de_los_hechos"
         elif "carta" in filename_lower:
             return "carta_reclamacion"
         else:
@@ -417,6 +419,9 @@ async def upload_files(
         "started_at": datetime.now().isoformat()
     }
     
+    # Habilitar checkpoint 1.4.1 solo para este proceso
+    os.environ["ENABLE_CLASSIFICATION_REVIEW"] = "true"
+
     # Procesar en background
     background_tasks.add_task(
         process_documents_background,
@@ -460,30 +465,70 @@ async def process_documents_background(process_id: str, files: List[Path]):
         # Inicializar el sistema v2
         system = FraudAnalysisSystemV2()
         
-        # Procesar el caso usando el sistema completo
+        # Procesar el caso usando el sistema completo, con pausa 1.4.1
         case_title = f"Caso_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
-        
-        processing_status[process_id]["message"] = "Consolidando y generando reporte..."
-        processing_status[process_id]["progress"] = 60
-        
-        # Ejecutar el procesamiento completo
-        result = await system.process_case(
+
+        # Lanzar como tarea para poder monitorear marcador de revisión
+        task = asyncio.create_task(system.process_case(
             folder_path=temp_case_dir,
             output_path=REPORTS_DIR,
             case_title=case_title
-        )
-        
+        ))
+        active_jobs[process_id] = {"task": task, "system": system}
+
+        # Monitorear pausa 1.4.1 mediante marcador de archivo
+        base = os.getenv("FS_DATA_DIR", "data")
+        pipeline_cache_dir = Path(base) / "temp" / "pipeline_cache"
+        pipeline_cache_dir.mkdir(parents=True, exist_ok=True)
+        awaiting_set = False
+        detected_case_id = None
+
+        while not task.done():
+            # Descubrir marcador *.awaiting_review
+            try:
+                markers = list(pipeline_cache_dir.glob("*.awaiting_review"))
+                if markers and not awaiting_set:
+                    # Tomar el primero (entorno de un solo proceso)
+                    m = markers[0]
+                    detected_case_id = m.stem  # 'CASEID' si el archivo es 'CASEID.awaiting_review'
+                    processing_status[process_id] = {
+                        **processing_status[process_id],
+                        "status": "awaiting_review",
+                        "message": "Esperando revisión de clasificación",
+                        "progress": 35,
+                        "case_id": detected_case_id,
+                    }
+                    awaiting_set = True
+            except Exception:
+                pass
+
+            await asyncio.sleep(0.5)
+
+        # Obtener resultado final si la tarea terminó sin excepción
+        result = None
+        try:
+            result = task.result()
+        except asyncio.CancelledError:
+            processing_status[process_id] = {
+                "status": "cancelled",
+                "message": "Proceso cancelado por el usuario",
+                "progress": 0,
+            }
+            return
+        except Exception as e:
+            raise e
+
         processing_status[process_id]["message"] = "Finalizando..."
         processing_status[process_id]["progress"] = 90
-        
+
         # Extraer información del resultado
-        case_id = result.get("case_id", "UNKNOWN")
+        case_id = (result or {}).get("case_id", detected_case_id or "UNKNOWN")
         processing_status[process_id] = {
             "status": "completed",
             "message": "Procesamiento completado - Listo para validación",
             "progress": 100,
             "case_id": case_id,
-            "report_url": f"/feedback/{case_id}",  # Redirigir primero al feedback
+            "report_url": f"/report/{case_id}",
             "completed_at": datetime.now().isoformat()
         }
         
@@ -510,6 +555,115 @@ async def get_status(process_id: str):
         raise HTTPException(status_code=404, detail="Proceso no encontrado")
     
     return processing_status[process_id]
+
+# ===============================
+# Endpoints mínimos de checkpoint
+# ===============================
+from fraud_scorer.processors.document_classifier import DocumentType
+
+@app.get("/api/case/{case_id}/classifications")
+async def get_classifications(case_id: str):
+    cm = OCRCacheManager()
+    case = cm.get_case_index(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+    classifications = case.get("classified_types", []) or []
+    # Construir catálogo de tipos
+    doc_types = [
+        {"value": dt.value, "label": dt.value.replace("_", " ").title()}
+        for dt in DocumentType
+    ]
+    return {
+        "case_id": case_id,
+        "classifications": classifications,
+        "document_types": doc_types,
+    }
+
+from fastapi import Body
+
+@app.post("/api/case/{case_id}/update-classifications")
+async def update_classifications(case_id: str, payload: dict = Body(...)):
+    cm = OCRCacheManager()
+    case = cm.get_case_index(case_id)
+    if not case:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+    updates = (payload or {}).get("classifications", {})
+    if not isinstance(updates, dict):
+        raise HTTPException(status_code=400, detail="Payload inválido")
+
+    valid_values = {dt.value for dt in DocumentType}
+    # Normalizar lista existente
+    current = case.get("classified_types", []) or []
+    by_name = {item.get("filename"): item for item in current if item.get("filename")}
+
+    for filename, new_type in updates.items():
+        if new_type not in valid_values:
+            raise HTTPException(status_code=400, detail=f"Tipo inválido para {filename}: {new_type}")
+        item = by_name.get(filename)
+        if item is None:
+            # Si no existe, agregar entrada mínima
+            item = {"filename": filename, "document_type": new_type}
+            current.append(item)
+            by_name[filename] = item
+        else:
+            item["document_type"] = new_type
+        # Marca opcional
+        item["manually_reviewed"] = True
+
+    # Persistir
+    case["classified_types"] = current
+    try:
+        cm.save_case_index(case_id, case)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"No se pudo guardar: {e}")
+
+    return {"success": True}
+
+@app.post("/api/case/{case_id}/continue-processing")
+async def continue_processing(case_id: str):
+    # Señal de reanudación para run_report
+    base = os.getenv("FS_DATA_DIR", "data")
+    pc_dir = Path(base) / "temp" / "pipeline_cache"
+    pc_dir.mkdir(parents=True, exist_ok=True)
+    resume_marker = pc_dir / f"{case_id}.resume"
+    try:
+        with open(resume_marker, "w", encoding="utf-8") as f:
+            f.write(json.dumps({"case_id": case_id, "ts": datetime.now().isoformat()}))
+    except Exception:
+        try:
+            resume_marker.touch(exist_ok=True)
+        except Exception:
+            raise HTTPException(status_code=500, detail="No se pudo crear señal de continuación")
+    # Actualizar estado a 'processing' para que la UI salga de la revisión
+    try:
+        for pid, st in list(processing_status.items()):
+            if st.get("case_id") == case_id and st.get("status") == "awaiting_review":
+                st["status"] = "processing"
+                st["message"] = "Reanudando procesamiento tras revisión..."
+                st["progress"] = max(40, st.get("progress", 35))
+                processing_status[pid] = st
+                break
+    except Exception:
+        pass
+    return {"success": True}
+
+@app.post("/cancel/{process_id}")
+async def cancel_process_api(process_id: str):
+    job = active_jobs.get(process_id)
+    if not job:
+        return {"success": False, "message": "Proceso no encontrado o ya finalizado"}
+    try:
+        task = job.get("task")
+        if task and not task.done():
+            task.cancel()
+        processing_status[process_id] = {
+            "status": "cancelled",
+            "message": "Proceso cancelado por el usuario",
+            "progress": 0,
+        }
+        return {"success": True}
+    except Exception as e:
+        return {"success": False, "message": str(e)}
 
 @app.get("/status/stream/{case_id}")
 async def status_stream(case_id: str):
@@ -630,16 +784,35 @@ async def process_feedback(case_id: str, feedback_data: dict):
 
 @app.get("/report/{case_id}", response_class=HTMLResponse)
 async def get_report(case_id: str):
-    """Devuelve el reporte HTML final"""
-    report_path = REPORTS_DIR / f"INF-{case_id}.html"
-    
-    if not report_path.exists():
-        raise HTTPException(status_code=404, detail="Reporte no encontrado")
-    
-    with open(report_path, "r", encoding="utf-8") as f:
-        content = f.read()
-    
-    return HTMLResponse(content=content)
+    """Devuelve el reporte HTML final resolviendo nomenclatura v2 dinámicamente.
+
+    Intenta primero la nomenclatura v2: <ASEGURADO>_<SINIESTRO>_INFORME.html
+    Si no existe, cae a la nomenclatura legacy: INF-<CASE_ID>.html
+    """
+    # Intentar con nomenclatura v2 usando datos del índice del caso
+    try:
+        cm = OCRCacheManager()
+        case = cm.get_case_index(case_id)
+        if case:
+            insured = case.get("insured_name") or ""
+            claim = case.get("claim_number") or ""
+            if insured and claim:
+                s_insured = cm._sanitize_filename(insured)  # reuse internal sanitizer
+                s_claim = cm._sanitize_filename(claim)
+                v2_path = REPORTS_DIR / f"{s_insured}_{s_claim}_INFORME.html"
+                if v2_path.exists():
+                    with open(v2_path, "r", encoding="utf-8") as f:
+                        return HTMLResponse(content=f.read())
+    except Exception:
+        pass
+
+    # Fallback legacy por case_id
+    legacy_path = REPORTS_DIR / f"INF-{case_id}.html"
+    if legacy_path.exists():
+        with open(legacy_path, "r", encoding="utf-8") as f:
+            return HTMLResponse(content=f.read())
+
+    raise HTTPException(status_code=404, detail="Reporte no encontrado")
 
 @app.get("/health")
 async def health_check():

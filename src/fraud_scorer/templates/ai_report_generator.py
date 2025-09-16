@@ -1,4 +1,4 @@
-# src/fraud_scorer/ai_extractors/ai_report_generator.py
+# src/fraud_scorer/templates/ai_report_generator.py
 
 """
 AIReportGenerator: Genera el reporte final usando los datos consolidados
@@ -72,7 +72,7 @@ class AIReportGenerator:
         Renderiza un template de Jinja2 con los datos proporcionados.
         
         Args:
-            template_name: Nombre del template (ej: "report_template_feedback.html")
+            template_name: Nombre del template (ej: "report_template.html")
             data: Diccionario con los datos para el template
             
         Returns:

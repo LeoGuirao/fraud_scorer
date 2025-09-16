@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Fraud Scorer - 20250000003818</title>
+  <title>Fraud Scorer - {{ numero_siniestro|default('SIN_NUMERO') }}</title>
   
   <!-- Fuentes profesionales -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -369,15 +369,15 @@
         <div class="primary-grid">
           <div class="primary-item">
             <div class="primary-label"><i class="ri-barcode-line"></i>Número de siniestro</div>
-            <div class="primary-value">20250000003818</div>
+            <div class="primary-value">{{ numero_siniestro|default('NO ESPECIFICADO') }}</div>
           </div>
           <div class="primary-item">
             <div class="primary-label"><i class="ri-shield-user-line"></i>Nombre del asegurado</div>
-            <div class="primary-value">CHIHUAHUA MEAT VISA QUALITY S.A. DE C.V.</div>
+            <div class="primary-value">{{ nombre_asegurado|default('NO ESPECIFICADO') }}</div>
           </div>
           <div class="primary-item">
             <div class="primary-label"><i class="ri-money-dollar-circle-line"></i>Monto de reclamación</div>
-            <div class="primary-value highlight">$394,526.03</div>
+            <div class="primary-value highlight">{{ monto_reclamacion|default('$0.00') }}</div>
           </div>
         </div>
       </div>
@@ -391,15 +391,15 @@
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label"><i class="ri-file-zip-line"></i>Número</div>
-              <div class="info-value">14 - 35495</div>
+              <div class="info-value">{{ numero_poliza|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-calendar-check-line"></i>Vigencia</div>
-              <div class="info-value">01/09/2024 AL 01/09/2025</div>
+              <div class="info-value">{{ vigencia|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-map-pin-line"></i>Domicilio</div>
-              <div class="info-value">OCTAVIO PAZ No. Ext. 119, COMPLEJO INDUSTRIAL CHIHUAHUA, C.P.31136, CHIHUAHUA CHIHUAHUA</div>
+              <div class="info-value">{{ domicilio_poliza|default('NO ESPECIFICADO') }}</div>
             </div>
           </div>
         </div>
@@ -410,27 +410,27 @@
           <div class="info-grid">
             <div class="info-item">
               <div class="info-label"><i class="ri-alert-line"></i>Tipo</div>
-              <div class="info-value">Robo Total / Parcial</div>
+              <div class="info-value">{{ tipo_siniestro|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-calendar-event-line"></i>Ocurrencia</div>
-              <div class="info-value">09/05/2025</div>
+              <div class="info-value">{{ fecha_ocurrencia|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-calendar-todo-line"></i>Reclamación</div>
-              <div class="info-value">10/05/2025</div>
+              <div class="info-value">{{ fecha_reclamacion|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-map-2-line"></i>Lugar</div>
-              <div class="info-value">EN LA AUTOPISTA MÉXICO-PUEBLA PASANDO LA CASETA DE SAN MARTIN A CUATRO KILÓMETROS APROXIMADAMENTE, SENTIDO PUEBLA PASANDO EL ARCO DE SEGURIDAD DE HUEJOTZINGO, PUEBLA</div>
+              <div class="info-value">{{ lugar_hechos|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-archive-line"></i>Bien</div>
-              <div class="info-value">Producto Cárnico</div>
+              <div class="info-value">{{ bien_reclamado|default('NO ESPECIFICADO') }}</div>
             </div>
             <div class="info-item">
               <div class="info-label"><i class="ri-user-search-line"></i>Ajuste</div>
-              <div class="info-value">SINIESCA</div>
+              <div class="info-value">{{ ajuste|default('NO ESPECIFICADO') }}</div>
             </div>
           </div>
         </div>

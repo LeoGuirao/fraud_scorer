@@ -67,6 +67,9 @@ class DocumentType(Enum):
     DICTAMEN_TECNICO = "dictamen_tecnico"
     COMPROBANTE_DOMICILIO = "comprobante_de_domicilio"
     
+    # Documentos legales adicionales
+    DENUNCIA_DE_LOS_HECHOS = "denuncia_de_los_hechos"
+    
     # Otros
     OTRO = "otro"
 
@@ -252,6 +255,20 @@ class DocumentClassifier:
                 may_have=["poderes", "identificaciones", "constancias", "facturas", "guías"],
                 exclude=[],
                 description="Documentos que acreditan propiedad y representación legal"
+            ),
+
+            # Denuncia de los hechos (noticia criminal)
+            DocumentType.DENUNCIA_DE_LOS_HECHOS.value: DocumentTypeDefinition(
+                type_name="denuncia_de_los_hechos",
+                keywords=[
+                    "denuncia", "noticia criminal", "hechos", "ministerio público", "ministerio publico",
+                    "fiscalía", "fiscalia", "autoridad", "testigos", "denunciante", "acta",
+                    "jurisdicción", "jurisdiccion", "tipificación", "tipificacion"
+                ],
+                must_have=["denuncia"],
+                may_have=["folio", "fecha", "hora", "lugar", "narrativa", "testimonios", "autoridad receptora"],
+                exclude=["póliza", "poliza", "factura", "cfdi", "informe preliminar", "informe final"],
+                description="Denuncia de los hechos presentada ante autoridad competente"
             ),
             
             DocumentType.SALIDA_DE_ALMACEN.value: DocumentTypeDefinition(
@@ -531,7 +548,7 @@ class DocumentClassifier:
                 ]
 
         if "denuncia" in filename_norm:
-            return DocumentType.CARPETA_INVESTIGACION.value, 0.85, [
+            return DocumentType.DENUNCIA_DE_LOS_HECHOS.value, 0.90, [
                 "Nombre del archivo contiene 'Denuncia'"
             ]
 

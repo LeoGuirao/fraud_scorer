@@ -26,8 +26,16 @@ data/temp/*
 !data/temp/.gitkeep
 data/temp_reports/*
 !data/temp_reports/.gitkeep
-data/feedback_archive/*
-!data/feedback_archive/.gitkeep
 # Cache de pipeline
 data/temp/pipeline_cache/*
 !data/temp/pipeline_cache/.gitkeep
+
+# === Ignorar docs locales y datos ===
+# Excluir completamente las guías locales
+guides_md/
+
+# Ignorar recursivamente el contenido de data/, pero permitir carpetas vacías
+# usando archivos marcadores .gitkeep
+data/**
+!data/**/
+!data/**/.gitkeep
