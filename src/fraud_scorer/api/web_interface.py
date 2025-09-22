@@ -465,6 +465,15 @@ async def process_documents_background(process_id: str, files: List[Path]):
         # Inicializar el sistema v2
         system = FraudAnalysisSystemV2()
         
+        # Limpiar marcadores de revisiones previas para evitar confusión
+        try:
+            for marker in pipeline_cache_dir.glob("*.awaiting_review"):
+                marker.unlink(missing_ok=True)  # type: ignore[arg-type]
+            for marker in pipeline_cache_dir.glob("*.resume"):
+                marker.unlink(missing_ok=True)  # type: ignore[arg-type]
+        except Exception:
+            pass
+
         # Procesar el caso usando el sistema completo, con pausa 1.4.1
         case_title = f"Caso_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
 
@@ -563,57 +572,284 @@ from fraud_scorer.processors.document_classifier import DocumentType
 
 @app.get("/api/case/{case_id}/classifications")
 async def get_classifications(case_id: str):
-    cm = OCRCacheManager()
-    case = cm.get_case_index(case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="Caso no encontrado")
+    try:
+        cm = OCRCacheManager()
+        case = cm.get_case_index(case_id, auto_reconstruct=True)
+
+        if not case:
+            logger.warning(f"Caso {case_id} no encontrado en índice de cache")
+
+            # Verificar si existe en la BD
+            from fraud_scorer.storage.cases import get_conn
+            try:
+                with get_conn() as conn:
+                    case_row = conn.execute(
+                        "SELECT case_id, name FROM cases WHERE case_id = ?",
+                        (case_id,)
+                    ).fetchone()
+
+                    if not case_row:
+                        logger.error(f"Caso {case_id} no existe en BD")
+                        raise HTTPException(status_code=404, detail=f"Caso {case_id} no encontrado")
+                    else:
+                        logger.info(f"Caso {case_id} existe en BD pero no tiene índice de cache")
+                        # Crear índice básico
+                        case = {
+                            "case_id": case_id,
+                            "case_title": case_row["name"],
+                            "classified_types": [],
+                            "status": "no_cache_index"
+                        }
+            except Exception as db_e:
+                logger.error(f"Error consultando BD para caso {case_id}: {db_e}")
+                raise HTTPException(status_code=404, detail=f"Caso {case_id} no encontrado")
+    except Exception as e:
+        logger.error(f"Error obteniendo clasificaciones para {case_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
     classifications = case.get("classified_types", []) or []
-    # Construir catálogo de tipos
-    doc_types = [
-        {"value": dt.value, "label": dt.value.replace("_", " ").title()}
-        for dt in DocumentType
-    ]
+
+    # Buscar clasificaciones manuales previas
+    manual_classifications = cm.get_manual_classifications(case_id)
+    ai_classifications = case.get("ai_classifications", {})
+
+    # Si hay clasificaciones manuales previas, aplicarlas
+    if manual_classifications:
+        for doc in classifications:
+            filename = doc.get("filename")
+            if filename and filename in manual_classifications:
+                doc["document_type"] = manual_classifications[filename]
+                doc["has_manual_classification"] = True
+
+    # Construir catálogo de tipos agrupados por categoría
+    doc_types = _get_grouped_document_types()
+
     return {
         "case_id": case_id,
         "classifications": classifications,
         "document_types": doc_types,
+        "has_previous_classifications": bool(manual_classifications),
+        "manual_classifications": manual_classifications,
+        "ai_classifications": ai_classifications,
+    }
+
+def _get_grouped_document_types():
+    """Retorna los tipos de documento agrupados por categorías"""
+    return {
+        "categories": [
+            {
+                "label": "Cartas de Reclamación",
+                "options": [
+                    {"value": DocumentType.CARTA_RECLAMACION_ASEGURADORA.value,
+                     "label": "Carta De Reclamación Formal A La Aseguradora"},
+                    {"value": DocumentType.CARTA_RECLAMACION_TRANSPORTISTA.value,
+                     "label": "Carta De Reclamación Formal Al Transportista"},
+                ]
+            },
+            {
+                "label": "Documentos de Transporte",
+                "options": [
+                    {"value": DocumentType.GUIAS_Y_FACTURAS.value,
+                     "label": "Guías Y Facturas"},
+                    {"value": DocumentType.GUIAS_Y_FACTURAS_CONSOLIDADAS.value,
+                     "label": "Guías Y Facturas Consolidadas"},
+                    {"value": DocumentType.SALIDA_DE_ALMACEN.value,
+                     "label": "Salida De Almacén"},
+                    {"value": DocumentType.CFDI_CARTA_PORTE.value,
+                     "label": "Cfdi Carta Porte"},
+                ]
+            },
+            {
+                "label": "Documentos Vehiculares",
+                "options": [
+                    {"value": DocumentType.TARJETA_CIRCULACION.value,
+                     "label": "Tarjeta De Circulación Vehículo"},
+                    {"value": DocumentType.LICENCIA_OPERADOR.value,
+                     "label": "Licencia Del Operador"},
+                    {"value": DocumentType.FICHA_TECNICA_VEHICULO.value,
+                     "label": "Ficha Técnica De Vehículo"},
+                ]
+            },
+            {
+                "label": "Documentos de Siniestro",
+                "options": [
+                    {"value": DocumentType.AVISO_SINIESTRO_TRANSPORTISTA.value,
+                     "label": "Aviso De Siniestro Transportista"},
+                    {"value": DocumentType.REPORTE_GPS.value,
+                     "label": "Reporte GPS"},
+                    {"value": DocumentType.NARRACION_DE_HECHOS.value,
+                     "label": "Narración De Hechos"},
+                    {"value": DocumentType.DECLARACION_UNIVERSAL_ACCIDENTE.value,
+                     "label": "Declaración Universal De Accidente"},
+                ]
+            },
+            {
+                "label": "Documentos Legales",
+                "options": [
+                    {"value": DocumentType.CARPETA_INVESTIGACION.value,
+                     "label": "Carpeta De Investigación"},
+                    {"value": DocumentType.ACREDITACION_PROPIEDAD.value,
+                     "label": "Acreditación De Propiedad Y Representación"},
+                    {"value": DocumentType.DENUNCIA_DE_LOS_HECHOS.value,
+                     "label": "Denuncia De Los Hechos"},
+                ]
+            },
+            {
+                "label": "Documentos de Seguro",
+                "options": [
+                    {"value": DocumentType.POLIZA_ASEGURADORA.value,
+                     "label": "Póliza De La Aseguradora"},
+                    {"value": DocumentType.INFORME_PRELIMINAR_AJUSTADOR.value,
+                     "label": "Informe Preliminar Del Ajustador"},
+                    {"value": DocumentType.INFORME_FINAL_AJUSTADOR.value,
+                     "label": "Informe Final Del Ajustador"},
+                    {"value": DocumentType.EXPEDIENTE_COBRANZA.value,
+                     "label": "Expediente De Cobranza"},
+                    {"value": DocumentType.CHECKLIST_ANTIFRAUDE.value,
+                     "label": "Checklist Antifraude"},
+                    {"value": DocumentType.DETERMINACION_DE_PERDIDA.value,
+                     "label": "Determinación De Pérdida"},
+                ]
+            },
+            {
+                "label": "Facturas y Documentos Comerciales",
+                "options": [
+                    {"value": DocumentType.FACTURA_COMERCIAL_CFDI.value,
+                     "label": "Factura Comercial CFDI"},
+                    {"value": DocumentType.FACTURAS_COMERCIALES_INTERNACIONALES.value,
+                     "label": "Facturas Comerciales Internacionales"},
+                    {"value": DocumentType.PEDIDO_POR_CORREO.value,
+                     "label": "Pedido Por Correo"},
+                    {"value": DocumentType.REPORTE_COSTOS_RENDIMIENTOS.value,
+                     "label": "Reporte De Costos Y Rendimientos"},
+                ]
+            },
+            {
+                "label": "Documentos Generales",
+                "options": [
+                    {"value": DocumentType.IDENTIFICACION_OFICIAL.value,
+                     "label": "Identificación Oficial"},
+                    {"value": DocumentType.NOTAS_DE_REPARACION.value,
+                     "label": "Notas De Reparación"},
+                    {"value": DocumentType.DICTAMEN_TECNICO.value,
+                     "label": "Dictamen Técnico"},
+                    {"value": DocumentType.COMPROBANTE_DOMICILIO.value,
+                     "label": "Comprobante De Domicilio"},
+                    {"value": DocumentType.CONSTANCIA_IMSS_OPERADOR.value,
+                     "label": "Constancia IMSS Del Operador"},
+                ]
+            },
+            {
+                "label": "Otros",
+                "options": [
+                    {"value": DocumentType.OTRO.value,
+                     "label": "Otro"},
+                ]
+            }
+        ]
     }
 
 from fastapi import Body
 
 @app.post("/api/case/{case_id}/update-classifications")
 async def update_classifications(case_id: str, payload: dict = Body(...)):
-    cm = OCRCacheManager()
-    case = cm.get_case_index(case_id)
-    if not case:
-        raise HTTPException(status_code=404, detail="Caso no encontrado")
+    try:
+        cm = OCRCacheManager()
+        case = cm.get_case_index(case_id, auto_reconstruct=True)
+
+        if not case:
+            logger.warning(f"Intentando actualizar clasificaciones para caso {case_id} que no tiene índice")
+
+            # Verificar si existe en BD
+            from fraud_scorer.storage.cases import get_conn
+            try:
+                with get_conn() as conn:
+                    case_row = conn.execute(
+                        "SELECT case_id, name FROM cases WHERE case_id = ?",
+                        (case_id,)
+                    ).fetchone()
+
+                    if not case_row:
+                        logger.error(f"Caso {case_id} no existe en BD para actualizar clasificaciones")
+                        raise HTTPException(status_code=404, detail=f"Caso {case_id} no encontrado")
+                    else:
+                        logger.info(f"Creando índice básico para {case_id}")
+                        # Crear índice básico
+                        case = {
+                            "case_id": case_id,
+                            "case_title": case_row["name"],
+                            "classified_types": [],
+                            "status": "reconstructed_for_update"
+                        }
+            except Exception as db_e:
+                logger.error(f"Error consultando BD para actualizar {case_id}: {db_e}")
+                raise HTTPException(status_code=404, detail=f"Caso {case_id} no encontrado")
+    except Exception as e:
+        logger.error(f"Error actualizando clasificaciones para {case_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
     updates = (payload or {}).get("classifications", {})
+    ai_originals = (payload or {}).get("ai_classifications", {})
+
     if not isinstance(updates, dict):
         raise HTTPException(status_code=400, detail="Payload inválido")
 
     valid_values = {dt.value for dt in DocumentType}
-    # Normalizar lista existente
     current = case.get("classified_types", []) or []
     by_name = {item.get("filename"): item for item in current if item.get("filename")}
+    previous_types = {item.get("filename"): item.get("document_type") for item in current if item.get("filename")}
+
+    manual_existing = case.get("manual_classifications") or {}
+    final_manual = dict(manual_existing)
+
+    ai_baseline = dict(case.get("ai_classifications") or {})
+    baseline_was_empty = not bool(ai_baseline)
+    if baseline_was_empty and ai_originals:
+        ai_baseline = dict(ai_originals)
+        case["ai_classifications"] = dict(ai_baseline)
 
     for filename, new_type in updates.items():
         if new_type not in valid_values:
             raise HTTPException(status_code=400, detail=f"Tipo inválido para {filename}: {new_type}")
+
         item = by_name.get(filename)
         if item is None:
-            # Si no existe, agregar entrada mínima
             item = {"filename": filename, "document_type": new_type}
             current.append(item)
             by_name[filename] = item
         else:
             item["document_type"] = new_type
-        # Marca opcional
-        item["manually_reviewed"] = True
 
-    # Persistir
+        baseline_type = ai_baseline.get(filename)
+        if baseline_type is None and ai_originals:
+            baseline_type = ai_originals.get(filename)
+        if baseline_type is None:
+            baseline_type = previous_types.get(filename)
+
+        if baseline_type is None:
+            baseline_type = new_type
+
+        item["manually_reviewed"] = new_type != baseline_type
+
+        if new_type != baseline_type:
+            final_manual[filename] = new_type
+        else:
+            final_manual.pop(filename, None)
+
     case["classified_types"] = current
+    if final_manual:
+        case["manual_classifications"] = final_manual
+    else:
+        case.pop("manual_classifications", None)
+
     try:
         cm.save_case_index(case_id, case)
+        cm.save_manual_classifications(
+            case_id,
+            final_manual,
+            ai_classifications=ai_baseline if baseline_was_empty and ai_baseline else None,
+            replace=True,
+        )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo guardar: {e}")
 
@@ -646,6 +882,265 @@ async def continue_processing(case_id: str):
     except Exception:
         pass
     return {"success": True}
+
+@app.post("/api/case/{case_id}/check-existing")
+async def check_existing_case(case_id: str = None, payload: dict = Body(...)):
+    """Detecta si los archivos subidos pertenecen a un caso ya procesado.
+    Estrategia:
+      1) Si llegan hashes (sha256) de hasta N archivos (cliente), buscar en DB por coincidencias y elegir case_id con más matches.
+      2) Si no hay hashes o no hay matches, caer al heurístico por nombre (clasificaciones o deducir desde JSONs del índice).
+    """
+    # 1) Extraer archivos y hashes del payload
+    files: list[str] = []
+    hashes: list[str] = []
+    if isinstance(payload, dict):
+        raw_files = payload.get("files")
+        if isinstance(raw_files, list):
+            files = [str(item) for item in raw_files if item]
+        raw_hashes = payload.get("hashes")
+        if isinstance(raw_hashes, list):
+            hashes = [str(h).lower() for h in raw_hashes if h]
+    elif isinstance(payload, list):
+        files = [str(item) for item in payload if item]
+
+    filenames = {Path(name).name for name in files}
+
+    # 2) Intento por hash (preferente)
+    if hashes:
+        try:
+            from fraud_scorer.storage.db import get_conn
+            with get_conn() as conn:
+                qmarks = ",".join(["?"] * len(hashes))
+                sql = f"""
+                    SELECT case_id, COUNT(*) as cnt
+                    FROM documents
+                    WHERE file_hash IN ({qmarks})
+                    GROUP BY case_id
+                    ORDER BY cnt DESC
+                    LIMIT 1
+                """
+                row = conn.execute(sql, tuple(hashes)).fetchone()
+                if row and row["case_id"]:
+                    candidate_id = row["case_id"]
+                    cm = OCRCacheManager()
+                    case_index = cm.get_case_index(candidate_id, auto_reconstruct=True)
+                    return {
+                        "existing_case": True,
+                        "case_id": candidate_id,
+                        "case_info": case_index or {},
+                        "has_ocr": bool((case_index or {}).get('documents')),
+                        "has_classifications": bool((case_index or {}).get('classified_types')),
+                        "has_extraction": bool((case_index or {}).get('extraction_results')),
+                        "has_consolidation": bool((case_index or {}).get('consolidated_data')),
+                        "has_fraud_analysis": bool((case_index or {}).get('fraud_analyses')),
+                    }
+        except Exception as e:
+            logger.warning(f"check-existing por hash falló: {e}")
+
+    # 3) Fallback por nombre (compat)
+    if not filenames:
+        return {"existing_case": False}
+
+    cm = OCRCacheManager()
+    cases = cm.list_cases_from_cache() or []
+
+    for case_info in cases:
+        candidate_id = case_info.get('case_id') or case_info.get('case_id')
+        if not candidate_id:
+            continue
+        case_index = cm.get_case_index(candidate_id)
+        if not case_index:
+            continue
+        doc_names = set()
+        # Preferir nombres originales desde clasificaciones previas
+        try:
+            for item in (case_index.get('classified_types') or []):
+                fn = item.get('filename')
+                if fn:
+                    doc_names.add(Path(fn).name)
+        except Exception:
+            pass
+        # Fallback: intentar deducir desde rutas de JSON en 'documents'
+        if not doc_names:
+            try:
+                for doc in (case_index.get('documents') or []):
+                    name = Path(str(doc)).name
+                    if name.startswith('ocr_results_for_') and name.endswith('.json'):
+                        original = name[len('ocr_results_for_'):-len('.json')]
+                        if original:
+                            doc_names.add(original)
+                    else:
+                        doc_names.add(name)
+            except Exception:
+                pass
+        if not doc_names.intersection(filenames):
+            continue
+
+        return {
+            "existing_case": True,
+            "case_id": candidate_id,
+            "case_info": case_index,
+            "has_ocr": bool(case_index.get('documents')),
+            "has_classifications": bool(case_index.get('classified_types')),
+            "has_extraction": bool(case_index.get('extraction_results')),
+            "has_consolidation": bool(case_index.get('consolidated_data')),
+            "has_fraud_analysis": bool(case_index.get('fraud_analyses')),
+        }
+
+    return {"existing_case": False}
+
+@app.post("/api/case/{case_id}/reprocess")
+async def reprocess_case(
+    case_id: str,
+    background_tasks: BackgroundTasks,
+    options_payload: dict = Body(...)
+):
+    """
+    Reprocesa fases selectivas de un caso existente.
+
+    Options:
+        - reprocess_ocr: bool - Reprocesar OCR
+        - reprocess_classification: bool - Reclasificar documentos
+        - reprocess_policy_detection: bool - Redetectar tipo de póliza
+        - reprocess_extraction: bool - Reextraer campos (Fase 2)
+        - reprocess_consolidation: bool - Reconsolidar datos (Fase 3)
+        - reprocess_fraud: bool - Reanalizar fraude (Fase 3.5)
+    """
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+    raw_options = options_payload or {}
+    if isinstance(raw_options.get("options"), dict):
+        raw_options = raw_options["options"]
+
+    option_keys = [
+        "reprocess_ocr",
+        "reprocess_classification",
+        "reprocess_policy_detection",
+        "reprocess_extraction",
+        "reprocess_consolidation",
+        "reprocess_fraud",
+    ]
+    options = {key: bool(raw_options.get(key, False)) for key in option_keys}
+
+    # Generar nuevo process_id para monitoreo
+    process_id = str(uuid.uuid4())
+
+    # Preparar archivos desde el caso existente
+    case_folder = cm.get_case_folder_path(case_id, case_index)
+    if not case_folder.exists():
+        docs = case_index.get('documents') or []
+        if docs:
+            existing_docs = [Path(p) for p in docs if Path(p).exists()]
+            if existing_docs:
+                case_folder = existing_docs[0].parent
+        if not case_folder.exists():
+            try:
+                insured = case_index.get('insured_name') or ""
+                claim = case_index.get('claim_number') or case_id
+                title = case_index.get('case_title', case_id)
+                ref_name = cm._sanitize_filename(insured) if insured else cm._sanitize_filename(title)
+                ref_claim = cm._sanitize_filename(claim) if claim else case_id
+                cm.reorganize_cache_for_case(case_id, ref_name, ref_claim)
+                case_folder = cm.get_case_folder_path(case_id, case_index)
+            except Exception as exc:
+                logger.error(f"No se pudo reconstruir carpeta de caso {case_id}: {exc}")
+
+    if not case_folder.exists():
+        raise HTTPException(status_code=404, detail="Carpeta del caso no encontrada")
+
+    # Inicializar estado
+    processing_status[process_id] = {
+        "status": "processing",
+        "message": "Preparando reprocesamiento selectivo...",
+        "progress": 0,
+        "started_at": datetime.now().isoformat(),
+        "case_id": case_id,
+        "reprocess_options": options
+    }
+
+    # Procesar en background con opciones selectivas
+    background_tasks.add_task(
+        reprocess_case_background,
+        process_id,
+        case_id,
+        options
+    )
+
+    return {
+        "process_id": process_id,
+        "message": "Reprocesamiento iniciado",
+        "status_url": f"/status/{process_id}"
+    }
+
+async def reprocess_case_background(process_id: str, case_id: str, options: dict):
+    """
+    Ejecuta el reprocesamiento selectivo en background.
+    """
+    try:
+        processing_status[process_id]["message"] = "Iniciando reprocesamiento selectivo..."
+        processing_status[process_id]["progress"] = 10
+
+        # Importar sistema de análisis
+        scripts_path = project_root / "scripts"
+        if str(scripts_path) not in sys.path:
+            sys.path.insert(0, str(scripts_path))
+
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("run_report", scripts_path / "run_report.py")
+        run_report = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(run_report)
+        FraudAnalysisSystemV2 = run_report.FraudAnalysisSystemV2
+
+        # Crear instancia del sistema
+        system = FraudAnalysisSystemV2()
+
+        # Configurar opciones de reprocesamiento
+        system.reprocess_options = options or {}
+
+        # Obtener carpeta del caso
+        cm = OCRCacheManager()
+        case_index = cm.get_case_index(case_id)
+        case_folder = cm.get_case_folder_path(case_id, case_index)
+
+        processing_status[process_id]["message"] = "Ejecutando fases seleccionadas..."
+        processing_status[process_id]["progress"] = 30
+
+        # Ejecutar reprocesamiento
+        from pathlib import Path
+        task = asyncio.create_task(system.process_case(
+            folder_path=case_folder,
+            output_path=REPORTS_DIR,
+            case_title=f"Reproceso_{case_id}",
+            reprocess_mode=True,
+            reprocess_options=options,
+            existing_case_id=case_id
+        ))
+
+        active_jobs[process_id] = {"task": task, "system": system}
+
+        # Esperar resultado
+        result = await task
+
+        processing_status[process_id] = {
+            "status": "completed",
+            "message": "Reprocesamiento completado exitosamente",
+            "progress": 100,
+            "case_id": case_id,
+            "report_url": f"/report/{case_id}",
+            "completed_at": datetime.now().isoformat()
+        }
+
+    except Exception as e:
+        logger.error(f"Error en reprocesamiento {process_id}: {e}", exc_info=True)
+        processing_status[process_id] = {
+            "status": "error",
+            "message": f"Error en reprocesamiento: {str(e)}",
+            "progress": 0
+        }
 
 @app.post("/cancel/{process_id}")
 async def cancel_process_api(process_id: str):

@@ -4,7 +4,11 @@ import sqlite3, json, hashlib, os, datetime, uuid
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, List
 
+# Ruta a la base de datos. Por compatibilidad, forzamos a no usar 'fraud_scorer.db'.
 DB_PATH = Path(os.getenv("FRAUD_DB_PATH", "data/cases.db"))
+if DB_PATH.name.lower() == "fraud_scorer.db":
+    # Redirigir a la ruta canónica
+    DB_PATH = Path("data/cases.db")
 
 def _now() -> str:
     return datetime.datetime.now().isoformat(timespec="seconds")

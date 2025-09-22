@@ -356,6 +356,7 @@ class DocumentPreviewClassifier:
 
         categories_detail = self._build_detailed_categories_guide()
         disambiguation = self._build_disambiguation_rules()
+        priorities = self._build_priority_rules()
 
         heur_block = "\n".join(
             [

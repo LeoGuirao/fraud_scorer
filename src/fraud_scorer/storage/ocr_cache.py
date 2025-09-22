@@ -1,9 +1,9 @@
 from __future__ import annotations
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from .db import (
     upsert_document, get_ocr_by_document_id, get_any_ocr_by_hash, copy_ocr_to_document,
     save_ocr_result, mark_ocr_success, sha256_of_file, get_extracted_by_document_id, save_extracted_data,
-    increment_cache_stats, update_cache_avg
+    increment_cache_stats, update_cache_avg, get_conn, get_document_by_case_and_hash
 )
 from pathlib import Path
 import json
@@ -12,6 +12,7 @@ import shutil
 import re
 import logging
 import time
+from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,24 @@ class OCRCacheManager:
         En cualquier caso, verifica también por hash (shards) para coincidencia exacta de contenido.
         """
         debug = os.getenv("OCR_CACHE_DEBUG", "false").lower() == "true"
+
+        # Detección directa: si nos pasan el JSON reorganizado 'ocr_results_for_*.json'
+        try:
+            if document_path.suffix.lower() == ".json" and document_path.name.startswith("ocr_results_for_"):
+                return document_path.exists()
+        except Exception:
+            pass
+
+        case_hashes: Dict[str, str] = {}
+        if case_id:
+            try:
+                case_index = self.get_case_index(case_id) or {}
+                raw_hashes = case_index.get('document_hashes') or {}
+                if isinstance(raw_hashes, dict):
+                    case_hashes = dict(raw_hashes)
+            except Exception:
+                case_hashes = {}
+
         # 1) Vista humana del caso (opcional)
         if case_id:
             reorganized_path = self._find_cache_in_reorganized_structure(document_path, case_id=case_id)
@@ -225,16 +244,42 @@ class OCRCacheManager:
                     logger.debug(f"OCR_CACHE_DEBUG: hit vista humana: {reorganized_path}")
                 return True
 
-        # 2) Shards por hash
-        cache_path = self._get_cache_path(document_path)
-        if cache_path.exists():
+        # 2) Shards por hash (sin requerir archivo físico)
+        doc_hash: Optional[str] = None
+        if case_hashes:
+            key = str(document_path)
+            doc_hash = case_hashes.get(key)
+            if not doc_hash:
+                try:
+                    doc_hash = case_hashes.get(str(Path(key).resolve()))
+                except Exception:
+                    pass
+
+        cache_path: Optional[Path] = None
+        if doc_hash:
+            cache_path = self.cache_dir / doc_hash[:2] / f"{doc_hash}.json"
+        else:
+            try:
+                cache_path = self._get_cache_path(document_path)
+            except FileNotFoundError:
+                cache_path = None
+            except Exception:
+                cache_path = None
+
+        if cache_path and cache_path.exists():
             if debug:
                 logger.debug(f"OCR_CACHE_DEBUG: hit shard: {cache_path}")
             return True
 
         # 3) Fallback robusto: buscar en DB por hash global (si existe OCR previo)
         try:
-            file_hash = sha256_of_file(document_path)
+            file_hash = None
+            if document_path.exists():
+                file_hash = sha256_of_file(document_path)
+            elif doc_hash:
+                file_hash = doc_hash
+            if not file_hash:
+                raise FileNotFoundError(document_path)
             any_ocr = get_any_ocr_by_hash(file_hash)
             if any_ocr:
                 if debug:
@@ -255,6 +300,47 @@ class OCRCacheManager:
         try:
             debug = os.getenv("OCR_CACHE_DEBUG", "false").lower() == "true"
             start_time = time.time()
+
+            # Soporte directo: si nos pasan la ruta del JSON de OCR 'ocr_results_for_*.json', leerlo directo
+            try:
+                if document_path.suffix.lower() == ".json" and document_path.name.startswith("ocr_results_for_"):
+                    if document_path.exists():
+                        with open(document_path, 'r', encoding='utf-8') as fh:
+                            data = json.load(fh)
+                        if debug:
+                            logger.debug(f"OCR_CACHE_DEBUG: lectura directa de JSON: {document_path}")
+                        return data
+            except Exception:
+                pass
+
+            case_hashes: Dict[str, str] = {}
+            doc_ids_by_name: Dict[str, str] = {}
+            doc_ids_by_hash: Dict[str, str] = {}
+            if case_id:
+                try:
+                    case_index = self.get_case_index(case_id) or {}
+                    raw_hashes = case_index.get('document_hashes') or {}
+                    if isinstance(raw_hashes, dict):
+                        case_hashes = dict(raw_hashes)
+                except Exception:
+                    case_hashes = {}
+
+                try:
+                    with get_conn() as conn:
+                        rows = conn.execute(
+                            "SELECT id, filename, file_hash FROM documents WHERE case_id=?",
+                            (case_id,)
+                        ).fetchall()
+                        for row in rows:
+                            fname = row["filename"]
+                            fhash = row["file_hash"]
+                            if fname and fname not in doc_ids_by_name:
+                                doc_ids_by_name[fname] = row["id"]
+                            if fhash and fhash not in doc_ids_by_hash:
+                                doc_ids_by_hash[fhash] = row["id"]
+                except Exception:
+                    pass
+
             # 1) Vista humana primero
             reorganized_path = self._find_cache_in_reorganized_structure(document_path, case_id=case_id)
             if reorganized_path:
@@ -276,14 +362,46 @@ class OCRCacheManager:
                     increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
                 # Persistir en DB para habilitar futuras búsquedas por hash
                 try:
-                    doc_id, _ = ensure_document_registered(case_id or 'unknown', str(document_path))
-                    persist_ocr(doc_id, data, "azure", "full")
+                    target_id = None
+                    if case_id:
+                        target_id = doc_ids_by_name.get(document_path.name)
+                        if not target_id:
+                            doc_hash = case_hashes.get(str(document_path))
+                            if not doc_hash:
+                                try:
+                                    doc_hash = case_hashes.get(str(Path(str(document_path)).resolve()))
+                                except Exception:
+                                    doc_hash = None
+                            if doc_hash:
+                                target_id = doc_ids_by_hash.get(doc_hash)
+                            if not target_id and doc_hash:
+                                row = get_document_by_case_and_hash(case_id, doc_hash)
+                                if row:
+                                    target_id = row["id"]
+                    if not target_id:
+                        target_id, _ = ensure_document_registered(case_id or 'unknown', str(document_path))
+                    persist_ocr(target_id, data, "azure", "full")
                 except Exception:
                     pass
                 return data
 
             # 2) Shards por hash
-            cache_path = self._get_cache_path(document_path)
+            doc_hash = case_hashes.get(str(document_path)) if case_id else None
+            if not doc_hash and case_id:
+                try:
+                    doc_hash = case_hashes.get(str(Path(str(document_path)).resolve()))
+                except Exception:
+                    doc_hash = None
+            cache_path: Optional[Path]
+            if doc_hash:
+                cache_path = self.cache_dir / doc_hash[:2] / f"{doc_hash}.json"
+            else:
+                try:
+                    cache_path = self._get_cache_path(document_path)
+                except FileNotFoundError:
+                    cache_path = None
+                except Exception:
+                    cache_path = None
             if cache_path.exists():
                 with open(cache_path, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -301,6 +419,22 @@ class OCRCacheManager:
                 increment_cache_stats('global', 'bytes_saved', bytes_saved)
                 if case_id:
                     increment_cache_stats(case_id, 'bytes_saved', bytes_saved)
+                try:
+                    target_id = None
+                    if case_id:
+                        if doc_hash:
+                            target_id = doc_ids_by_hash.get(doc_hash)
+                            if not target_id:
+                                row = get_document_by_case_and_hash(case_id, doc_hash)
+                                if row:
+                                    target_id = row["id"]
+                        if not target_id:
+                            target_id = doc_ids_by_name.get(document_path.name)
+                    if not target_id:
+                        target_id, doc_hash = ensure_document_registered(case_id or 'unknown', str(document_path))
+                    persist_ocr(target_id, data, "azure", "full")
+                except Exception:
+                    pass
                 return data
             
             # Cache miss
@@ -309,20 +443,41 @@ class OCRCacheManager:
                 increment_cache_stats(case_id, 'ocr_misses')
             # 3) Fallback a DB: intentar por hash global y/o por documento registrado
             try:
-                # Registrar/asegurar documento y obtener hash
-                doc_id, file_hash = ensure_document_registered(case_id or 'unknown', str(document_path))
-                cached = try_get_cached_ocr(doc_id, file_hash, allow_global=True, case_id=case_id)
-                if cached:
-                    if debug:
-                        logger.debug(f"OCR_CACHE_DEBUG: lectura desde DB por hash: {file_hash} -> doc_id {doc_id}")
-                    # Importante: rehidratar a FS para que exista caché físico
-                    # y luego pueda reorganizarse a la estructura humana.
+                doc_id = None
+                file_hash = None
+                doc_hash = case_hashes.get(str(document_path)) if case_id else None
+                if not doc_hash and case_id:
                     try:
-                        self.save_cache(document_path, cached, case_id)
-                    except Exception as write_err:
-                        # No bloquear por fallo de escritura; ya tenemos los datos en memoria/DB
-                        logger.debug(f"No se pudo materializar cache en FS desde DB: {write_err}")
-                    return cached
+                        doc_hash = case_hashes.get(str(Path(str(document_path)).resolve()))
+                    except Exception:
+                        doc_hash = None
+
+                if case_id and doc_hash:
+                    file_hash = doc_hash
+                    doc_id = doc_ids_by_hash.get(doc_hash)
+                    if not doc_id:
+                        row = get_document_by_case_and_hash(case_id, doc_hash)
+                        if row:
+                            doc_id = row["id"]
+
+                if not doc_id:
+                    try:
+                        doc_id, file_hash = ensure_document_registered(case_id or 'unknown', str(document_path))
+                    except Exception as register_exc:
+                        logger.debug(f"No se pudo asegurar documento {document_path}: {register_exc}")
+                        doc_id = None
+                        file_hash = None
+
+                if doc_id and file_hash:
+                    cached = try_get_cached_ocr(doc_id, file_hash, allow_global=True, case_id=case_id)
+                    if cached:
+                        if debug:
+                            logger.debug(f"OCR_CACHE_DEBUG: lectura desde DB por hash: {file_hash} -> doc_id {doc_id}")
+                        try:
+                            self.save_cache(document_path, cached, case_id)
+                        except Exception as write_err:
+                            logger.debug(f"No se pudo materializar cache en FS desde DB: {write_err}")
+                        return cached
             except Exception as e:
                 logger.debug(f"Fallback DB cache fallo para {document_path}: {e}")
             return None
@@ -335,6 +490,7 @@ class OCRCacheManager:
         Guarda el resultado de OCR en el caché.
         """
         try:
+            case_data: Dict[str, Any] = {}
             # Si conocemos el caso y su carpeta con nombre, guardar directo en vista humana
             if case_id:
                 index_path = self.index_dir / f"{case_id}.json"
@@ -354,25 +510,72 @@ class OCRCacheManager:
                         logger.debug(f"Caché guardado (vista humana) para {document_path.name}: {dest_path}")
                         # Persistir también en DB (para fallback robusto por hash)
                         try:
-                            doc_id, _ = ensure_document_registered(case_id, str(document_path))
-                            persist_ocr(doc_id, ocr_result, "azure", "full")
-                        except Exception:
-                            pass
+                            doc_id = None
+                            try:
+                                with get_conn() as conn:
+                                    row = conn.execute(
+                                        "SELECT id FROM documents WHERE case_id=? AND filename=?",
+                                        (case_id, document_path.name)
+                                    ).fetchone()
+                                    if row:
+                                        doc_id = row["id"]
+                            except Exception:
+                                doc_id = None
+                            if not doc_id:
+                                try:
+                                    doc_id, _ = ensure_document_registered(case_id, str(document_path))
+                                except Exception:
+                                    doc_id = None
+                            if doc_id:
+                                persist_ocr(doc_id, ocr_result, "azure", "full")
+                        except Exception as persist_exc:
+                            logger.debug(f"No se pudo persistir OCR en DB para {document_path}: {persist_exc}")
+                        if not COPY_DOCUMENTS_IN_REORG:
+                            pdf_destination = dest_dir / document_path.name
+                            if pdf_destination.exists():
+                                try:
+                                    pdf_destination.unlink()
+                                except Exception:
+                                    pass
                         return
                     except Exception as e:
                         logger.warning(f"Fallo guardando en vista humana; guardando en shard. Detalle: {e}")
 
             # Fallback a shards por hash
-            cache_path = self._get_cache_path(document_path)
-            with open(cache_path, 'w', encoding='utf-8') as f:
-                json.dump(ocr_result, f, ensure_ascii=False, indent=2, default=str)
-            logger.debug(f"Caché guardado (shard) para {document_path.name}: {cache_path}")
+            cache_path = None
+            try:
+                cache_path = self._get_cache_path(document_path)
+            except FileNotFoundError:
+                cache_path = None
+            except Exception:
+                cache_path = None
+            if cache_path:
+                with open(cache_path, 'w', encoding='utf-8') as f:
+                    json.dump(ocr_result, f, ensure_ascii=False, indent=2, default=str)
+                logger.debug(f"Caché guardado (shard) para {document_path.name}: {cache_path}")
             # Persistir en DB aunque no exista índice aún
             try:
-                doc_id, _ = ensure_document_registered(case_id or 'unknown', str(document_path))
-                persist_ocr(doc_id, ocr_result, "azure", "full")
-            except Exception:
-                pass
+                doc_id = None
+                if case_id:
+                    try:
+                        with get_conn() as conn:
+                            row = conn.execute(
+                                "SELECT id FROM documents WHERE case_id=? AND filename=?",
+                                (case_id, document_path.name)
+                            ).fetchone()
+                            if row:
+                                doc_id = row["id"]
+                    except Exception:
+                        doc_id = None
+                if not doc_id:
+                    try:
+                        doc_id, _ = ensure_document_registered(case_id or 'unknown', str(document_path))
+                    except Exception:
+                        doc_id = None
+                if doc_id:
+                    persist_ocr(doc_id, ocr_result, "azure", "full")
+            except Exception as persist_exc:
+                logger.debug(f"No se pudo persistir OCR en DB para {document_path}: {persist_exc}")
         except Exception as e:
             logger.error(f"Error guardando caché para {document_path}: {e}")
     
@@ -380,14 +583,129 @@ class OCRCacheManager:
         """
         Guarda el índice de archivos de un caso para futura reorganización.
         """
+        from fraud_scorer.storage.cases import get_conn
+
         try:
+            if case_data is None:
+                case_data = {}
+
+            # Mantener nombre de carpeta del caso alineado con los datos actuales
+            insured = case_data.get('insured_name') or "SIN_NOMBRE"
+            claim = case_data.get('claim_number') or case_id
+            case_data['case_folder'] = f"{self._sanitize_filename(insured)} - {self._sanitize_filename(claim)}"
+
+            # Sincronizar con BD: actualizar base_path si hay carpeta reorganizada
+            try:
+                if "case_folder" in case_data:
+                    reorganized_path = self.cache_dir / case_data["case_folder"]
+                    if reorganized_path.exists():
+                        with get_conn() as conn:
+                            conn.execute(
+                                "UPDATE cases SET base_path = ? WHERE case_id = ?",
+                                (str(reorganized_path), case_id)
+                            )
+                            conn.commit()
+                            logger.debug(f"Base_path sincronizado en BD para {case_id}: {reorganized_path}")
+            except Exception as e:
+                logger.debug(f"No se pudo sincronizar base_path: {e}")
+
+            # Guardar índice
             index_path = self.index_dir / f"{case_id}.json"
+            case_data["processed_at"] = datetime.now().isoformat()
             with open(index_path, 'w', encoding='utf-8') as f:
                 json.dump(case_data, f, ensure_ascii=False, indent=2, default=str)
             logger.debug(f"Índice de caso guardado: {index_path}")
         except Exception as e:
             logger.error(f"Error guardando índice del caso {case_id}: {e}")
+
+    def get_case_folder_path(self, case_id: str, case_data: Optional[Dict[str, Any]] = None) -> Path:
+        """Devuelve la ruta de carpeta reorganizada para un caso."""
+        if case_data is None:
+            case_data = self.get_case_index(case_id) or {}
+
+        folder_name = case_data.get('case_folder')
+        if not folder_name:
+            insured = case_data.get('insured_name') or "SIN_NOMBRE"
+            claim = case_data.get('claim_number') or case_id
+            folder_name = f"{self._sanitize_filename(insured)} - {self._sanitize_filename(claim)}"
+
+        return self.cache_dir / folder_name
     
+    def _reconstruct_index_from_db(self, case_id: str, insured_name: str = None, claim_number: str = None) -> Optional[Dict[str, Any]]:
+        """
+        Reconstruye el índice de un caso desde la base de datos.
+        """
+        try:
+            with get_conn() as conn:
+                # Obtener información del caso
+                case_row = conn.execute(
+                    "SELECT * FROM cases WHERE case_id = ?",
+                    (case_id,)
+                ).fetchone()
+
+                if not case_row:
+                    return None
+
+                # Obtener documentos del caso
+                doc_rows = conn.execute(
+                    "SELECT * FROM documents WHERE case_id = ? ORDER BY filename",
+                    (case_id,)
+                ).fetchall()
+
+                # Reconstruir el índice
+                case_index = {
+                    "case_id": case_id,
+                    "case_title": case_row["name"],
+                    "insured_name": insured_name or "UNKNOWN",
+                    "claim_number": claim_number or case_id,
+                    "documents": [],
+                    "cache_files": [],
+                    "document_hashes": {},
+                    "total_documents": len(doc_rows),
+                    "folder_path": case_row["base_path"] or "",
+                    "status": "reconstructed_from_db",
+                    "processed_at": datetime.now().isoformat()
+                }
+
+                # Agregar información de cada documento
+                for doc in doc_rows:
+                    filepath = doc["filepath"] or doc["filename"]
+                    if filepath:
+                        case_index["documents"].append(filepath)
+                        case_index["cache_files"].append(filepath)
+                        if doc["file_hash"]:
+                            case_index["document_hashes"][filepath] = doc["file_hash"]
+
+                # Intentar obtener datos de extracción para mejorar el índice
+                try:
+                    extract_rows = conn.execute(
+                        """
+                        SELECT e.entities
+                        FROM extracted_data e
+                        JOIN documents d ON e.document_id = d.id
+                        WHERE d.case_id = ?
+                        LIMIT 1
+                        """,
+                        (case_id,)
+                    ).fetchone()
+
+                    if extract_rows and extract_rows["entities"]:
+                        entities = json.loads(extract_rows["entities"])
+                        # Buscar insured_name y claim_number en las entidades
+                        for entity in entities:
+                            if "insured" in entity.lower() and not insured_name:
+                                case_index["insured_name"] = entities[entity]
+                            if "claim" in entity.lower() and not claim_number:
+                                case_index["claim_number"] = entities[entity]
+                except Exception:
+                    pass
+
+                return case_index
+
+        except Exception as e:
+            logger.error(f"Error reconstruyendo índice desde BD: {e}")
+            return None
+
     def _sanitize_filename(self, name: str) -> str:
         """
         Elimina caracteres no válidos de un string para que sea un nombre de archivo/carpeta seguro.
@@ -408,8 +726,19 @@ class OCRCacheManager:
         case_index_path = self.index_dir / f"{case_id}.json"
 
         if not case_index_path.exists():
-            logger.warning(f"No se encontró el índice del caso {case_id}. No se puede reorganizar el caché.")
-            return
+            # Intentar reconstruir el índice desde la BD
+            logger.warning(f"No se encontró el índice del caso {case_id}. Intentando reconstruir desde BD...")
+            try:
+                case_data = self._reconstruct_index_from_db(case_id, insured_name, claim_number)
+                if case_data:
+                    self.save_case_index(case_id, case_data)
+                    logger.info(f"  ✓ Índice reconstruido exitosamente")
+                else:
+                    logger.error(f"No se pudo reconstruir el índice para {case_id}")
+                    return
+            except Exception as e:
+                logger.error(f"Error reconstruyendo índice: {e}")
+                return
 
         try:
             with open(case_index_path, 'r', encoding='utf-8') as f:
@@ -417,6 +746,50 @@ class OCRCacheManager:
         except Exception as e:
             logger.error(f"Error leyendo el índice del caso {case_id}: {e}")
             return
+
+        document_hashes = case_data.get('document_hashes') or {}
+        if not isinstance(document_hashes, dict):
+            document_hashes = {}
+        else:
+            document_hashes = dict(document_hashes)
+
+        hash_by_filename: Dict[str, str] = {}
+        for stored_path, file_hash in document_hashes.items():
+            try:
+                filename = Path(stored_path).name
+            except Exception:
+                continue
+            if filename and file_hash and filename not in hash_by_filename:
+                hash_by_filename[filename] = file_hash
+
+        db_hash_by_path: Dict[str, str] = {}
+        db_hash_by_filename: Dict[str, str] = {}
+        db_rows_by_path: Dict[str, Any] = {}
+        db_rows_by_filename: Dict[str, Any] = {}
+        try:
+            with get_conn() as conn:
+                rows = conn.execute(
+                    "SELECT filename, filepath, file_hash FROM documents WHERE case_id = ?",
+                    (case_id,)
+                ).fetchall()
+            for row in rows:
+                filepath = row.get('filepath') if isinstance(row, dict) else row['filepath']
+                file_hash = row.get('file_hash') if isinstance(row, dict) else row['file_hash']
+                filename = row.get('filename') if isinstance(row, dict) else row['filename']
+
+                if filepath and file_hash:
+                    db_hash_by_path[filepath] = file_hash
+                    db_rows_by_path[filepath] = row
+                name_candidate = filename or (Path(filepath).name if filepath else '')
+                if name_candidate and file_hash:
+                    if name_candidate not in db_hash_by_filename:
+                        db_hash_by_filename[name_candidate] = file_hash
+                    if name_candidate not in db_rows_by_filename:
+                        db_rows_by_filename[name_candidate] = row
+        except Exception as db_exc:
+            logger.warning(f"No se pudieron cargar hashes desde DB para {case_id}: {db_exc}")
+
+        updated_hashes = dict(document_hashes)
 
         # 1. Crear el nombre de la nueva carpeta
         sanitized_insured_name = self._sanitize_filename(insured_name)
@@ -447,43 +820,134 @@ class OCRCacheManager:
         except Exception:
             pass
 
+        new_document_paths: list[str] = []
         for original_doc_path_str in original_paths:
+            old_path_str = original_doc_path_str
+            try:
                 original_doc_path = Path(original_doc_path_str)
-                cache_path = self._get_cache_path(original_doc_path)
+            except Exception as path_exc:
+                logger.warning(f"Ruta inválida en índice para {case_id}: {original_doc_path_str} ({path_exc})")
+                continue
 
-                if cache_path.exists():
+            doc_filename = original_doc_path.name
+            doc_hash = document_hashes.get(original_doc_path_str) or hash_by_filename.get(doc_filename)
+
+            db_row = db_rows_by_path.get(original_doc_path_str) or db_rows_by_filename.get(doc_filename)
+            if not doc_hash:
+                if db_row:
                     try:
-                        # Guardar la carpeta de hash para limpiar después
-                        hash_folder = cache_path.parent
-                        hash_folders_to_clean.add(hash_folder)
-                        
-                        # Crear subcarpeta para el documento específico
-                        doc_folder_name = self._sanitize_filename(original_doc_path.stem)
-                        doc_specific_path = new_case_path / doc_folder_name
-                        doc_specific_path.mkdir(parents=True, exist_ok=True)
+                        doc_hash = db_row['file_hash']
+                    except Exception:
+                        doc_hash = None
+            if not doc_hash and original_doc_path.exists():
+                try:
+                    doc_hash = sha256_of_file(original_doc_path)
+                except Exception as hash_exc:
+                    logger.warning(f"No se pudo calcular hash para {original_doc_path}: {hash_exc}")
+                    doc_hash = None
+            if not doc_hash and db_row:
+                db_path = db_row['filepath'] if isinstance(db_row, dict) else db_row['filepath']
+                if db_path:
+                    candidate_path = Path(db_path)
+                    if candidate_path.exists():
+                        try:
+                            doc_hash = sha256_of_file(candidate_path)
+                            original_doc_path = candidate_path
+                            original_doc_path_str = str(candidate_path)
+                        except Exception as hash_exc:
+                            logger.warning(f"No se pudo calcular hash usando fallback {candidate_path}: {hash_exc}")
+            doc_filename = original_doc_path.name
+            if not doc_hash:
+                logger.warning(f"No se encontró hash ni archivo para {original_doc_path_str}. Se omite de la reorganización.")
+                continue
 
-                        # El nuevo nombre del archivo JSON será más descriptivo
-                        new_cache_filename = f"ocr_results_for_{self._sanitize_filename(original_doc_path.name)}.json"
-                        destination_path = doc_specific_path / new_cache_filename
-                        
-                        # Verificar que no exista el destino antes de mover
-                        if destination_path.exists():
-                            logger.warning(f"El archivo destino ya existe: {destination_path}. Sobrescribiendo...")
-                            destination_path.unlink()
-                        
-                        logger.info(f"Moviendo {cache_path} -> {destination_path}")
-                        shutil.move(str(cache_path), str(destination_path))
-                        
-                    except Exception as e:
-                        logger.error(f"No se pudo mover el archivo de caché {cache_path}: {e}")
-                else:
-                    # Si no hay shard, verificar si ya existe en vista humana; de estar en ambos, eliminar shard duplicado
-                    doc_folder_name = self._sanitize_filename(original_doc_path.stem)
-                    candidate = new_case_path / doc_folder_name / f"ocr_results_for_{self._sanitize_filename(original_doc_path.name)}.json"
-                    if candidate.exists():
-                        # Nada que mover
-                        continue
-        
+            hash_by_filename.setdefault(doc_filename, doc_hash)
+            document_hashes.setdefault(original_doc_path_str, doc_hash)
+
+            # Manejar directamente archivos JSON reorganizados (ocr_results_for_*.json)
+            try:
+                if original_doc_path.suffix.lower() == ".json" and original_doc_path.name.startswith("ocr_results_for_"):
+                    # Derivar carpeta de documento a partir del nombre original incluido en el JSON
+                    try:
+                        base_part = original_doc_path.name[len("ocr_results_for_"):-len(".json")]
+                        doc_folder_name = self._sanitize_filename(Path(base_part).stem)
+                    except Exception:
+                        doc_folder_name = self._sanitize_filename(original_doc_path.stem)
+
+                    doc_specific_path = new_case_path / doc_folder_name
+                    doc_specific_path.mkdir(parents=True, exist_ok=True)
+                    destination_path = doc_specific_path / original_doc_path.name
+
+                    if original_doc_path != destination_path:
+                        try:
+                            if destination_path.exists():
+                                destination_path.unlink()
+                            logger.info(f"Moviendo JSON {original_doc_path} -> {destination_path}")
+                            shutil.move(str(original_doc_path), str(destination_path))
+                        except Exception as move_exc:
+                            logger.warning(f"No se pudo mover JSON de caché {original_doc_path}: {move_exc}")
+
+                    new_document_paths.append(str(destination_path))
+                    updated_hashes.pop(old_path_str, None)
+                    updated_hashes[str(destination_path)] = doc_hash
+                    # No procesar este archivo como si fuera un original
+                    continue
+            except Exception:
+                pass
+
+            shard_candidate = self.cache_dir / doc_hash[:2] / f"{doc_hash}.json"
+            cache_path: Optional[Path] = shard_candidate if shard_candidate.exists() else None
+            cache_from_shard = cache_path is not None
+
+            doc_folder_name = self._sanitize_filename(original_doc_path.stem)
+            doc_specific_path = new_case_path / doc_folder_name
+            doc_specific_path.mkdir(parents=True, exist_ok=True)
+
+            sanitized_name = self._sanitize_filename(original_doc_path.name)
+            destination_path = doc_specific_path / f"ocr_results_for_{sanitized_name}.json"
+
+            if (not cache_path or not cache_path.exists()) and destination_path.exists():
+                cache_path = destination_path
+                cache_from_shard = False
+
+            if cache_path and cache_path.exists() and cache_path != destination_path:
+                try:
+                    if cache_from_shard:
+                        hash_folders_to_clean.add(cache_path.parent)
+                    if destination_path.exists():
+                        destination_path.unlink()
+                    logger.info(f"Moviendo {cache_path} -> {destination_path}")
+                    shutil.move(str(cache_path), str(destination_path))
+                except Exception as move_exc:
+                    logger.error(f"No se pudo mover el archivo de caché {cache_path}: {move_exc}")
+
+            source_for_copy = original_doc_path
+            if not source_for_copy.exists() and db_row:
+                db_path = db_row['filepath'] if isinstance(db_row, dict) else db_row['filepath']
+                if db_path and Path(db_path).exists():
+                    source_for_copy = Path(db_path)
+
+            pdf_destination = doc_specific_path / original_doc_path.name
+            if COPY_DOCUMENTS_IN_REORG and source_for_copy.exists():
+                try:
+                    if not pdf_destination.exists():
+                        shutil.copy2(str(source_for_copy), str(pdf_destination))
+                except Exception as copy_exc:
+                    logger.warning(f"No se pudo copiar original {source_for_copy} -> {pdf_destination}: {copy_exc}")
+            elif not COPY_DOCUMENTS_IN_REORG and pdf_destination.exists():
+                try:
+                    pdf_destination.unlink()
+                except Exception:
+                    pass
+
+            if not pdf_destination.exists():
+                logger.debug(f"No se materializó copia para {pdf_destination}; se usará solo el JSON cache")
+
+            # Registrar el JSON como documento de referencia
+            new_document_paths.append(str(destination_path))
+            updated_hashes.pop(old_path_str, None)
+            updated_hashes[str(destination_path)] = doc_hash
+
         # 4. Fusionar carpeta placeholder "SIN_NOMBRE - SIN_NOMBRE" en la carpeta con nombre real (si existe)
         try:
             placeholder_folder = self.cache_dir / "SIN_NOMBRE - SIN_NOMBRE"
@@ -553,6 +1017,46 @@ class OCRCacheManager:
             logger.warning(f"cleanup_shards falló: {e}")
 
         logger.info(f"Reorganización del caché completada para el caso {case_id} en: {new_case_path}")
+
+        try:
+            if new_document_paths:
+                unique_docs = []
+                seen = set()
+                for path_str in new_document_paths:
+                    if path_str not in seen:
+                        unique_docs.append(path_str)
+                        seen.add(path_str)
+                case_data['documents'] = unique_docs
+                # Mantener 'cache_files' alineado con documentos (JSON) y sin duplicados
+                case_data['cache_files'] = list(unique_docs)
+                # Filtrar 'document_hashes' para que sólo incluya claves presentes en 'documents'
+                try:
+                    doc_hashes = case_data.get('document_hashes') or {}
+                    if isinstance(doc_hashes, dict):
+                        filtered = {k: v for k, v in doc_hashes.items() if k in set(unique_docs)}
+                        case_data['document_hashes'] = filtered
+                except Exception:
+                    pass
+                # Ajustar total de documentos
+                case_data['total_documents'] = len(unique_docs)
+                # Ya no actualizamos 'filepath' en DB con rutas a JSON; mantener DB con metadatos del original
+
+            case_data['case_folder'] = new_case_folder_name
+            case_data['folder_path'] = str(new_case_path)
+            if updated_hashes:
+                case_data['document_hashes'] = updated_hashes
+            self.save_case_index(case_id, case_data)
+
+            try:
+                with get_conn() as conn:
+                    conn.execute(
+                        "UPDATE cases SET base_path=? WHERE case_id=?",
+                        (str(new_case_path), case_id)
+                    )
+            except Exception as db_exc:
+                logger.warning(f"No se pudo actualizar base_path en DB para {case_id}: {db_exc}")
+        except Exception as exc:
+            logger.warning(f"No se pudo actualizar case_folder en índice {case_id}: {exc}")
     
     def get_cache_stats(self) -> Dict[str, Any]:
         """
@@ -686,21 +1190,135 @@ class OCRCacheManager:
         
         return cases
 
-    def get_case_index(self, case_id: str) -> Optional[Dict[str, Any]]:
+    def get_case_index(self, case_id: str, auto_reconstruct: bool = False) -> Optional[Dict[str, Any]]:
         """
         Obtiene la información del índice de un caso específico.
+        Si auto_reconstruct=True y el índice no existe, intenta reconstruirlo desde la BD.
         """
         index_path = self.index_dir / f"{case_id}.json"
-        
+
         if not index_path.exists():
+            if auto_reconstruct:
+                try:
+                    case_data = self._reconstruct_index_from_db(case_id)
+                    if case_data:
+                        # Persistir para uso futuro y mantener nomenclatura consistente
+                        self.save_case_index(case_id, case_data)
+                        return case_data
+                except Exception as e:
+                    logger.debug(f"Auto-reconstrucción falló para {case_id}: {e}")
             return None
-        
+
         try:
             with open(index_path, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except Exception as e:
             logger.error(f"Error leyendo índice del caso {case_id}: {e}")
             return None
+
+    def list_cases_from_cache(self) -> List[Dict[str, Any]]:
+        """Devuelve un resumen de los casos disponibles en el índice."""
+        cases: List[Dict[str, Any]] = []
+
+        if not self.index_dir.exists():
+            return cases
+
+        try:
+            for index_file in sorted(self.index_dir.glob("*.json")):
+                case_id = index_file.stem
+                try:
+                    with open(index_file, "r", encoding="utf-8") as fh:
+                        case_data = json.load(fh)
+                except Exception as exc:
+                    logger.error(f"No se pudo leer índice {index_file.name}: {exc}")
+                    continue
+
+                case_title = case_data.get("case_title") or case_id
+                insured = case_data.get("insured_name") or ""
+                claim = case_data.get("claim_number") or ""
+                processed_at = case_data.get("processed_at") or ""
+                total_documents = case_data.get("total_documents")
+                if total_documents is None:
+                    documents = case_data.get("documents") or []
+                    total_documents = len(documents)
+
+                cases.append(
+                    {
+                        "case_id": case_id,
+                        "case_title": case_title,
+                        "insured_name": insured,
+                        "claim_number": claim,
+                        "processed_at": processed_at,
+                        "folder_path": case_data.get("folder_path", ""),
+                        "total_documents": total_documents,
+                    }
+                )
+
+        except Exception as exc:
+            logger.error(f"Error listando casos del cache: {exc}")
+            return cases
+
+        cases.sort(key=lambda item: item.get("processed_at", ""), reverse=True)
+        return cases
+
+    def save_manual_classifications(
+        self,
+        case_id: str,
+        classifications: Dict[str, str],
+        ai_classifications: Optional[Dict[str, str]] = None,
+        *,
+        replace: bool = False,
+    ) -> None:
+        """
+        Guarda las clasificaciones manuales del usuario para un caso, junto con las originales de AI.
+
+        Args:
+            case_id: ID del caso
+            classifications: Dict con {filename: document_type} - clasificaciones finales
+            ai_classifications: Dict con {filename: document_type} - clasificaciones originales de AI
+        """
+        try:
+            # Cargar índice existente
+            case_data = self.get_case_index(case_id) or {}
+
+            # Añadir o actualizar clasificaciones manuales
+            if replace:
+                case_data['manual_classifications'] = dict(classifications)
+            else:
+                if 'manual_classifications' not in case_data:
+                    case_data['manual_classifications'] = {}
+                case_data['manual_classifications'].update(classifications)
+
+            if not case_data.get('manual_classifications'):
+                case_data.pop('manual_classifications', None)
+                case_data.pop('last_manual_update', None)
+            else:
+                case_data['last_manual_update'] = time.strftime('%Y-%m-%d %H:%M:%S')
+
+            # Guardar también las clasificaciones originales de AI si se proporcionan
+            if ai_classifications:
+                if 'ai_classifications' not in case_data:
+                    case_data['ai_classifications'] = {}
+                case_data['ai_classifications'].update(ai_classifications)
+
+            # Guardar índice actualizado
+            self.save_case_index(case_id, case_data)
+            logger.info(f"Clasificaciones guardadas para caso {case_id}")
+
+        except Exception as e:
+            logger.error(f"Error guardando clasificaciones: {e}")
+
+    def get_manual_classifications(self, case_id: str) -> Optional[Dict[str, str]]:
+        """
+        Obtiene las clasificaciones manuales previas de un caso.
+
+        Returns:
+            Dict con {filename: document_type} o None si no hay clasificaciones previas
+        """
+        case_data = self.get_case_index(case_id)
+        if case_data and 'manual_classifications' in case_data:
+            return case_data['manual_classifications']
+        return None
 
     # Utilidad pública: limpieza manual de shards
     def cleanup_shards(self) -> None:
@@ -726,3 +1344,4 @@ class OCRCacheManager:
                         pass
         except Exception as e:
             logger.error(f"Error durante cleanup_shards: {e}")
+COPY_DOCUMENTS_IN_REORG = os.getenv("FS_COPY_DOCS_IN_CACHE", "false").lower() == "true"

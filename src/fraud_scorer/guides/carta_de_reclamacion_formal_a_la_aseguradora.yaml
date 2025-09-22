@@ -141,4 +141,4 @@ response_template:
         fuente: "Denuncia y reporte de siniestro"
         prioridad: "media"
         estado: "pendiente"
-
+        

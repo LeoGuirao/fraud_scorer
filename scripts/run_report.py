@@ -33,6 +33,7 @@ logger = logging.getLogger("fraud_scorer.run_report")
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.parsers.document_parser import DocumentParser
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
+from fraud_scorer.storage.db import sha256_of_file, get_conn
 from fraud_scorer.storage.cases import create_case
 
 from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
@@ -178,6 +179,8 @@ class FraudAnalysisSystemV2:
         self._cleanup_paths = []
         self.cancellation_check = None
         self.progress_emitter = None  # Se inicializa por caso
+        self.reprocess_mode = False
+        self.reprocess_options: Dict[str, Any] = {}
 
     def cancel(self):
         """Señala que el proceso debe cancelarse"""
@@ -312,6 +315,9 @@ class FraudAnalysisSystemV2:
         case_title: Optional[str] = None,
         progress_callback: Optional[callable] = None,
         cancellation_check: Optional[callable] = None,
+        reprocess_mode: bool = False,
+        reprocess_options: Optional[Dict[str, Any]] = None,
+        existing_case_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Procesa un caso completo con el flujo v2 (solo IA).
@@ -321,54 +327,197 @@ class FraudAnalysisSystemV2:
         logger.info("🤖 Modo: IA Avanzada v2.0")
         logger.info("=" * 60)
 
+        # Log de depuración: verificar qué caso estamos procesando
+        logger.info(f"🔍 DEPURACIÓN: Procesando con case_id={existing_case_id or 'AUTO-DETECTAR'}")
+        logger.info(f"  Carpeta: {folder_path}")
+        logger.info(f"  Título: {case_title or 'N/A'}")
+        logger.info(f"  Modo reproceso: {reprocess_mode}")
+        if reprocess_options:
+            logger.info(f"  Opciones reproceso: {reprocess_options}")
+
         # Buscar documentos soportados (ignorar archivos '._' de macOS)
         supported_extensions = {
             ".pdf", ".png", ".jpg", ".jpeg", ".tiff",
             ".docx", ".xlsx", ".csv"
         }
-        documents = [
-            p for p in folder_path.glob("*")
-            if p.suffix.lower() in supported_extensions and not p.name.startswith("._")
-        ]
+
+        def _is_supported(path: Path) -> bool:
+            return (
+                path.is_file()
+                and path.suffix.lower() in supported_extensions
+                and not path.name.startswith("._")
+            )
+
+        documents: List[Path]
+
+        case_index_for_reprocess: Dict[str, Any] = {}
+        if self.reprocess_mode:
+            try:
+                if self.cache_manager and existing_case_id:
+                    # Intentar cargar índice del caso existente para obtener documentos
+                    case_index_for_reprocess = self.cache_manager.get_case_index(existing_case_id, auto_reconstruct=True) or {}
+            except Exception:
+                case_index_for_reprocess = {}
+
+            stored_docs = case_index_for_reprocess.get("documents") or []
+            if stored_docs:
+                documents = [Path(p) for p in stored_docs]
+                missing = [str(p) for p in documents if not p.exists()]
+                if missing:
+                    logger.info("Algunos documentos no existen físicamente; se usará el cache JSON: %s", ", ".join(missing))
+            else:
+                documents = []
+        else:
+            documents = []
+
         if not documents:
-            raise RuntimeError("No se encontraron documentos para procesar")
+            if folder_path.exists() and folder_path.is_dir():
+                documents = [p for p in folder_path.iterdir() if _is_supported(p)]
+            else:
+                documents = []
+
+            if not documents and folder_path.exists():
+                # Estructura reorganizada: buscar archivos soportados en subcarpetas
+                nested_candidates = [p for p in folder_path.rglob("*") if _is_supported(p)]
+                if nested_candidates:
+                    documents = sorted(nested_candidates, key=lambda p: str(p))
+                if documents:
+                    logger.info(
+                        "Carpeta %s no contiene documentos en el nivel raíz; usando %d archivos encontrados en subcarpetas",
+                        folder_path,
+                        len(documents)
+                    )
+
+        if not documents:
+            # Permitir reprocesamiento SOLO de Fase 3.5 sin requerir archivos originales en FS
+            allow_docsless_fraud = False
+            try:
+                opts = dict(reprocess_options or {})
+                allow_docsless_fraud = bool(
+                    reprocess_mode
+                    and opts.get("reprocess_fraud")
+                    and not opts.get("reprocess_ocr")
+                    and not opts.get("reprocess_extraction")
+                )
+            except Exception:
+                allow_docsless_fraud = False
+
+            if not allow_docsless_fraud:
+                raise RuntimeError("No se encontraron documentos para procesar")
+            else:
+                logger.info("ℹ️ Reproceso 3.5: sin archivos originales; se usará cache JSON reorganizado")
 
         logger.info(f"✓ Encontrados {len(documents)} documentos")
 
         # Verificar si ya existe un caso para esta ruta o título
-        from fraud_scorer.storage.cases import get_case_by_path, get_case_by_title
-        
-        # Primero intentar por ruta
-        existing_case = get_case_by_path(str(folder_path))
-        
-        if existing_case:
-            case_id = existing_case['case_id']
-            logger.info(f"✓ Usando caso existente por ruta: {case_id}")
+        from fraud_scorer.storage.cases import get_case_by_path, get_case_by_title, get_conn
+        import hashlib
+
+        case_id = existing_case_id
+
+        if case_id:
+            logger.info(f"✓ Usando case_id proporcionado: {case_id}")
         else:
-            # Si no hay caso por ruta, intentar por título
-            title = case_title or folder_path.name
-            existing_case = get_case_by_title(title)
-            
+            # DETECCIÓN INTELIGENTE DE CASO EXISTENTE
+            # 1. Primero intentar por ruta
+            existing_case = get_case_by_path(str(folder_path))
+
             if existing_case:
                 case_id = existing_case['case_id']
-                logger.info(f"✓ Usando caso existente por título: {case_id}")
+                logger.info(f"✓ Usando caso existente por ruta: {case_id}")
             else:
-                # Solo crear nuevo caso si no existe ninguno
-                case_id = create_case(
-                    title=title,
-                    base_path=str(folder_path)
-                )
-                logger.info(f"✓ Nuevo caso creado: {case_id}")
+                # 2. Buscar por hash de documentos (primeros N) para detectar casos duplicados
+                if documents:
+                    try:
+                        max_samples = int(os.getenv("FS_DETECT_HASH_SAMPLES", "5"))
+                    except Exception:
+                        max_samples = 5
+                    for sample_doc in documents[:max(1, max_samples)]:
+                        if not sample_doc.exists():
+                            continue
+                        try:
+                            doc_hash = sha256_of_file(sample_doc)
+                            # Buscar en BD si este documento ya existe
+                            with get_conn() as conn:
+                                row = conn.execute(
+                                    """SELECT c.case_id, c.name
+                                       FROM documents d
+                                       JOIN cases c ON d.case_id = c.case_id
+                                       WHERE d.file_hash = ?
+                                       LIMIT 1""",
+                                    (doc_hash,)
+                                ).fetchone()
+                            if row:
+                                case_id = row['case_id']
+                                logger.info(
+                                    f"✓ Caso detectado por contenido de documentos: {case_id} ({row['name']})"
+                                )
+                                logger.info("  → Los documentos ya fueron procesados anteriormente")
+                                logger.info(f"  → Hash del documento: {doc_hash[:8]}... ({sample_doc.name})")
+                                logger.info("  → REUTILIZANDO caso existente en lugar de crear uno nuevo")
+                                break
+                        except Exception as e:
+                            logger.debug(f"No se pudo calcular hash para detección en {sample_doc}: {e}")
+
+                # 3. Si es carpeta reorganizada, buscar por patrón genérico de claim_number o carpeta
+                if not case_id:
+                    # Extraer claim_number del nombre de carpeta (patrón genérico: sufijo de 6+ dígitos)
+                    import re
+                    match = re.search(r'(?:^| - )(\d{6,})$', folder_path.name)
+                    if not match:
+                        match = re.search(r'(\d{6,})', folder_path.name)
+                    claim_num = match.group(1) if match else None
+
+                    # Buscar en índices de cache por claim_number o por coincidencia exacta de carpeta
+                    if self.cache_manager:
+                        for index_file in self.cache_manager.index_dir.glob("*.json"):
+                            try:
+                                with open(index_file, 'r', encoding='utf-8') as f:
+                                    idx_data = json.load(f)
+                                if claim_num and idx_data.get('claim_number') == claim_num:
+                                    case_id = index_file.stem
+                                    logger.info(f"✓ Caso detectado por claim_number {claim_num}: {case_id}")
+                                    break
+                                case_folder = idx_data.get('case_folder') or ""
+                                if case_folder and case_folder == folder_path.name:
+                                    case_id = index_file.stem
+                                    logger.info(f"✓ Caso detectado por carpeta reorganizada: {case_id}")
+                                    break
+                            except Exception:
+                                continue
+
+                # 4. Si no se encontró caso existente, intentar por título
+                if not case_id:
+                    title = case_title or folder_path.name
+                    existing_case = get_case_by_title(title)
+
+                    if existing_case:
+                        case_id = existing_case['case_id']
+                        logger.info(f"✓ Usando caso existente por título: {case_id}")
+                    else:
+                        # Solo crear nuevo caso si no existe ninguno
+                        logger.info("⚠️ No se encontró ningún caso existente que coincida")
+                        logger.info("  → Creando un NUEVO caso en la BD...")
+                        case_id = create_case(
+                            title=title,
+                            base_path=str(folder_path)
+                        )
+                        logger.info(f"✓ Nuevo caso creado: {case_id}")
+                        logger.info(f"  → Este es un caso COMPLETAMENTE NUEVO")
         
         logger.info(f"✓ Case ID final: {case_id}")
         
         # Guardar callbacks para usar en los métodos internos
         self.progress_callback = progress_callback
         self.cancellation_check = cancellation_check
-        
+
         # Reset estado de cancelación
         self.reset_cancellation()
-        
+
+        # Configurar opciones de reprocesamiento
+        self.reprocess_mode = bool(reprocess_mode)
+        self.reprocess_options = dict(reprocess_options or {})
+
         # Registrar carpeta para limpieza en caso de cancelación
         if folder_path not in self._cleanup_paths:
             self._cleanup_paths.append(folder_path)
@@ -377,17 +526,55 @@ class FraudAnalysisSystemV2:
         self.progress_emitter = _ProgressEmitter(case_id)
 
         # Ejecutar pipeline v2
-        return await self._process_with_ai(documents, case_id, output_path)
+        return await self._process_with_ai(documents, case_id, output_path, folder_path)
 
     async def _process_with_ai(
         self,
         documents: List[Path],
         case_id: str,
         output_path: Path,
+        base_folder: Path,
     ) -> Dict[str, Any]:
         """
         Procesamiento con el sistema de IA y cache.
         """
+        options = dict(self.reprocess_options or {})
+        if self.reprocess_mode and options.get("reprocess_extraction"):
+            options["reprocess_consolidation"] = True
+
+        def wants(flag: str) -> bool:
+            if not self.reprocess_mode:
+                return True
+            return bool(options.get(flag))
+
+        case_data: Dict[str, Any] = {}
+        if self.cache_manager:
+            try:
+                case_data = self.cache_manager.get_case_index(case_id) or {}
+            except Exception:
+                case_data = {}
+        case_data.setdefault("case_id", case_id)
+
+        doc_ids_by_name: Dict[str, str] = {}
+        try:
+            with get_conn() as conn:
+                rows = conn.execute(
+                    "SELECT id, filename FROM documents WHERE case_id=?",
+                    (case_id,)
+                ).fetchall()
+                for row in rows:
+                    name = row["filename"]
+                    if name and name not in doc_ids_by_name:
+                        doc_ids_by_name[name] = row["id"]
+        except Exception as db_exc:
+            logger.debug(f"No se pudieron cargar IDs de documentos para {case_id}: {db_exc}")
+
+        # Persistir hashes conocidos de documentos para reorganizaciones futuras
+        document_hashes: Dict[str, str] = {}
+        existing_hashes = case_data.get("document_hashes")
+        if isinstance(existing_hashes, dict):
+            document_hashes.update(existing_hashes)
+
         # ============================================
         # FASE 1: OCR/Parsing
         # ============================================
@@ -410,168 +597,290 @@ class FraudAnalysisSystemV2:
         ocr_results: List[Dict[str, Any]] = []
         cache_files: List[str] = []
 
-        # Paso 3.2: Verificar si todos los documentos ya están en cache
-        all_cached = True
-        cached_count = 0
-        if self.cache_manager:
-            for doc_path in documents:
-                if self.cache_manager.has_cache(doc_path, case_id=case_id):
-                    cached_count += 1
-                else:
-                    all_cached = False
-            
-            logger.info(f"📊 Estado del cache: {cached_count}/{len(documents)} documentos en cache")
-            
-            # Notificar estado del cache
-            if self.progress_callback:
-                cache_msg = f"Cache: {cached_count}/{len(documents)} documentos disponibles"
-                self.progress_callback(cache_msg, 10)
-            
-            if all_cached:
-                logger.info("✨ Todos los documentos ya están en el cache. Omitiendo fase de OCR.")
-                logger.info("⚡ SALTO DIRECTO A ANÁLISIS IA - Optimización activada")
-                logger.info("-" * 40)
-                
-                # Cargar todos los documentos desde el cache
-                for idx, doc_path in enumerate(documents, 1):
-                    # Verificar cancelación antes de cada documento
-                    if self.cancellation_check and await self.cancellation_check():
-                        await self.cleanup_on_cancel()
-                        raise asyncio.CancelledError(f"Proceso cancelado en documento {idx}/{len(documents)}")
-                    
-                    logger.info(f"  ⚡ Cargando desde cache: {doc_path.name}")
-                    
-                    # Notificar progreso por documento
-                    if self.progress_callback:
-                        progress = 10 + (idx * 20 // len(documents))
-                        self.progress_callback(
-                            f"Cargando desde cache: {doc_path.name}",
-                            progress,
-                            doc_path.name
-                        )
-                    
-                    # Emitir evento de progreso OCR
-                    if self.progress_emitter:
-                        self.progress_emitter.emit(
-                            "ocr", "running", 
-                            doc_index=idx, doc_total=len(documents),
-                            message=f"Cargando desde cache: {doc_path.name}"
-                        )
-                    
-                    ocr_result = self.cache_manager.get_cache(doc_path, case_id)
-                    if ocr_result:
-                        ocr_results.append({
-                            "filename": doc_path.name,
-                            "ocr_result": ocr_result,
-                            "document_type": None,  # se detectará dentro del extractor
-                        })
-                        cache_files.append(str(doc_path))
-                
-                logger.info(f"✓ Carga desde cache completada: {len(ocr_results)}/{len(documents)} documentos")
-            else:
-                # Procesar documentos normalmente (algunos pueden estar en cache, otros no)
-                for idx, doc_path in enumerate(documents, 1):
-                    # Verificar cancelación antes de cada documento
-                    if self.cancellation_check and await self.cancellation_check():
-                        await self.cleanup_on_cancel()
-                        raise asyncio.CancelledError(f"Proceso cancelado en documento {idx}/{len(documents)}")
-                    
-                    logger.info(f"  Procesando: {doc_path.name}")
-                    
-                    # Notificar progreso por documento
-                    if self.progress_callback:
-                        progress = 10 + (idx * 20 // len(documents))
-                        self.progress_callback(
-                            f"Procesando documento {idx}/{len(documents)}: {doc_path.name}",
-                            progress,
-                            doc_path.name
-                        )
-                    
-                    # Emitir evento de progreso OCR
-                    if self.progress_emitter:
-                        self.progress_emitter.emit(
-                            "ocr", "running",
-                            doc_index=idx, doc_total=len(documents),
-                            message=f"Procesando: {doc_path.name}"
-                        )
+        reuse_existing_ocr = self.reprocess_mode and not wants("reprocess_ocr")
 
-                    # Usar cache si existe
-                    if self.cache_manager.has_cache(doc_path, case_id=case_id):
-                        logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
-                        ocr_result = self.cache_manager.get_cache(doc_path, case_id)
-                        if ocr_result:
-                            cache_files.append(str(doc_path))
-                    else:
-                        # OCR/Parser tolerante a fallos
-                        logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
-                        try:
-                            ocr_result = self.document_parser.parse_document(doc_path)
-                            if self.cache_manager and ocr_result:
-                                self.cache_manager.save_cache(doc_path, ocr_result, case_id)
-                        except Exception as e:
-                            logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
-                            continue
+        # Fallback especial para reprocesar SOLO Fase 3.5 usando exclusivamente cache JSON
+        docsless_fraud_only = (
+            self.reprocess_mode
+            and wants("reprocess_fraud")
+            and not wants("reprocess_ocr")
+            and not wants("reprocess_extraction")
+            and not documents
+        )
 
-                    if ocr_result:
-                        ocr_results.append({
-                            "filename": doc_path.name,
-                            "ocr_result": ocr_result,
-                            "document_type": None,  # se detectará dentro del extractor
-                        })
+        # Asegurar que conocemos el hash de cada documento mientras aún está disponible
+        for doc_path in documents:
+            path_str = str(doc_path)
+            if path_str in document_hashes:
+                continue
+            # No calcular hash sobre JSON de OCR; sólo sobre originales
+            if Path(path_str).suffix.lower() == ".json":
+                continue
+            try:
+                document_hashes[path_str] = sha256_of_file(doc_path)
+            except FileNotFoundError:
+                logger.warning(
+                    "No se pudo calcular hash para %s porque el archivo no existe",
+                    doc_path
+                )
+            except Exception as hash_exc:
+                logger.warning(
+                    "No se pudo calcular hash para %s: %s",
+                    doc_path,
+                    hash_exc
+                )
 
-                logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
-        else:
-            # Si no hay cache manager, procesar todos los documentos normalmente
-            for doc_path in documents:
-                logger.info(f"  Procesando: {doc_path.name}")
-                logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
+        if docsless_fraud_only:
+            # Construir ocr_results desde extracciones previas + JSON reorganizado
+            prev_extractions = case_data.get("extraction_results") or []
+            if not prev_extractions:
+                raise RuntimeError("No existen extracciones previas; seleccione re-extracción o ejecute Fase 2 antes")
+
+            case_folder = base_folder
+            built = 0
+            for item in prev_extractions:
                 try:
-                    ocr_result = self.document_parser.parse_document(doc_path)
+                    name = item.get("source_document") if isinstance(item, dict) else getattr(item, "source_document", None)
+                    doc_type = item.get("document_type") if isinstance(item, dict) else getattr(item, "document_type", None)
+                    if not name:
+                        continue
+                    doc_folder = self.cache_manager._sanitize_filename(Path(name).stem)
+                    doc_path = case_folder / doc_folder / name
+                    ocr_result = self.cache_manager.get_cache(doc_path, case_id)
+                    if not ocr_result:
+                        logger.warning(f"No se encontró OCR JSON para {name}; se omite en 3.5")
+                        continue
+                    ocr_results.append({
+                        "filename": name,
+                        "ocr_result": ocr_result,
+                        "document_type": doc_type or None,
+                    })
+                    cache_files.append(str(doc_path))
+                    built += 1
                 except Exception as e:
-                    logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
-                    continue
+                    logger.warning(f"No se pudo cargar OCR para {item}: {e}")
+
+            if built == 0:
+                raise RuntimeError("No se pudo construir OCR desde cache JSON; verifique ocr_results_for_*.json en la carpeta de caso")
+
+            logger.info(f"✓ Documentos listos desde OCR reorganizado (JSON): {built}")
+            all_cached = True
+            # Marcar fin de Fase 1
+            if self.progress_emitter:
+                self.progress_emitter.emit("ocr", "done", message="OCR desde cache JSON listo")
+
+        elif reuse_existing_ocr and self.cache_manager:
+            logger.info("♻️ Reprocesamiento: se conservarán los resultados de OCR previos.")
+            all_cached = True
+            for idx, doc_path in enumerate(documents, 1):
+                if self.cancellation_check and await self.cancellation_check():
+                    await self.cleanup_on_cancel()
+                    raise asyncio.CancelledError(f"Proceso cancelado en documento {idx}/{len(documents)}")
+
+                from_cache = False
+                ocr_result = self.cache_manager.get_cache(doc_path, case_id)
+                if ocr_result:
+                    from_cache = True
+                else:
+                    logger.warning(
+                        "No se encontró OCR previo para %s; reprocesando solo este documento.",
+                        doc_path.name,
+                    )
+                    try:
+                        ocr_result = self.document_parser.parse_document(doc_path)
+                        if ocr_result and self.cache_manager:
+                            self.cache_manager.save_cache(doc_path, ocr_result, case_id)
+                        all_cached = False
+                    except Exception as e:
+                        logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
+                        all_cached = False
+                        continue
 
                 if ocr_result:
-                    ocr_results.append({
-                        "filename": doc_path.name,
-                        "ocr_result": ocr_result,
-                        "document_type": None,  # se detectará dentro del extractor
-                    })
+                    ocr_results.append(
+                        {
+                            "filename": doc_path.name,
+                            "ocr_result": ocr_result,
+                            "document_type": None,
+                        }
+                    )
+                    if from_cache:
+                        cache_files.append(str(doc_path))
 
-            logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
+            logger.info(f"✓ Documentos listos desde OCR previo: {len(ocr_results)}/{len(documents)}")
+        else:
+            # Paso 3.2: Verificar si todos los documentos ya están en cache
+            all_cached = True
+            cached_count = 0
+            if self.cache_manager:
+                for doc_path in documents:
+                    if self.cache_manager.has_cache(doc_path, case_id=case_id):
+                        cached_count += 1
+                    else:
+                        all_cached = False
+
+                logger.info(f"📊 Estado del cache: {cached_count}/{len(documents)} documentos en cache")
+
+                # Notificar estado del cache
+                if self.progress_callback:
+                    cache_msg = f"Cache: {cached_count}/{len(documents)} documentos disponibles"
+                    self.progress_callback(cache_msg, 10)
+
+                if all_cached:
+                    logger.info("✨ Todos los documentos ya están en el cache. Omitiendo fase de OCR.")
+                    logger.info("⚡ SALTO DIRECTO A ANÁLISIS IA - Optimización activada")
+                    logger.info("-" * 40)
+
+                    # Cargar todos los documentos desde el cache
+                    for idx, doc_path in enumerate(documents, 1):
+                        # Verificar cancelación antes de cada documento
+                        if self.cancellation_check and await self.cancellation_check():
+                            await self.cleanup_on_cancel()
+                            raise asyncio.CancelledError(f"Proceso cancelado en documento {idx}/{len(documents)}")
+
+                        logger.info(f"  ⚡ Cargando desde cache: {doc_path.name}")
+
+                        # Notificar progreso por documento
+                        if self.progress_callback:
+                            progress = 10 + (idx * 20 // len(documents))
+                            self.progress_callback(
+                                f"Cargando desde cache: {doc_path.name}",
+                                progress,
+                                doc_path.name,
+                            )
+
+                        # Emitir evento de progreso OCR
+                        if self.progress_emitter:
+                            self.progress_emitter.emit(
+                                "ocr",
+                                "running",
+                                doc_index=idx,
+                                doc_total=len(documents),
+                                message=f"Cargando desde cache: {doc_path.name}",
+                            )
+
+                        ocr_result = self.cache_manager.get_cache(doc_path, case_id)
+                        if ocr_result:
+                            ocr_results.append(
+                                {
+                                    "filename": doc_path.name,
+                                    "ocr_result": ocr_result,
+                                    "document_type": None,
+                                }
+                            )
+                            cache_files.append(str(doc_path))
+
+                    logger.info(f"✓ Carga desde cache completada: {len(ocr_results)}/{len(documents)} documentos")
+                else:
+                    # Procesar documentos normalmente (algunos pueden estar en cache, otros no)
+                    for idx, doc_path in enumerate(documents, 1):
+                        # Verificar cancelación antes de cada documento
+                        if self.cancellation_check and await self.cancellation_check():
+                            await self.cleanup_on_cancel()
+                            raise asyncio.CancelledError(f"Proceso cancelado en documento {idx}/{len(documents)}")
+
+                        logger.info(f"  Procesando: {doc_path.name}")
+
+                        # Notificar progreso por documento
+                        if self.progress_callback:
+                            progress = 10 + (idx * 20 // len(documents))
+                            self.progress_callback(
+                                f"Procesando documento {idx}/{len(documents)}: {doc_path.name}",
+                                progress,
+                                doc_path.name,
+                            )
+
+                        # Emitir evento de progreso OCR
+                        if self.progress_emitter:
+                            self.progress_emitter.emit(
+                                "ocr",
+                                "running",
+                                doc_index=idx,
+                                doc_total=len(documents),
+                                message=f"Procesando: {doc_path.name}",
+                            )
+
+                        # Usar cache si existe
+                        if self.cache_manager.has_cache(doc_path, case_id=case_id):
+                            logger.info(f"  ⚡ Usando cache para: {doc_path.name}")
+                            ocr_result = self.cache_manager.get_cache(doc_path, case_id)
+                            if ocr_result:
+                                cache_files.append(str(doc_path))
+                        else:
+                            # OCR/Parser tolerante a fallos
+                            logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
+                            try:
+                                ocr_result = self.document_parser.parse_document(doc_path)
+                                if self.cache_manager and ocr_result:
+                                    self.cache_manager.save_cache(doc_path, ocr_result, case_id)
+                            except Exception as e:
+                                logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
+                                continue
+
+                        if ocr_result:
+                            ocr_results.append(
+                                {
+                                    "filename": doc_path.name,
+                                    "ocr_result": ocr_result,
+                                    "document_type": None,
+                                }
+                            )
+
+                    logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
+            else:
+                # Si no hay cache manager, procesar todos los documentos normalmente
+                for doc_path in documents:
+                    logger.info(f"  Procesando: {doc_path.name}")
+                    logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
+                    try:
+                        ocr_result = self.document_parser.parse_document(doc_path)
+                    except Exception as e:
+                        logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
+                        continue
+
+                    if ocr_result:
+                        ocr_results.append(
+                            {
+                                "filename": doc_path.name,
+                                "ocr_result": ocr_result,
+                                "document_type": None,
+                            }
+                        )
+
+                logger.info(f"✓ Procesamiento completado: {len(ocr_results)}/{len(documents)} exitosos")
 
         # Guardar índice del caso para replay
         if self.cache_manager:
-            # Extraer información del título del caso (solo como fallback)
-            folder_name = documents[0].parent.name if documents else "UNKNOWN"
-            case_title = folder_name
-            parts = case_title.split(' - ', 1)
-            fallback_claim_number = parts[0].strip() if len(parts) == 2 else ""
-            fallback_insured_name = parts[1].strip() if len(parts) == 2 else case_title
+            folder_name = base_folder.name if base_folder.name else case_data.get("case_title", "UNKNOWN")
+            parts = folder_name.split(' - ', 1)
+            fallback_insured_name = parts[0].strip() if len(parts) == 2 else folder_name
+            fallback_claim_number = parts[1].strip() if len(parts) == 2 else ""
 
-            # Si ya existe índice, preservar insured_name/claim_number reales
-            existing = self.cache_manager.get_case_index(case_id) or {}
-            insured_name = existing.get("insured_name") or fallback_insured_name
-            claim_number = existing.get("claim_number") or fallback_claim_number
+            case_data.setdefault("case_title", folder_name)
+            if not case_data.get("insured_name"):
+                case_data["insured_name"] = fallback_insured_name
+            if not case_data.get("claim_number"):
+                case_data["claim_number"] = fallback_claim_number
 
-            # Unir listas sin duplicados
-            existing_docs = set(existing.get("documents") or [])
+            existing_docs = set(case_data.get("documents") or [])
             merged_docs = list(existing_docs.union({str(d) for d in documents}))
-            existing_cache_files = set(existing.get("cache_files") or [])
+            existing_cache_files = set(case_data.get("cache_files") or [])
             merged_cache = list(existing_cache_files.union(set(cache_files)))
-            
-            case_data = {
-                "case_id": case_id,
-                "case_title": case_title,
-                "insured_name": insured_name,
-                "claim_number": claim_number,
-                "total_documents": len(merged_docs) or len(documents),
-                "documents": merged_docs if merged_docs else [str(d) for d in documents],
-                "cache_files": merged_cache,
-                "folder_path": str(documents[0].parent) if documents else "",
-                "processed_at": datetime.now().isoformat(),
-                "status": "processed"
-            }
+
+            if merged_docs:
+                case_data["documents"] = merged_docs
+            elif documents:
+                case_data["documents"] = [str(d) for d in documents]
+
+            case_data["cache_files"] = merged_cache
+            case_data["total_documents"] = len(case_data.get("documents", [])) or len(documents)
+            if documents and not case_data.get("folder_path"):
+                case_data["folder_path"] = str(base_folder)
+            case_data["processed_at"] = datetime.now().isoformat()
+            case_data["status"] = "processed"
+            if document_hashes:
+                case_data["document_hashes"] = document_hashes
+
             self.cache_manager.save_case_index(case_id, case_data)
         
         # Emitir evento de finalización de OCR (si no se hizo antes)
@@ -585,99 +894,127 @@ class FraudAnalysisSystemV2:
         logger.info("-" * 40)
 
         use_llm_cls = os.getenv("USE_LLM_DOC_CLASSIFIER", "true").lower() == "true"
-        # Config desde settings
         from fraud_scorer.settings import CLASSIFICATION_CONFIG
         min_conf = CLASSIFICATION_CONFIG.get("min_confidence_threshold", 0.6)
         sample_len = CLASSIFICATION_CONFIG.get("sample_text_length", 1500)
 
-        classifier = DocumentClassifier()
+        previous_classifications = case_data.get("classified_types") or []
+        previous_types = {
+            item.get("filename"): item.get("document_type")
+            for item in previous_classifications
+            if item and item.get("filename")
+        }
+        previous_confidence = {
+            item.get("filename"): item.get("confidence")
+            for item in previous_classifications
+            if item and item.get("filename")
+        }
+        previous_reasons = {
+            item.get("filename"): item.get("reasons") or []
+            for item in previous_classifications
+            if item and item.get("filename")
+        }
+        manual_overrides = case_data.get("manual_classifications") or {}
 
-        # Clasificar en paralelo de forma moderada
-        import asyncio as _asyncio
-        sem = _asyncio.Semaphore(4)
+        run_classification = wants("reprocess_classification")
 
-        async def _classify_doc(doc_data: Dict[str, Any]) -> None:
-            async with sem:
-                try:
-                    ocr = doc_data.get("ocr_result") or {}
-                    text = ""
-                    if isinstance(ocr, dict):
-                        text = (ocr.get("text") or "")[:sample_len]
-                    else:
-                        text = (getattr(ocr, "text", "") or "")[:sample_len]
+        if run_classification:
+            classifier = DocumentClassifier()
 
-                    # LLM + heurística (fallback ya incluido en la clase)
-                    doc_type, conf, reasons = await classifier.classify(
-                        sample_text=text,
-                        filename=doc_data.get("filename", ""),
-                        use_llm_fallback=use_llm_cls,
-                    )
+            import asyncio as _asyncio
+            sem = _asyncio.Semaphore(4)
 
-                    # Umbral de aceptación; fallback a heurística del extractor si muy bajo
-                    if conf < min_conf:
+            async def _classify_doc(doc_data: Dict[str, Any]) -> None:
+                async with sem:
+                    try:
+                        ocr = doc_data.get("ocr_result") or {}
+                        text = ""
+                        if isinstance(ocr, dict):
+                            text = (ocr.get("text") or "")[:sample_len]
+                        else:
+                            text = (getattr(ocr, "text", "") or "")[:sample_len]
+
+                        doc_type, conf, reasons = await classifier.classify(
+                            sample_text=text,
+                            filename=doc_data.get("filename", ""),
+                            use_llm_fallback=use_llm_cls,
+                        )
+
+                        if conf < min_conf:
+                            try:
+                                detected = self.extractor._detect_document_type(
+                                    self.extractor._ocr_to_dict_safe(ocr),
+                                    doc_data.get("filename", ""),
+                                )
+                                logger.info(
+                                    f"  ⚠️ Baja confianza LLM ({conf:.2f}) para {doc_data.get('filename')}. "
+                                    f"Usando heurística: {detected}"
+                                )
+                                doc_data["document_type"] = detected
+                            except Exception:
+                                doc_data["document_type"] = doc_type
+                        else:
+                            doc_data["document_type"] = doc_type
+
                         try:
+                            doc_data["classification_confidence"] = float(conf)
+                        except Exception:
+                            doc_data["classification_confidence"] = None
+                        doc_data["classification_reasons"] = reasons or []
+
+                        logger.info(
+                            f"  📄 {doc_data.get('filename')}: tipo={doc_data.get('document_type')} "
+                            f"(conf={conf:.2f})"
+                        )
+                    except Exception as e:
+                        logger.warning(f"  ❌ Error clasificando {doc_data.get('filename')}: {e}")
+                        try:
+                            ocr = doc_data.get("ocr_result") or {}
                             detected = self.extractor._detect_document_type(
                                 self.extractor._ocr_to_dict_safe(ocr),
-                                doc_data.get("filename", "")
-                            )
-                            logger.info(
-                                f"  ⚠️ Baja confianza LLM ({conf:.2f}) para {doc_data.get('filename')}. "
-                                f"Usando heurística: {detected}"
+                                doc_data.get("filename", ""),
                             )
                             doc_data["document_type"] = detected
                         except Exception:
-                            doc_data["document_type"] = doc_type
-                    else:
-                        doc_data["document_type"] = doc_type
-
-                    # Guardar detalles de clasificación para revisión 1.4.1
-                    try:
-                        doc_data["classification_confidence"] = float(conf)
-                    except Exception:
+                            doc_data["document_type"] = "otro"
                         doc_data["classification_confidence"] = None
-                    doc_data["classification_reasons"] = reasons or []
+                        doc_data["classification_reasons"] = []
 
-                    logger.info(
-                        f"  📄 {doc_data.get('filename')}: tipo={doc_data.get('document_type')} "
-                        f"(conf={conf:.2f})"
-                    )
-                except Exception as e:
-                    logger.warning(f"  ❌ Error clasificando {doc_data.get('filename')}: {e}")
-                    # Fallback total a heurística del extractor
-                    try:
-                        ocr = doc_data.get("ocr_result") or {}
-                        detected = self.extractor._detect_document_type(
-                            self.extractor._ocr_to_dict_safe(ocr),
-                            doc_data.get("filename", "")
-                        )
-                        doc_data["document_type"] = detected
-                    except Exception:
-                        doc_data["document_type"] = "otro"
-                    # Sin detalles de confianza disponibles en error
-                    doc_data["classification_confidence"] = None
-                    doc_data["classification_reasons"] = []
+            await _asyncio.gather(*[_classify_doc(d) for d in ocr_results])
+        else:
+            logger.info("♻️ Reprocesamiento: conservando clasificaciones previas.")
+            for doc in ocr_results:
+                fname = doc.get("filename")
+                previous = manual_overrides.get(fname) or previous_types.get(fname)
+                if previous:
+                    doc["document_type"] = previous
+                elif not doc.get("document_type"):
+                    doc["document_type"] = previous_types.get(fname, "otro")
 
-        await _asyncio.gather(*[_classify_doc(d) for d in ocr_results])
+                doc["classification_confidence"] = previous_confidence.get(fname)
+                doc["classification_reasons"] = previous_reasons.get(fname, [])
 
-        # Opcional: persistir mapping de tipos en el índice del caso
-        try:
-            if self.cache_manager:
-                index_path = self.cache_manager.index_dir / f"{case_id}.json"
-                if index_path.exists():
-                    import json as _json
-                    with open(index_path, 'r', encoding='utf-8') as f:
-                        case_data = _json.load(f)
-                    case_data["classified_types"] = [
-                        {
-                            "filename": d.get("filename"),
-                            "document_type": d.get("document_type"),
-                            "confidence": d.get("classification_confidence"),
-                            "reasons": d.get("classification_reasons"),
-                        } for d in ocr_results
-                    ]
-                    self.cache_manager.save_case_index(case_id, case_data)
-        except Exception as e:
-            logger.warning(f"No se pudo persistir mapping de tipos: {e}")
+        if manual_overrides:
+            for doc in ocr_results:
+                fname = doc.get("filename")
+                override = manual_overrides.get(fname)
+                if override:
+                    doc["document_type"] = override
+
+        if self.cache_manager:
+            try:
+                case_data["classified_types"] = [
+                    {
+                        "filename": d.get("filename"),
+                        "document_type": d.get("document_type"),
+                        "confidence": d.get("classification_confidence"),
+                        "reasons": d.get("classification_reasons"),
+                    }
+                    for d in ocr_results
+                ]
+                self.cache_manager.save_case_index(case_id, case_data)
+            except Exception as e:
+                logger.warning(f"No se pudo persistir mapping de tipos: {e}")
 
         # ============================================
         # FASE 1.4.1: Pausa para revisión manual (controlada por env)
@@ -718,10 +1055,12 @@ class FraudAnalysisSystemV2:
         logger.info("\n🔎 FASE 1.5: Detección de tipo de póliza")
         logger.info("-" * 40)
 
-        policy_type = None
+        policy_type = case_data.get("policy_type") if not wants("reprocess_policy_detection") else None
         policy_document = None
 
-        if os.getenv("ENABLE_HDI_SPECIAL_RULES", "true").lower() == "true":
+        run_policy_detection = wants("reprocess_policy_detection")
+
+        if run_policy_detection and os.getenv("ENABLE_HDI_SPECIAL_RULES", "true").lower() == "true":
             import unicodedata
 
             def _normalize(s: str) -> str:
@@ -782,73 +1121,104 @@ class FraudAnalysisSystemV2:
                 logger.info("HDI_DETECTION: Policy type detected: HDI_EN_MI_CASA")
             else:
                 logger.info("  ✓ Póliza estándar o no detectada; reglas estándar")
+        elif not run_policy_detection and policy_type:
+            logger.info("♻️ Reprocesamiento: conservando tipo de póliza detectado previamente")
+            if hasattr(self.extractor, "set_policy_context"):
+                self.extractor.set_policy_context(policy_type, case_id=case_id)
+            if hasattr(self.consolidator, "set_policy_context"):
+                self.consolidator.set_policy_context(policy_type)
+        elif not run_policy_detection:
+            logger.info("♻️ Reprocesamiento: no se solicitaron cambios en la detección de póliza")
         else:
             logger.info("  ℹ️ Detección HDI deshabilitada por feature flag")
+
+        if self.cache_manager and policy_type:
+            case_data["policy_type"] = policy_type
+            self.cache_manager.save_case_index(case_id, case_data)
 
         # ============================================
         # FASE 2: Extracción con IA
         # ============================================
         logger.info("\n🔍 FASE 2: Extracción de campos con IA")
         logger.info("-" * 40)
-        
-        # Verificar cancelación antes de fase 2
-        if self.cancellation_check and await self.cancellation_check():
-            await self.cleanup_on_cancel()
-            raise asyncio.CancelledError("Proceso cancelado durante fase 2")
-        
-        # Notificar inicio de extracción
-        if self.progress_callback:
-            self.progress_callback("Extrayendo campos con inteligencia artificial...", 35)
-        
-        # Emitir evento de inicio de extracción
-        if self.progress_emitter:
-            self.progress_emitter.emit("extract", "started", message="Extrayendo campos con IA")
+        previous_extractions = case_data.get("extraction_results") or []
+        run_extraction = wants("reprocess_extraction") or not previous_extractions
+        extractions: List[DocumentExtraction] = []
 
-        # Usar el método guiado si está habilitado
-        if self.guided_mode:
-            logger.info("  🛡️ Usando extracción guiada con restricciones documento-campo")
-            extractions: List[DocumentExtraction] = []
-            from fraud_scorer.settings import ExtractionConfig
-            target_types = set(ExtractionConfig.EXTRACTION_TARGET_TYPES)
+        if not run_extraction:
+            try:
+                extractions = [DocumentExtraction.model_validate(item) for item in previous_extractions]
+            except Exception as e:
+                logger.warning(f"No se pudieron reconstruir las extracciones previas ({e}); se reprocesarán")
+                run_extraction = True
 
-            for doc_data in ocr_results:
-                # Intentar detectar el tipo de documento desde el nombre del archivo
-                doc_type = doc_data.get("document_type")
-                if not doc_type and hasattr(self.extractor, '_detect_document_type'):
-                    # _detect_document_type espera (ocr_result dict, filename)
-                    doc_type = self.extractor._detect_document_type(
-                        doc_data.get("ocr_result", {}),
-                        doc_data["filename"]
+        if run_extraction:
+            if self.cancellation_check and await self.cancellation_check():
+                await self.cleanup_on_cancel()
+                raise asyncio.CancelledError("Proceso cancelado durante fase 2")
+
+            if self.progress_callback:
+                self.progress_callback("Extrayendo campos con inteligencia artificial...", 35)
+
+            if self.progress_emitter:
+                self.progress_emitter.emit("extract", "started", message="Extrayendo campos con IA")
+
+            if self.guided_mode:
+                logger.info("  🛡️ Usando extracción guiada con restricciones documento-campo")
+                extractions = []
+                from fraud_scorer.settings import ExtractionConfig
+                target_types = set(ExtractionConfig.EXTRACTION_TARGET_TYPES)
+
+                for doc_data in ocr_results:
+                    doc_type = doc_data.get("document_type")
+                    if not doc_type and hasattr(self.extractor, '_detect_document_type'):
+                        doc_type = self.extractor._detect_document_type(
+                            doc_data.get("ocr_result", {}),
+                            doc_data["filename"],
+                        )
+                        doc_data["document_type"] = doc_type
+
+                    canonical_type = doc_type or "otro"
+                    if canonical_type not in target_types:
+                        logger.info(
+                            f"  ⏭️  Omitido (no objetivo): {doc_data['filename']} (tipo: {canonical_type})"
+                        )
+                        continue
+
+                    extraction = await self.extractor.extract_from_document_guided(
+                        content=doc_data["ocr_result"],
+                        document_name=doc_data["filename"],
+                        document_type=doc_type or "otro",
+                        route=self.extraction_mode if self.extraction_mode != "auto" else "ocr_text",
                     )
-
-                # Saltar documentos que no están en la lista objetivo
-                canonical_type = doc_type or "otro"
-                if canonical_type not in target_types:
-                    logger.info(f"  ⏭️  Omitido (no objetivo): {doc_data['filename']} (tipo: {canonical_type})")
-                    continue
-                
-                extraction = await self.extractor.extract_from_document_guided(
-                    content=doc_data["ocr_result"],
-                    document_name=doc_data["filename"],
-                    document_type=doc_type or "otro",
-                    route=self.extraction_mode if self.extraction_mode != "auto" else "ocr_text"
+                    if extraction:
+                        extractions.append(extraction)
+            else:
+                extractions = await self.extractor.extract_from_documents_batch(
+                    documents=ocr_results,
+                    parallel_limit=3,
                 )
-                if extraction:
-                    extractions.append(extraction)
+
+            if self.cache_manager:
+                try:
+                    case_data["extraction_results"] = [ex.model_dump() for ex in extractions]
+                    self.cache_manager.save_case_index(case_id, case_data)
+                except Exception as e:
+                    logger.warning(f"No se pudieron guardar extracciones previas: {e}")
         else:
-            extractions: List[DocumentExtraction] = await self.extractor.extract_from_documents_batch(
-                documents=ocr_results,
-                parallel_limit=3,
-            )
+            logger.info("♻️ Reprocesamiento: reutilizando extracciones previas")
+            if self.progress_callback:
+                self.progress_callback("Extracciones previas reutilizadas", 45)
+            if self.progress_emitter:
+                self.progress_emitter.emit("extract", "done", message="Extracciones reutilizadas")
 
         for extraction in extractions:
             fields_found = sum(1 for v in extraction.extracted_fields.values() if v is not None)
             logger.info(f"  ✓ {extraction.source_document}: {fields_found} campos extraídos")
 
-        logger.info(f"✓ Extracción completada: {len(extractions)} documentos procesados")
-        
-        # Emitir evento de finalización de extracción
-        if self.progress_emitter:
+        logger.info(f"✓ Extracción lista: {len(extractions)} documentos")
+
+        if run_extraction and self.progress_emitter:
             self.progress_emitter.emit("extract", "done", message="Extracción completada")
 
         # ============================================
@@ -857,25 +1227,48 @@ class FraudAnalysisSystemV2:
         logger.info("\n🧠 FASE 3: Consolidación inteligente")
         logger.info("-" * 40)
         
-        # Verificar cancelación antes de fase 3
-        if self.cancellation_check and await self.cancellation_check():
-            await self.cleanup_on_cancel()
-            raise asyncio.CancelledError("Proceso cancelado durante fase 3")
-        
-        # Notificar inicio de consolidación
-        if self.progress_callback:
-            self.progress_callback("Consolidando información con IA...", 55)
-        
-        # Emitir evento de inicio de consolidación
-        if self.progress_emitter:
-            self.progress_emitter.emit("consolidate", "started", message="Consolidando información")
+        previous_consolidated = case_data.get("consolidated_data")
+        run_consolidation = wants("reprocess_consolidation") or not previous_consolidated
+        consolidated: ConsolidatedExtraction
 
-        consolidated: ConsolidatedExtraction = await self.consolidator.consolidate_extractions(
-            extractions=extractions,
-            case_id=case_id,
-            use_advanced_reasoning=True,
-            guided_mode=self.guided_mode  # Pasar modo guiado al consolidador
-        )
+        if not run_consolidation and previous_consolidated:
+            try:
+                consolidated = ConsolidatedExtraction.model_validate(previous_consolidated)
+            except Exception as e:
+                logger.warning(f"No se pudo reconstruir la consolidación previa ({e}); se reprocesará")
+                run_consolidation = True
+
+        if run_consolidation:
+            if self.cancellation_check and await self.cancellation_check():
+                await self.cleanup_on_cancel()
+                raise asyncio.CancelledError("Proceso cancelado durante fase 3")
+
+            if self.progress_callback:
+                self.progress_callback("Consolidando información con IA...", 55)
+
+            if self.progress_emitter:
+                self.progress_emitter.emit("consolidate", "started", message="Consolidando información")
+
+            consolidated = await self.consolidator.consolidate_extractions(
+                extractions=extractions,
+                case_id=case_id,
+                use_advanced_reasoning=True,
+                guided_mode=self.guided_mode,
+            )
+
+            if self.cache_manager:
+                try:
+                    case_data["consolidated_data"] = consolidated.model_dump()
+                    self.cache_manager.save_case_index(case_id, case_data)
+                except Exception as e:
+                    logger.warning(f"No se pudo guardar consolidación previa: {e}")
+        else:
+            logger.info("♻️ Reprocesamiento: reutilizando consolidación previa")
+
+            if self.progress_callback:
+                self.progress_callback("Consolidación previa reutilizada", 65)
+            if self.progress_emitter:
+                self.progress_emitter.emit("consolidate", "done", message="Consolidación reutilizada")
 
         # Conteo robusto (Pydantic v2/dict)
         fields_obj = getattr(consolidated, "consolidated_fields", {}) or {}
@@ -904,40 +1297,31 @@ class FraudAnalysisSystemV2:
         claim_number_from_data = fields_dict.get("numero_siniestro") or f"SINIESTRO_{case_id}"
         logger.info(f"✓ Datos para organización: {insured_name_from_data} - {claim_number_from_data}")
         
-        # Actualizar el índice del caso con los datos reales extraídos
-        case_index_path = self.cache_manager.index_dir / f"{case_id}.json"
-        if case_index_path.exists():
+        case_data["insured_name"] = insured_name_from_data
+        case_data["claim_number"] = claim_number_from_data
+        case_data["status"] = "processed"
+        if self.cache_manager:
+            self.cache_manager.save_case_index(case_id, case_data)
+
+        if run_consolidation and self.cache_manager:
+            logger.info("📁 Reorganizando estructura de cache...")
+            self.cache_manager.reorganize_cache_for_case(case_id, insured_name_from_data, claim_number_from_data)
+            logger.info("✓ Cache reorganizado con nomenclatura consistente")
             try:
-                with open(case_index_path, 'r', encoding='utf-8') as f:
-                    case_data = json.load(f)
-                # Actualizar con datos reales
-                case_data["insured_name"] = insured_name_from_data
-                case_data["claim_number"] = claim_number_from_data
-                case_data["status"] = "processed"
-                self.cache_manager.save_case_index(case_id, case_data)
-                logger.info("✓ Índice del caso actualizado con datos reales")
+                self.cache_manager.cleanup_shards()
             except Exception as e:
-                logger.error(f"Error actualizando índice del caso: {e}")
-        
-        # Reorganizar cache con estructura [ASEGURADO] - [SINIESTRO]
-        logger.info("📁 Reorganizando estructura de cache...")
-        self.cache_manager.reorganize_cache_for_case(case_id, insured_name_from_data, claim_number_from_data)
-        logger.info("✓ Cache reorganizado con nomenclatura consistente")
-        # Limpieza global de shards viejos (segura e idempotente)
-        try:
-            self.cache_manager.cleanup_shards()
-        except Exception as e:
-            logger.warning(f"cleanup_shards falló: {e}")
-        
-        # Emitir evento de finalización de consolidación
-        if self.progress_emitter:
+                logger.warning(f"cleanup_shards falló: {e}")
+
+        if run_consolidation and self.progress_emitter:
             self.progress_emitter.emit("consolidate", "done", message="Consolidación completada")
 
         # ============================================
         # FASE 3.5: Análisis de Fraude por Documento (opcional)
         # ============================================
+        previous_fraud = case_data.get("fraud_analyses") or []
+        run_fraud = self.enable_fraud and (wants("reprocess_fraud") or not previous_fraud)
         fraud_analyses = []
-        if self.enable_fraud:
+        if self.enable_fraud and run_fraud:
             logger.info("\n🔎 FASE 3.5: Análisis de fraude por documento")
             logger.info("-" * 40)
             try:
@@ -963,8 +1347,58 @@ class FraudAnalysisSystemV2:
                             skipped_no_guide += 1
                             continue
                         eligible_count += 1
+                        doc_id = doc_ids_by_name.get(name)
+
+                        # Si no se encuentra por nombre, buscar por hash o en otros casos
+                        if not doc_id:
+                            logger.debug(f"Buscando document_id alternativo para {name}")
+
+                            # Buscar en caché de hashes
+                            doc_hash = None
+                            if self.cache_manager:
+                                try:
+                                    case_index = self.cache_manager.get_case_index(case_id)
+                                    if case_index and 'document_hashes' in case_index:
+                                        for doc_path, hash_val in case_index['document_hashes'].items():
+                                            if name in doc_path or Path(doc_path).name == name:
+                                                doc_hash = hash_val
+                                                break
+                                except Exception:
+                                    pass
+
+                            # Buscar por hash en BD
+                            if doc_hash:
+                                with get_conn() as conn:
+                                    row = conn.execute(
+                                        "SELECT id FROM documents WHERE file_hash = ? LIMIT 1",
+                                        (doc_hash,)
+                                    ).fetchone()
+                                    if row:
+                                        doc_id = row['id']
+                                        logger.info(f"Document_id encontrado por hash para {name}: {doc_id}")
+
+                            # Búsqueda ampliada: buscar en cualquier caso con el mismo nombre
+                            if not doc_id:
+                                with get_conn() as conn:
+                                    row = conn.execute(
+                                        "SELECT id, case_id, created_at FROM documents WHERE filename = ? ORDER BY created_at DESC LIMIT 1",
+                                        (name,)
+                                    ).fetchone()
+                                    if row:
+                                        doc_id = row['id']
+                                        logger.warning(
+                                            f"ATENCIÓN: document_id encontrado por nombre global para {name}: id={doc_id} (case_id={row['case_id']}). Puede haber colisión de nombres entre casos."
+                                        )
+
+                        if not doc_id:
+                            logger.warning(
+                                "No se encontró document_id en DB para %s (%s); se omite del análisis de fraude",
+                                name,
+                                case_id,
+                            )
+                            continue
                         docs_for_analysis.append({
-                            "id": f"{case_id}:{name}",
+                            "id": doc_id,
                             "name": name,
                             "type": doc_type,
                             "ocr": ocr_dict,
@@ -994,6 +1428,19 @@ class FraudAnalysisSystemV2:
                     self.progress_emitter.emit("analyze", "done", message="Análisis de fraude completado")
             except Exception as e:
                 logger.warning(f"⚠️ Fase de fraude falló o fue omitida: {e}")
+            if self.cache_manager:
+                try:
+                    case_data["fraud_analyses"] = [
+                        getattr(a, "model_dump", lambda: a)() for a in (fraud_analyses or [])
+                    ]
+                    self.cache_manager.save_case_index(case_id, case_data)
+                except Exception as e:
+                    logger.warning(f"No se pudieron guardar análisis de fraude: {e}")
+        elif self.enable_fraud:
+            logger.info("♻️ Reprocesamiento: reutilizando análisis de fraude previos")
+            fraud_analyses = previous_fraud
+            if self.progress_emitter:
+                self.progress_emitter.emit("analyze", "done", message="Análisis de fraude reutilizado")
 
         # ============================================
         # FASE 4: Generación del reporte

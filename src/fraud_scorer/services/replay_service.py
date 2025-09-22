@@ -174,8 +174,8 @@ class ReplayService:
         ocr_results = []
         for doc_path in case_index.get('documents', []):
             doc_path = Path(doc_path)
-            if self.cache_manager.has_cache(doc_path, case_id=None):
-                ocr_result = self.cache_manager.get_cache(doc_path)
+            if self.cache_manager.has_cache(doc_path, case_id=case_id):
+                ocr_result = self.cache_manager.get_cache(doc_path, case_id=case_id)
                 ocr_results.append({
                     'filename': doc_path.name,
                     'ocr_result': ocr_result,
@@ -367,32 +367,162 @@ class ReplayService:
 
     def clear_cache(self, cases_to_delete: List[str]) -> Dict[str, Any]:
         """Limpia el caché para una lista de case_id o para todos si 'all' está en la lista."""
+        from fraud_scorer.storage.cases import get_conn
+
         if "all" in cases_to_delete:
-            # Implementar limpieza total
+            # LIMPIEZA TOTAL DEL SISTEMA
+            logger.info("🧹 Iniciando LIMPIEZA TOTAL del sistema...")
             try:
-                base_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
-                if base_dir.exists():
-                    shutil.rmtree(base_dir)
-                base_dir.mkdir(parents=True, exist_ok=True)
-                return {"status": "success", "message": "Todo el caché ha sido limpiado."}
+                # 1. Limpiar toda la base de datos
+                logger.info("  → Limpiando base de datos...")
+                with get_conn() as conn:
+                    # Obtener todos los case_ids antes de limpiar
+                    all_cases = conn.execute("SELECT case_id FROM cases").fetchall()
+
+                    # Limpiar todas las tablas
+                    conn.execute("DELETE FROM fraud_analyses")
+                    conn.execute("DELETE FROM ai_analyses")
+                    conn.execute("DELETE FROM extracted_data")
+                    conn.execute("DELETE FROM ocr_results")
+                    conn.execute("DELETE FROM documents")
+                    conn.execute("DELETE FROM cases")
+                    conn.execute("DELETE FROM cache_stats")
+                    conn.execute("DELETE FROM runs")
+                    conn.commit()
+                    logger.info(f"    ✓ {len(all_cases)} casos eliminados de la BD")
+
+                # 2. Limpiar carpeta de cache OCR
+                cache_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
+                if cache_dir.exists():
+                    logger.info("  → Limpiando cache OCR...")
+                    shutil.rmtree(cache_dir)
+                    cache_dir.mkdir(parents=True, exist_ok=True)
+                    logger.info("    ✓ Cache OCR limpiado")
+
+                # 3. Limpiar carpetas temporales
+                temp_dir = Path("data/temp")
+                if temp_dir.exists():
+                    logger.info("  → Limpiando carpetas temporales...")
+                    for folder in temp_dir.iterdir():
+                        if folder.is_dir():
+                            shutil.rmtree(folder)
+                    logger.info("    ✓ Carpetas temporales limpiadas")
+
+                # 4. Limpiar reportes
+                reports_dir = Path("data/reports")
+                if reports_dir.exists():
+                    logger.info("  → Limpiando reportes...")
+                    for file in reports_dir.iterdir():
+                        if file.is_file():
+                            file.unlink()
+                    logger.info("    ✓ Reportes limpiados")
+
+                # 5. Limpiar reportes temporales
+                temp_reports_dir = Path("data/temp_reports")
+                if temp_reports_dir.exists():
+                    logger.info("  → Limpiando reportes temporales...")
+                    for file in temp_reports_dir.iterdir():
+                        if file.is_file():
+                            file.unlink()
+                    logger.info("    ✓ Reportes temporales limpiados")
+
+                # 6. Limpiar uploads
+                uploads_dir = Path("data/uploads")
+                if uploads_dir.exists():
+                    logger.info("  → Limpiando uploads...")
+                    for item in uploads_dir.iterdir():
+                        if item.is_file():
+                            item.unlink()
+                        elif item.is_dir():
+                            shutil.rmtree(item)
+                    logger.info("    ✓ Uploads limpiados")
+
+                # 7. Limpiar feedback_archive
+                feedback_dir = Path("data/feedback_archive")
+                if feedback_dir.exists():
+                    logger.info("  → Limpiando feedback_archive...")
+                    for item in feedback_dir.iterdir():
+                        try:
+                            if item.is_file():
+                                item.unlink()
+                            elif item.is_dir():
+                                shutil.rmtree(item)
+                        except Exception:
+                            pass
+                    logger.info("    ✓ Feedback_archive limpiado")
+
+                # 8. Limpiar raw
+                raw_dir = Path("data/raw")
+                if raw_dir.exists():
+                    logger.info("  → Limpiando raw...")
+                    for item in raw_dir.iterdir():
+                        try:
+                            if item.is_file():
+                                item.unlink()
+                            elif item.is_dir():
+                                shutil.rmtree(item)
+                        except Exception:
+                            pass
+                    logger.info("    ✓ Raw limpiado")
+
+                logger.info("🎆 LIMPIEZA TOTAL COMPLETADA - Sistema reiniciado")
+                return {
+                    "status": "success",
+                    "message": "Sistema completamente limpiado. Todos los casos, cachés y archivos han sido eliminados."
+                }
             except Exception as e:
-                return {"status": "error", "message": f"Error limpiando todo el caché: {e}"}
+                logger.error(f"Error durante limpieza total: {e}")
+                return {"status": "error", "message": f"Error limpiando todo el sistema: {e}"}
         
+        # LIMPIEZA DE CASOS INDIVIDUALES
+        from fraud_scorer.storage.cases import get_conn
         cleared_cases = []
         errors = []
+
         for case_id in cases_to_delete:
             try:
-                # Cargar índice del caso primero (antes de eliminarlo) para conocer artefactos
+                logger.info(f"🗑️ Eliminando caso {case_id} completamente...")
+
+                # 1. Cargar información del caso antes de eliminarlo
                 case_index = self.cache_manager.get_case_index(case_id)
-                
-                # Limpiar archivos de cache asociados (shards por hash)
+                base_path = None
+
+                # Obtener base_path de la BD
+                with get_conn() as conn:
+                    case_row = conn.execute(
+                        "SELECT base_path FROM cases WHERE case_id = ?",
+                        (case_id,)
+                    ).fetchone()
+                    if case_row:
+                        base_path = case_row['base_path']
+
+                # 2. Eliminar de la base de datos (cascada elimina todo)
+                with get_conn() as conn:
+                    conn.execute("DELETE FROM cases WHERE case_id = ?", (case_id,))
+                    conn.commit()
+                    logger.info(f"  ✓ Eliminado de BD")
+
+                # 3. Limpiar carpeta base del caso (temp o reorganizada)
+                if base_path:
+                    base_folder = Path(base_path)
+                    if base_folder.exists():
+                        if "temp" in str(base_folder):
+                            # Es una carpeta temporal, eliminar completamente
+                            shutil.rmtree(base_folder)
+                            logger.info(f"  ✓ Carpeta temporal eliminada: {base_folder.name}")
+
+                # 4. Limpiar archivos de cache OCR (shards)
                 if case_index and "cache_files" in case_index:
                     for doc_path_str in case_index["cache_files"]:
-                        cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
-                        if cache_path.exists():
-                            cache_path.unlink()
+                        try:
+                            cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
+                            if cache_path.exists():
+                                cache_path.unlink()
+                        except Exception:
+                            pass
+                    logger.info(f"  ✓ Cache OCR limpiado")
 
-                # Limpiar carpeta reorganizada si existe (Nombre - Reclamo)
+                # 5. Limpiar carpeta reorganizada
                 try:
                     insured = (case_index or {}).get('insured_name') or ""
                     claim = (case_index or {}).get('claim_number') or ""
@@ -402,16 +532,100 @@ class ReplayService:
                         case_folder = self.cache_manager.cache_dir / f"{s_insured} - {s_claim}"
                         if case_folder.exists():
                             shutil.rmtree(case_folder)
+                            logger.info(f"  ✓ Carpeta reorganizada eliminada")
                 except Exception:
                     pass
 
-                # Limpiar índice del caso (después)
+                # 6. Limpiar índice del caso
                 index_path = self.cache_manager.index_dir / f"{case_id}.json"
                 if index_path.exists():
                     index_path.unlink()
-                
+                    logger.info(f"  ✓ Índice eliminado")
+
+                # 7. Limpiar reportes del caso
+                # Buscar reportes con el nombre del asegurado/reclamo si existe
+                reports_to_delete = []
+
+                # Patrones básicos con case_id
+                reports_patterns = [
+                    f"*{case_id}*",
+                    f"INF-{case_id}*",
+                    f"replay_{case_id}*"
+                ]
+
+                # Si tenemos información del caso, buscar por nombre/reclamo
+                if case_index:
+                    insured_name = case_index.get('insured_name', '')
+                    claim_number = case_index.get('claim_number', '')
+
+                    if insured_name:
+                        # Limpiar nombre para búsqueda
+                        clean_insured = insured_name.replace(' ', '_')
+                        reports_patterns.append(f"*{clean_insured}*")
+
+                    if claim_number:
+                        reports_patterns.append(f"*{claim_number}*")
+
+                    # Patrón específico GRUPO_ACEROS
+                    if "GRUPO" in insured_name:
+                        reports_patterns.append("GRUPO_ACEROS*")
+
+                # Buscar y eliminar reportes
+                for pattern in reports_patterns:
+                    # En data/reports
+                    if Path("data/reports").exists():
+                        for report in Path("data/reports").glob(pattern):
+                            reports_to_delete.append(report)
+                    # En data/temp_reports
+                    if Path("data/temp_reports").exists():
+                        for report in Path("data/temp_reports").glob(pattern):
+                            reports_to_delete.append(report)
+
+                # Eliminar reportes únicos
+                deleted_reports = set()
+                for report in reports_to_delete:
+                    if report not in deleted_reports:
+                        try:
+                            report.unlink()
+                            deleted_reports.add(report)
+                            logger.info(f"    - Eliminado: {report.name}")
+                        except Exception as e:
+                            logger.debug(f"    - No se pudo eliminar {report.name}: {e}")
+
+                if deleted_reports:
+                    logger.info(f"  ✓ {len(deleted_reports)} reportes eliminados")
+
+                # 8. Limpiar archivos de pipeline_cache
+                pipeline_cache_dir = Path("data/temp/pipeline_cache")
+                if pipeline_cache_dir.exists():
+                    pipeline_patterns = [
+                        f"{case_id}*",
+                        f"*{case_id}.status.jsonl"
+                    ]
+
+                    # Si tenemos información del caso, buscar también por nombre/reclamo
+                    if case_index:
+                        if insured_name and "GRUPO" in insured_name:
+                            pipeline_patterns.append("GRUPO_ACEROS*")
+                        if claim_number:
+                            pipeline_patterns.append(f"*{claim_number}*")
+
+                    deleted_pipeline = []
+                    for pattern in pipeline_patterns:
+                        for file in pipeline_cache_dir.glob(pattern):
+                            try:
+                                file.unlink()
+                                deleted_pipeline.append(file.name)
+                            except Exception:
+                                pass
+
+                    if deleted_pipeline:
+                        logger.info(f"  ✓ Pipeline cache limpiado: {len(deleted_pipeline)} archivos")
+                logger.info(f"✅ Caso {case_id} completamente eliminado")
                 cleared_cases.append(case_id)
+
             except Exception as e:
+                logger.error(f"Error eliminando caso {case_id}: {e}")
                 errors.append({"case_id": case_id, "error": str(e)})
 
         return {
@@ -480,7 +694,29 @@ class ReplayService:
             with get_conn() as conn:
                 rows = conn.execute("SELECT DISTINCT case_id FROM cases").fetchall()
                 valid_cases = {row["case_id"] for row in rows}
-            
+
+            # Mapear case_id -> nombre de carpeta reorganizada esperado
+            case_folder_names: Dict[str, str] = {}
+            for index_file in self.cache_manager.index_dir.glob("*.json"):
+                case_id = index_file.stem
+                try:
+                    with open(index_file, 'r', encoding='utf-8') as f:
+                        case_data = json.load(f)
+                except Exception:
+                    continue
+
+                case_folder = case_data.get('case_folder')
+                if not case_folder:
+                    insured = case_data.get('insured_name') or ""
+                    claim = case_data.get('claim_number') or case_id
+                    if insured or claim:
+                        s_insured = self.cache_manager._sanitize_filename(insured)
+                        s_claim = self.cache_manager._sanitize_filename(claim or case_id)
+                        case_folder = f"{s_insured} - {s_claim}"
+
+                if case_folder:
+                    case_folder_names[case_id] = case_folder
+
             # Revisar archivos de índice
             for index_file in self.cache_manager.index_dir.glob("*.json"):
                 case_id = index_file.stem
@@ -526,15 +762,22 @@ class ReplayService:
                         pass
             
             # Revisar carpetas reorganizadas
+            valid_folder_names = set(case_folder_names.values())
             for folder in self.cache_manager.cache_dir.iterdir():
                 if folder.is_dir() and folder.name != "case_index":
+                    if folder.name in valid_folder_names:
+                        continue
+
                     # Extraer case_id del nombre de la carpeta si es posible
                     folder_has_valid_case = False
-                    for case_id in valid_cases:
+                    for case_id, expected_name in case_folder_names.items():
+                        if folder.name == expected_name:
+                            folder_has_valid_case = True
+                            break
                         if case_id in folder.name:
                             folder_has_valid_case = True
                             break
-                    
+
                     if not folder_has_valid_case and "-" in folder.name:
                         logger.info(f"Eliminando carpeta huérfana: {folder.name}")
                         shutil.rmtree(folder)

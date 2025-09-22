@@ -634,6 +634,27 @@
             background: white;
             transition: all 0.2s ease;
             font-family: 'Source Sans Pro', sans-serif;
+            cursor: pointer;
+        }
+
+        .classification-select optgroup {
+            font-weight: 700;
+            color: var(--slate-700);
+            background: var(--slate-50);
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .classification-select option {
+            font-weight: 400;
+            color: var(--slate-800);
+            padding: 8px 12px;
+            background: white;
+        }
+
+        .classification-select option:hover {
+            background: var(--light-blue);
         }
 
         .classification-select:focus {
@@ -645,6 +666,53 @@
         .classification-select.changed {
             border-color: var(--amber-600);
             background: var(--amber-100);
+        }
+
+        .manual-override-info {
+            background: var(--amber-100);
+            border: 1px solid var(--amber-600);
+            border-radius: 6px;
+            padding: 12px;
+            margin: 16px 0;
+            font-size: 13px;
+            color: var(--slate-700);
+            display: none;
+        }
+
+        .manual-override-info i {
+            color: var(--amber-600);
+            margin-right: 8px;
+        }
+
+        .classification-buttons {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            border: 1px solid var(--slate-300);
+            background: white;
+            transition: all 0.2s ease;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        .btn-small:hover {
+            background: var(--slate-50);
+            border-color: var(--primary-blue);
+        }
+
+        .btn-ai-classify {
+            color: var(--primary-blue);
+            border-color: var(--primary-blue);
+        }
+
+        .btn-ai-classify:hover {
+            background: var(--light-blue);
         }
 
         .review-actions {
@@ -686,6 +754,171 @@
         .btn-back:hover {
             background: var(--slate-100);
             border-color: var(--slate-400);
+        }
+
+        /* Reprocess Options Section */
+        .reprocess-options {
+            display: none;
+            padding: 32px 24px;
+        }
+
+        .reprocess-header {
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        .reprocess-header h2 {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary-navy);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+        }
+
+        .reprocess-header h2 i {
+            font-size: 28px;
+            color: var(--amber-600);
+        }
+
+        .existing-case-info {
+            background: var(--amber-100);
+            border: 1px solid var(--amber-600);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+        }
+
+        .existing-case-info h3 {
+            color: var(--slate-800);
+            font-size: 16px;
+            margin-bottom: 8px;
+        }
+
+        .existing-case-info p {
+            color: var(--slate-600);
+            font-size: 14px;
+            margin: 4px 0;
+        }
+
+        .reprocess-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .reprocess-card {
+            background: var(--slate-50);
+            border: 2px solid var(--slate-200);
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .reprocess-card:hover {
+            border-color: var(--primary-blue);
+            box-shadow: var(--shadow-md);
+            transform: translateY(-2px);
+        }
+
+        .reprocess-card.selected {
+            background: var(--light-blue);
+            border-color: var(--primary-blue);
+            box-shadow: var(--shadow-md);
+        }
+
+        .reprocess-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .reprocess-card-title {
+            font-weight: 600;
+            color: var(--slate-800);
+            font-size: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .reprocess-card-title i {
+            color: var(--primary-blue);
+            font-size: 18px;
+        }
+
+        .reprocess-checkbox {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .reprocess-card-description {
+            color: var(--slate-600);
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .reprocess-card-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: var(--primary-blue);
+            color: white;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-top: 8px;
+        }
+
+        .reprocess-actions {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+        }
+
+        .btn-reprocess {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            min-width: 160px;
+            font-family: 'Source Sans Pro', sans-serif;
+        }
+
+        .btn-process-new {
+            background: var(--slate-50);
+            color: var(--slate-700);
+            border: 1px solid var(--slate-300);
+        }
+
+        .btn-process-new:hover {
+            background: var(--slate-100);
+            border-color: var(--slate-400);
+        }
+
+        .btn-reprocess-selected {
+            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-navy) 100%);
+            color: white;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .btn-reprocess-selected:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .btn-reprocess-selected:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         /* Result Section */
@@ -968,6 +1201,122 @@
             </div>
         </div>
 
+        <!-- Reprocess Options Section -->
+        <div class="content-section reprocess-options" id="reprocessSection">
+            <div class="reprocess-header">
+                <h2>
+                    <i class="ri-refresh-line"></i>
+                    Caso Existente Detectado
+                </h2>
+                <p style="color: var(--slate-600); font-size: 15px;">
+                    Se ha detectado que estos documentos ya fueron procesados anteriormente.
+                    Selecciona qué partes deseas reprocesar:
+                </p>
+            </div>
+
+            <div class="existing-case-info" id="existingCaseInfo">
+                <h3>Información del Caso Existente</h3>
+                <p id="caseInfoDetails">Cargando información...</p>
+            </div>
+
+            <div class="reprocess-grid">
+                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_ocr')">
+                    <div class="reprocess-card-header">
+                        <div class="reprocess-card-title">
+                            <i class="ri-scan-line"></i>
+                            Reprocesar OCR
+                        </div>
+                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_ocr">
+                    </div>
+                    <div class="reprocess-card-description">
+                        Volver a extraer el texto de los documentos. Útil si los documentos originales han cambiado o mejorado.
+                    </div>
+                    <span class="reprocess-card-badge">Fase 1</span>
+                </div>
+
+                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_classification')">
+                    <div class="reprocess-card-header">
+                        <div class="reprocess-card-title">
+                            <i class="ri-file-list-3-line"></i>
+                            Reclasificar Documentos
+                        </div>
+                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_classification">
+                    </div>
+                    <div class="reprocess-card-description">
+                        Volver a clasificar todos los documentos usando AI o aplicar clasificaciones manuales.
+                    </div>
+                    <span class="reprocess-card-badge">Fase 1.4</span>
+                </div>
+
+                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_policy_detection')">
+                    <div class="reprocess-card-header">
+                        <div class="reprocess-card-title">
+                            <i class="ri-file-shield-2-line"></i>
+                            Redetectar Tipo de Póliza
+                        </div>
+                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_policy_detection">
+                    </div>
+                    <div class="reprocess-card-description">
+                        Volver a detectar el tipo de póliza. Esto afectará cómo se extraen los campos de la carátula.
+                    </div>
+                    <span class="reprocess-card-badge">Fase 1.5</span>
+                </div>
+
+                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_extraction')">
+                    <div class="reprocess-card-header">
+                        <div class="reprocess-card-title">
+                            <i class="ri-file-text-line"></i>
+                            Reextraer Campos
+                        </div>
+                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_extraction">
+                    </div>
+                    <div class="reprocess-card-description">
+                        Volver a extraer información de los documentos. Se ejecutará también la consolidación automáticamente.
+                    </div>
+                    <span class="reprocess-card-badge">Fase 2</span>
+                </div>
+
+                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_consolidation')">
+                    <div class="reprocess-card-header">
+                        <div class="reprocess-card-title">
+                            <i class="ri-git-merge-line"></i>
+                            Reconsolidar Datos
+                        </div>
+                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_consolidation">
+                    </div>
+                    <div class="reprocess-card-description">
+                        Volver a consolidar la información extraída usando los datos de la última extracción.
+                    </div>
+                    <span class="reprocess-card-badge">Fase 3</span>
+                </div>
+
+                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_fraud')">
+                    <div class="reprocess-card-header">
+                        <div class="reprocess-card-title">
+                            <i class="ri-search-eye-line"></i>
+                            Reanalizar Fraude
+                        </div>
+                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_fraud">
+                    </div>
+                    <div class="reprocess-card-description">
+                        Volver a ejecutar el análisis de fraude por documento sin reprocesar fases anteriores.
+                    </div>
+                    <span class="reprocess-card-badge">Fase 3.5</span>
+                </div>
+            </div>
+
+            <div class="reprocess-actions">
+                <button class="btn-reprocess btn-process-new" onclick="processAsNew()">
+                    <i class="ri-add-line"></i>
+                    Procesar como Nuevo Caso
+                </button>
+                <button class="btn-reprocess btn-reprocess-selected" id="reprocessBtn" onclick="reprocessSelected()" disabled>
+                    <i class="ri-refresh-line"></i>
+                    Reprocesar Seleccionados
+                </button>
+            </div>
+        </div>
+
         <!-- Result Section -->
         <div class="content-section result" id="resultSection">
             <div class="result-success">
@@ -995,6 +1344,8 @@
         let selectedFiles = [];
         let currentCaseId = null;
         let originalClassifications = {};
+        let aiClassifications = {};
+        let hasPreviousClassifications = false;
         
         // Configurar área de carga
         const uploadArea = document.getElementById('uploadArea');
@@ -1089,9 +1440,180 @@
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
         
+        let existingCaseId = null;
+        let reprocessOptions = {};
+
+        function toggleReprocessOption(card, option) {
+            const checkbox = card.querySelector('.reprocess-checkbox');
+            checkbox.checked = !checkbox.checked;
+            card.classList.toggle('selected', checkbox.checked);
+
+            reprocessOptions[option] = checkbox.checked;
+
+            // Habilitar/deshabilitar botón de reprocesar
+            const hasSelection = Object.values(reprocessOptions).some(v => v);
+            document.getElementById('reprocessBtn').disabled = !hasSelection;
+        }
+
+        async function computeSHA256(file) {
+            const buf = await file.arrayBuffer();
+            const digest = await crypto.subtle.digest('SHA-256', buf);
+            const view = new DataView(digest);
+            let hex = '';
+            for (let i = 0; i < view.byteLength; i++) {
+                const v = view.getUint8(i).toString(16).padStart(2, '0');
+                hex += v;
+            }
+            return hex;
+        }
+
+        async function checkExistingCase() {
+            const fileNames = selectedFiles.map(f => f.name);
+
+            // Calcular hashes para hasta 10 archivos (o todos si son menos de 10)
+            const limit = Math.min(10, selectedFiles.length || 0);
+            const filesToHash = selectedFiles.slice(0, limit);
+            let hashes = [];
+            try {
+                hashes = await Promise.all(filesToHash.map(computeSHA256));
+            } catch (e) {
+                console.warn('No se pudieron calcular hashes SHA-256 en el navegador:', e);
+                hashes = [];
+            }
+
+            try {
+                const response = await fetch('/api/case/null/check-existing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: fileNames, hashes })
+                });
+
+                const result = await response.json();
+
+                if (result.existing_case) {
+                    existingCaseId = result.case_id;
+                    showReprocessOptions(result);
+                    return true;
+                }
+            } catch (error) {
+                console.error('Error checking existing case:', error);
+            }
+            return false;
+        }
+
+        function showReprocessOptions(caseData) {
+            document.getElementById('uploadSection').style.display = 'none';
+            document.getElementById('reprocessSection').style.display = 'block';
+
+            reprocessOptions = {};
+            document.querySelectorAll('.reprocess-checkbox').forEach(cb => {
+                cb.checked = false;
+            });
+            document.querySelectorAll('.reprocess-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            document.getElementById('reprocessBtn').disabled = true;
+
+            // Mostrar información del caso
+            const details = `
+                <strong>Case ID:</strong> ${caseData.case_id}<br>
+                <strong>Fases completadas:</strong><br>
+                • OCR: ${caseData.has_ocr ? '✓' : '✗'}<br>
+                • Clasificación: ${caseData.has_classifications ? '✓' : '✗'}<br>
+                • Extracción: ${caseData.has_extraction ? '✓' : '✗'}<br>
+                • Consolidación: ${caseData.has_consolidation ? '✓' : '✗'}<br>
+                • Análisis de Fraude: ${caseData.has_fraud_analysis ? '✓' : '✗'}
+            `;
+            document.getElementById('caseInfoDetails').innerHTML = details;
+        }
+
+        async function processAsNew() {
+            if (!existingCaseId) {
+                document.getElementById('reprocessSection').style.display = 'none';
+                await performNormalAnalysis();
+                return;
+            }
+
+            const payload = {
+                reprocess_ocr: true,
+                reprocess_classification: true,
+                reprocess_policy_detection: true,
+                reprocess_extraction: true,
+                reprocess_consolidation: true,
+                reprocess_fraud: true
+            };
+
+            document.getElementById('reprocessSection').style.display = 'none';
+            document.getElementById('processingSection').style.display = 'block';
+
+            try {
+                const response = await fetch(`/api/case/${existingCaseId}/reprocess`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al iniciar reprocesamiento');
+                }
+
+                const result = await response.json();
+                await monitorProgress(result.process_id);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al reprocesar: ' + error.message);
+                resetForm();
+            }
+        }
+
+        async function reprocessSelected() {
+            if (!existingCaseId || !Object.values(reprocessOptions).some(v => v)) return;
+
+            document.getElementById('reprocessSection').style.display = 'none';
+            document.getElementById('processingSection').style.display = 'block';
+
+            try {
+                const payload = {
+                    reprocess_ocr: !!reprocessOptions.reprocess_ocr,
+                    reprocess_classification: !!reprocessOptions.reprocess_classification,
+                    reprocess_policy_detection: !!reprocessOptions.reprocess_policy_detection,
+                    reprocess_extraction: !!reprocessOptions.reprocess_extraction,
+                    reprocess_consolidation: !!reprocessOptions.reprocess_consolidation,
+                    reprocess_fraud: !!reprocessOptions.reprocess_fraud
+                };
+                const response = await fetch(`/api/case/${existingCaseId}/reprocess`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    throw new Error('Error al iniciar reprocesamiento');
+                }
+
+                const result = await response.json();
+                await monitorProgress(result.process_id);
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error al reprocesar: ' + error.message);
+                resetForm();
+            }
+        }
+
         async function startAnalysis() {
             if (selectedFiles.length === 0) return;
-            
+
+            // Verificar si es un caso existente
+            const isExisting = await checkExistingCase();
+            if (isExisting) {
+                return; // Las opciones de reprocesamiento ya se muestran
+            }
+
+            // Si no es existente, procesar normalmente
+            await performNormalAnalysis();
+        }
+
+        async function performNormalAnalysis() {
             // Mostrar sección de procesamiento
             document.getElementById('uploadSection').style.display = 'none';
             document.getElementById('processingSection').style.display = 'block';
@@ -1229,32 +1751,87 @@
         async function showReviewSection(status) {
             try {
                 document.getElementById('processingSection').style.display = 'none';
-                
+
+                console.log(`Cargando clasificaciones para caso: ${currentCaseId}`);
                 const response = await fetch(`/api/case/${currentCaseId}/classifications`);
+
+                if (!response.ok) {
+                    console.error(`Error HTTP ${response.status}: ${response.statusText}`);
+                    throw new Error(`Error ${response.status}: ${response.statusText}`);
+                }
+
                 const classificationData = await response.json();
-                
+                console.log('Datos de clasificación recibidos:', classificationData);
+
+                // Validar estructura de datos
+                if (!classificationData || typeof classificationData !== 'object') {
+                    throw new Error('Respuesta inválida del servidor');
+                }
+
+                const classifications = classificationData.classifications || [];
+                if (!Array.isArray(classifications)) {
+                    console.error('Classifications no es un array:', classifications);
+                    throw new Error('Estructura de clasificaciones inválida');
+                }
+
                 originalClassifications = {};
-                classificationData.classifications.forEach(doc => {
-                    originalClassifications[doc.filename] = doc.document_type;
+                aiClassifications = {};
+                hasPreviousClassifications = classificationData.has_previous_classifications || false;
+
+                classifications.forEach(doc => {
+                    if (doc && doc.filename) {
+                        originalClassifications[doc.filename] = doc.document_type || 'sin_clasificar';
+                        // Guardar clasificaciones originales de AI si no hay previas
+                        if (!hasPreviousClassifications) {
+                            aiClassifications[doc.filename] = doc.document_type || 'sin_clasificar';
+                        }
+                    }
                 });
-                
-                populateDocumentsList(classificationData.classifications, classificationData.document_types);
-                updateReviewStats(classificationData.classifications);
-                
+
+                // Si hay clasificaciones previas, usar las de AI guardadas
+                if (classificationData.ai_classifications) {
+                    aiClassifications = classificationData.ai_classifications;
+                }
+
+                populateDocumentsList(classifications, classificationData.document_types || {});
+                updateReviewStats(classifications);
+
                 document.getElementById('reviewSection').style.display = 'block';
-                
+
             } catch (error) {
                 console.error('Error cargando clasificaciones:', error);
-                alert('Error al cargar las clasificaciones. Continuando con el proceso...');
+
+                // Mostrar error más descriptivo
+                let errorMessage = 'Error al cargar las clasificaciones.';
+                if (error.message.includes('404')) {
+                    errorMessage = 'El caso no se encontró. Es posible que haya sido eliminado.';
+                } else if (error.message.includes('500')) {
+                    errorMessage = 'Error interno del servidor. Verifica los logs.';
+                }
+
+                alert(`${errorMessage} Continuando con el proceso...`);
                 approveAndContinue();
             }
         }
         
         // Función para poblar la lista de documentos
-        function populateDocumentsList(classifications, documentTypes) {
+        function populateDocumentsList(classifications, documentTypesData) {
             const documentsList = document.getElementById('documentsList');
             documentsList.innerHTML = '';
-            
+
+            // Mostrar info si hay clasificaciones previas
+            if (hasPreviousClassifications) {
+                const infoDiv = document.createElement('div');
+                infoDiv.className = 'manual-override-info';
+                infoDiv.style.display = 'block';
+                infoDiv.innerHTML = `
+                    <i class="ri-information-line"></i>
+                    <strong>Clasificaciones previas detectadas:</strong> Se han cargado las clasificaciones manuales de la última revisión de este caso.
+                    Puedes mantenerlas o reclasificar los documentos usando los botones disponibles en cada documento.
+                `;
+                documentsList.appendChild(infoDiv);
+            }
+
             classifications.forEach((doc, index) => {
                 const docItem = document.createElement('div');
                 docItem.className = 'document-review-item';
@@ -1270,9 +1847,23 @@
                     confidenceText = 'Media';
                 }
                 
-                const optionsHTML = documentTypes.map(type => 
-                    `<option value="${type.value}" ${type.value === doc.document_type ? 'selected' : ''}>${type.label}</option>`
-                ).join('');
+                // Crear optgroups con las categorías
+                let optionsHTML = '';
+                if (documentTypesData.categories) {
+                    documentTypesData.categories.forEach(category => {
+                        optionsHTML += `<optgroup label="${category.label}">`;
+                        category.options.forEach(option => {
+                            const selected = option.value === doc.document_type ? 'selected' : '';
+                            optionsHTML += `<option value="${option.value}" ${selected}>${option.label}</option>`;
+                        });
+                        optionsHTML += '</optgroup>';
+                    });
+                } else {
+                    // Fallback para formato antiguo
+                    optionsHTML = documentTypesData.map(type =>
+                        `<option value="${type.value}" ${type.value === doc.document_type ? 'selected' : ''}>${type.label}</option>`
+                    ).join('');
+                }
                 
                 docItem.innerHTML = `
                     <div class="document-header">
@@ -1286,10 +1877,20 @@
                     </div>
                     <div class="classification-control">
                         <label class="classification-label">Tipo de documento:</label>
-                        <select class="classification-select" data-filename="${doc.filename}" onchange="onClassificationChange(this)">
+                        <select class="classification-select" data-filename="${doc.filename}" id="select-${index}" onchange="onClassificationChange(this)">
                             ${optionsHTML}
                         </select>
                     </div>
+                    ${doc.has_manual_classification ? `
+                    <div class="classification-buttons">
+                        <button class="btn-small btn-ai-classify" onclick="reclassifyWithAI('${doc.filename}', ${index})">
+                            <i class="ri-robot-line"></i> Reclasificar con AI
+                        </button>
+                        <button class="btn-small" onclick="resetToOriginal('${doc.filename}', ${index})">
+                            <i class="ri-refresh-line"></i> Restaurar Original
+                        </button>
+                    </div>
+                    ` : ''}
                 `;
                 
                 documentsList.appendChild(docItem);
@@ -1320,44 +1921,109 @@
             }
         }
         
+        // Función para reclasificar con AI
+        async function reclassifyWithAI(filename, index) {
+            // Aquí podrías llamar a un endpoint para reclasificar con AI
+            // Por ahora, restaurar la clasificación original de AI si existe
+            if (aiClassifications[filename]) {
+                const select = document.getElementById(`select-${index}`);
+                select.value = aiClassifications[filename];
+                onClassificationChange(select);
+                alert('Documento reclasificado con AI');
+            }
+        }
+
+        // Función para restaurar clasificación original
+        function resetToOriginal(filename, index) {
+            if (originalClassifications[filename]) {
+                const select = document.getElementById(`select-${index}`);
+                select.value = originalClassifications[filename];
+                onClassificationChange(select);
+            }
+        }
+
         // Función para aprobar y continuar
         async function approveAndContinue() {
             try {
-                const selects = document.querySelectorAll('.classification-select');
-                const classifications = {};
-                
-                selects.forEach(select => {
-                    classifications[select.dataset.filename] = select.value;
-                });
-                
-                const response = await fetch(`/api/case/${currentCaseId}/update-classifications`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ classifications })
-                });
-                
-                if (!response.ok) {
-                    throw new Error('Error al actualizar clasificaciones');
+                console.log(`Aprobando y continuando caso: ${currentCaseId}`);
+
+                // Si no hay currentCaseId, intentar omitir la actualización de clasificaciones
+                if (!currentCaseId) {
+                    console.warn('No hay currentCaseId definido, omitiendo actualización de clasificaciones');
+                } else {
+                    const selects = document.querySelectorAll('.classification-select');
+                    const classifications = {};
+
+                    selects.forEach(select => {
+                        if (select.dataset.filename) {
+                            classifications[select.dataset.filename] = select.value;
+                        }
+                    });
+
+                    console.log('Clasificaciones a enviar:', classifications);
+
+                    const response = await fetch(`/api/case/${currentCaseId}/update-classifications`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            classifications,
+                            ai_classifications: aiClassifications || {}
+                        })
+                    });
+
+                    if (!response.ok) {
+                        const errorText = await response.text();
+                        console.error(`Error HTTP ${response.status}: ${errorText}`);
+                        throw new Error(`Error ${response.status} al actualizar clasificaciones: ${errorText}`);
+                    }
+
+                    console.log('Clasificaciones actualizadas exitosamente');
                 }
                 
-                const continueResponse = await fetch(`/api/case/${currentCaseId}/continue-processing`, {
-                    method: 'POST'
-                });
-                
-                if (!continueResponse.ok) {
-                    throw new Error('Error al continuar procesamiento');
+                // Continuar procesamiento
+                if (currentCaseId) {
+                    const continueResponse = await fetch(`/api/case/${currentCaseId}/continue-processing`, {
+                        method: 'POST'
+                    });
+
+                    if (!continueResponse.ok) {
+                        const errorText = await continueResponse.text();
+                        console.error(`Error continuando procesamiento: ${errorText}`);
+                        throw new Error(`Error ${continueResponse.status} al continuar procesamiento: ${errorText}`);
+                    }
                 }
-                
+
                 document.getElementById('reviewSection').style.display = 'none';
                 document.getElementById('processingSection').style.display = 'block';
-                
-                await monitorProgress(currentProcessId);
-                
+
+                if (currentProcessId) {
+                    await monitorProgress(currentProcessId);
+                } else {
+                    console.warn('No hay currentProcessId para monitorear');
+                    alert('Proceso continuado pero no se puede monitorear el progreso');
+                }
+
             } catch (error) {
-                console.error('Error:', error);
-                alert('Error al continuar el procesamiento: ' + error.message);
+                console.error('Error en approveAndContinue:', error);
+
+                // Mensaje de error más descriptivo
+                let errorMessage = 'Error al continuar el procesamiento.';
+                if (error.message.includes('404')) {
+                    errorMessage = 'El caso no se encontró. Es posible que el sistema haya sido reiniciado.';
+                } else if (error.message.includes('500')) {
+                    errorMessage = 'Error interno del servidor. Revisa los logs.';
+                }
+
+                alert(`${errorMessage}\nDetalles: ${error.message}`);
+
+                // Intentar resetear el formulario
+                try {
+                    resetForm();
+                } catch (resetError) {
+                    console.error('Error reseteando formulario:', resetError);
+                }
             }
         }
         
@@ -1413,8 +2079,12 @@
             document.getElementById('uploadSection').style.display = 'block';
             document.getElementById('processingSection').style.display = 'none';
             document.getElementById('reviewSection').style.display = 'none';
+            document.getElementById('reprocessSection').style.display = 'none';
             document.getElementById('resultSection').style.display = 'none';
             document.getElementById('cancelStatus').style.display = 'none';
+
+            existingCaseId = null;
+            reprocessOptions = {};
             
             const cancelBtn = document.getElementById('cancelBtn');
             if (cancelBtn) {

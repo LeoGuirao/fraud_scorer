@@ -39,3 +39,13 @@ guides_md/
 data/**
 !data/**/
 !data/**/.gitkeep
+
+# Carpetas y documentos ignorados por solicitud
+mcp-server/
+real_cases/
+FASES_CREACION_REPORTES.md
+GUIA_CREACION_GUIAS_FRAUDE.md
+GUIA_IMPLEMENTACION_CHECKPOINT_CLASIFICACION.md
+GUIA_IMPLEMENTACION_SISTEMA_FRAUDES.md
+GUIA_NUEVAS_CATEGORIAS.md
+POSTMORTEM_REPROCESO_3_5_Y_DETECCION_DUPLICADOS.md
