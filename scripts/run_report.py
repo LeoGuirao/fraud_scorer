@@ -264,6 +264,201 @@ class FraudAnalysisSystemV2:
 
         if self.progress_emitter:
             self.progress_emitter.emit("review", "done", message="Revisión confirmada; continuando")
+
+    def _extract_original_filename(self, ocr_payload: Any, cache_path: Path) -> Optional[str]:
+        """Intenta recuperar el nombre original del documento desde el payload de OCR."""
+        if isinstance(ocr_payload, dict):
+            metadata = ocr_payload.get("metadata") if isinstance(ocr_payload.get("metadata"), dict) else None
+            if metadata:
+                for key in ("file_name", "filename", "original_filename"):
+                    value = metadata.get(key)
+                    if value:
+                        return str(value)
+
+        try:
+            stem = cache_path.stem
+            if stem.startswith("ocr_results_for_"):
+                stem = stem[len("ocr_results_for_"):]
+            suffix = cache_path.suffix
+            if suffix.lower() == ".json":
+                return stem
+            return f"{stem}{suffix}" if suffix else stem
+        except Exception:
+            return None
+
+    def _prepare_docless_ocr(
+        self,
+        case_id: str,
+        case_data: Dict[str, Any],
+        base_folder: Path,
+    ) -> Dict[str, Any]:
+        """
+        Reconstruye los resultados de OCR únicamente desde el cache JSON reorganizado.
+        Devuelve un diccionario con `ocr_results`, `cache_files` y `doc_names`.
+        """
+        if not self.cache_manager:
+            raise RuntimeError("El modo sin documentos originales requiere un administrador de cache activo")
+
+        classified_types = case_data.get("classified_types") or []
+        manual_overrides = case_data.get("manual_classifications") or {}
+        extraction_results = case_data.get("extraction_results") or []
+
+        doc_type_by_name: Dict[str, Any] = {}
+        for item in classified_types:
+            if not item:
+                continue
+            name = str(item.get("filename") or "").strip()
+            if not name:
+                continue
+            doc_type_by_name.setdefault(name, item.get("document_type"))
+
+        for name, override in manual_overrides.items():
+            if override:
+                doc_type_by_name[str(name)] = override
+
+        for item in extraction_results:
+            if not item:
+                continue
+            if isinstance(item, dict):
+                name = item.get("source_document")
+                doc_type = item.get("document_type")
+            else:
+                name = getattr(item, "source_document", None)
+                doc_type = getattr(item, "document_type", None)
+            if name and doc_type and name not in doc_type_by_name:
+                doc_type_by_name[str(name)] = doc_type
+
+        ocr_results: List[Dict[str, Any]] = []
+        cache_files: List[str] = []
+        doc_names: List[str] = []
+        seen: set[str] = set()
+
+        manifest_paths = case_data.get("documents") or []
+        for path_str in manifest_paths:
+            if not path_str:
+                continue
+            path = Path(path_str)
+            try:
+                ocr_payload = self.cache_manager.get_cache(path, case_id)
+            except Exception as exc:
+                logger.warning(f"No se pudo cargar OCR desde {path}: {exc}")
+                continue
+
+            if not ocr_payload:
+                logger.warning(f"No se encontró contenido OCR en cache para {path}")
+                continue
+
+            original_name = self._extract_original_filename(ocr_payload, path)
+            if not original_name:
+                logger.warning(f"No se pudo inferir el nombre original para {path}")
+                continue
+
+            if original_name in seen:
+                continue
+
+            doc_names.append(original_name)
+            seen.add(original_name)
+            cache_files.append(str(path))
+            ocr_results.append(
+                {
+                    "filename": original_name,
+                    "ocr_result": ocr_payload,
+                    "document_type": doc_type_by_name.get(original_name),
+                }
+            )
+
+        if not doc_names:
+            candidate_names: List[str] = []
+            for item in extraction_results:
+                if isinstance(item, dict):
+                    cand = item.get("source_document")
+                else:
+                    cand = getattr(item, "source_document", None)
+                if cand:
+                    candidate_names.append(str(cand))
+
+            if not candidate_names:
+                candidate_names = [
+                    str(item.get("filename"))
+                    for item in classified_types
+                    if item and item.get("filename")
+                ]
+
+            candidate_names = [name for name in candidate_names if name and name not in seen]
+
+            for name in candidate_names:
+                try:
+                    doc_folder = self.cache_manager._sanitize_filename(Path(name).stem)
+                except Exception:
+                    doc_folder = Path(name).stem
+
+                doc_path = base_folder / doc_folder / name
+
+                try:
+                    ocr_payload = self.cache_manager.get_cache(doc_path, case_id)
+                except Exception as exc:
+                    logger.warning(f"No se pudo cargar OCR desde cache para {name}: {exc}")
+                    continue
+
+                if not ocr_payload:
+                    logger.warning(f"No existe cache OCR para {name}; omitiendo")
+                    continue
+
+                original_name = name
+                if original_name in seen:
+                    continue
+
+                seen.add(original_name)
+                doc_names.append(original_name)
+                reorganized_path = None
+                try:
+                    reorganized_path = self.cache_manager._find_cache_in_reorganized_structure(
+                        doc_path, case_id=case_id
+                    )
+                except Exception:
+                    reorganized_path = None
+                cache_files.append(str(reorganized_path or doc_path))
+                ocr_results.append(
+                    {
+                        "filename": original_name,
+                        "ocr_result": ocr_payload,
+                        "document_type": doc_type_by_name.get(original_name),
+                    }
+                )
+
+        if not ocr_results:
+            raise RuntimeError(
+                "No se pudo reconstruir OCR desde el cache JSON; ejecute re-OCR o revise la carpeta del caso"
+            )
+
+        return {
+            "ocr_results": ocr_results,
+            "cache_files": cache_files,
+            "doc_names": doc_names,
+        }
+
+    def _hydrate_fraud_results(self, items: List[Any]) -> List[Any]:
+        """Convierte dicts de fraude guardados en el índice a modelos FraudAnalysisResult."""
+        hydrated: List[Any] = []
+        if not items:
+            return hydrated
+
+        try:
+            from fraud_scorer.models.fraud_analysis import FraudAnalysisResult
+        except Exception as exc:
+            logger.warning(f"No se pudo importar FraudAnalysisResult para rehidratar fraude: {exc}")
+            return hydrated
+
+        for item in items:
+            if isinstance(item, FraudAnalysisResult):
+                hydrated.append(item)
+                continue
+            if isinstance(item, dict):
+                try:
+                    hydrated.append(FraudAnalysisResult.model_validate(item))
+                except Exception as exc:
+                    logger.warning(f"No se pudo reconstruir resultado de fraude: {exc}")
+        return hydrated
     
     def _clean_previous_case_files(
         self,
@@ -389,23 +584,32 @@ class FraudAnalysisSystemV2:
                     )
 
         if not documents:
-            # Permitir reprocesamiento SOLO de Fase 3.5 sin requerir archivos originales en FS
-            allow_docsless_fraud = False
+            allow_docless = False
             try:
                 opts = dict(reprocess_options or {})
-                allow_docsless_fraud = bool(
-                    reprocess_mode
-                    and opts.get("reprocess_fraud")
-                    and not opts.get("reprocess_ocr")
-                    and not opts.get("reprocess_extraction")
-                )
+                if reprocess_mode and not opts.get("reprocess_ocr"):
+                    # Permitimos modo sin documentos siempre que exista un case_id previo
+                    # (cargado desde el índice de cache) y se solicite reprocesar
+                    # al menos una fase distinta a OCR.
+                    docless_flags = (
+                        "reprocess_classification",
+                        "reprocess_policy_detection",
+                        "reprocess_extraction",
+                        "reprocess_consolidation",
+                        "reprocess_fraud",
+                    )
+                    wants_any = any(bool(opts.get(flag)) for flag in docless_flags)
+                    has_existing_case = bool(existing_case_id)
+                    allow_docless = wants_any and has_existing_case
             except Exception:
-                allow_docsless_fraud = False
+                allow_docless = False
 
-            if not allow_docsless_fraud:
+            if not allow_docless:
                 raise RuntimeError("No se encontraron documentos para procesar")
             else:
-                logger.info("ℹ️ Reproceso 3.5: sin archivos originales; se usará cache JSON reorganizado")
+                logger.info(
+                    "ℹ️ Reproceso sin archivos originales; se utilizarán los resultados de OCR almacenados"
+                )
 
         logger.info(f"✓ Encontrados {len(documents)} documentos")
 
@@ -598,15 +802,9 @@ class FraudAnalysisSystemV2:
         cache_files: List[str] = []
 
         reuse_existing_ocr = self.reprocess_mode and not wants("reprocess_ocr")
-
-        # Fallback especial para reprocesar SOLO Fase 3.5 usando exclusivamente cache JSON
-        docsless_fraud_only = (
-            self.reprocess_mode
-            and wants("reprocess_fraud")
-            and not wants("reprocess_ocr")
-            and not wants("reprocess_extraction")
-            and not documents
-        )
+        docless_mode = self.reprocess_mode and not wants("reprocess_ocr") and not documents
+        docless_doc_names: List[str] = []
+        all_cached = False
 
         # Asegurar que conocemos el hash de cada documento mientras aún está disponible
         for doc_path in documents:
@@ -630,42 +828,13 @@ class FraudAnalysisSystemV2:
                     hash_exc
                 )
 
-        if docsless_fraud_only:
-            # Construir ocr_results desde extracciones previas + JSON reorganizado
-            prev_extractions = case_data.get("extraction_results") or []
-            if not prev_extractions:
-                raise RuntimeError("No existen extracciones previas; seleccione re-extracción o ejecute Fase 2 antes")
-
-            case_folder = base_folder
-            built = 0
-            for item in prev_extractions:
-                try:
-                    name = item.get("source_document") if isinstance(item, dict) else getattr(item, "source_document", None)
-                    doc_type = item.get("document_type") if isinstance(item, dict) else getattr(item, "document_type", None)
-                    if not name:
-                        continue
-                    doc_folder = self.cache_manager._sanitize_filename(Path(name).stem)
-                    doc_path = case_folder / doc_folder / name
-                    ocr_result = self.cache_manager.get_cache(doc_path, case_id)
-                    if not ocr_result:
-                        logger.warning(f"No se encontró OCR JSON para {name}; se omite en 3.5")
-                        continue
-                    ocr_results.append({
-                        "filename": name,
-                        "ocr_result": ocr_result,
-                        "document_type": doc_type or None,
-                    })
-                    cache_files.append(str(doc_path))
-                    built += 1
-                except Exception as e:
-                    logger.warning(f"No se pudo cargar OCR para {item}: {e}")
-
-            if built == 0:
-                raise RuntimeError("No se pudo construir OCR desde cache JSON; verifique ocr_results_for_*.json en la carpeta de caso")
-
-            logger.info(f"✓ Documentos listos desde OCR reorganizado (JSON): {built}")
+        if docless_mode:
+            docless_payload = self._prepare_docless_ocr(case_id, case_data, base_folder)
+            ocr_results = docless_payload["ocr_results"]
+            cache_files.extend(docless_payload["cache_files"])
+            docless_doc_names = docless_payload["doc_names"]
+            logger.info(f"✓ Documentos listos desde OCR reorganizado (JSON): {len(ocr_results)}")
             all_cached = True
-            # Marcar fin de Fase 1
             if self.progress_emitter:
                 self.progress_emitter.emit("ocr", "done", message="OCR desde cache JSON listo")
 
@@ -871,10 +1040,17 @@ class FraudAnalysisSystemV2:
                 case_data["documents"] = merged_docs
             elif documents:
                 case_data["documents"] = [str(d) for d in documents]
+            else:
+                json_candidates = [path for path in cache_files if str(path).lower().endswith(".json")]
+                if json_candidates:
+                    case_data["documents"] = json_candidates
 
             case_data["cache_files"] = merged_cache
-            case_data["total_documents"] = len(case_data.get("documents", [])) or len(documents)
-            if documents and not case_data.get("folder_path"):
+            doc_count_for_index = len(case_data.get("documents", []))
+            if not doc_count_for_index:
+                doc_count_for_index = len(documents) or len(docless_doc_names)
+            case_data["total_documents"] = doc_count_for_index
+            if not case_data.get("folder_path"):
                 case_data["folder_path"] = str(base_folder)
             case_data["processed_at"] = datetime.now().isoformat()
             case_data["status"] = "processed"
@@ -1318,9 +1494,10 @@ class FraudAnalysisSystemV2:
         # ============================================
         # FASE 3.5: Análisis de Fraude por Documento (opcional)
         # ============================================
-        previous_fraud = case_data.get("fraud_analyses") or []
+        previous_fraud_raw = case_data.get("fraud_analyses") or []
+        previous_fraud = self._hydrate_fraud_results(previous_fraud_raw)
         run_fraud = self.enable_fraud and (wants("reprocess_fraud") or not previous_fraud)
-        fraud_analyses = []
+        fraud_analyses: List[Any] = []
         if self.enable_fraud and run_fraud:
             logger.info("\n🔎 FASE 3.5: Análisis de fraude por documento")
             logger.info("-" * 40)
@@ -1551,7 +1728,11 @@ class FraudAnalysisSystemV2:
         # ============================================
         logger.info("\n💾 FASE 5: Guardar resultados y Organizar archivos")
         logger.info("-" * 40)
-        ocr_total = len(documents)
+        processed_input_count = len(documents)
+        if not processed_input_count:
+            processed_input_count = len(docless_doc_names) or len(case_data.get("documents") or [])
+
+        ocr_total = processed_input_count
         ocr_success = len(ocr_results)
         extraction_total = ocr_success
         extraction_success = len(extractions)
@@ -1602,7 +1783,7 @@ class FraudAnalysisSystemV2:
         results = {
             "case_id": case_id,
             "processing_date": datetime.now().isoformat(),
-            "documents_processed": len(documents),
+            "documents_processed": processed_input_count,
             "policy_type": getattr(self.extractor, "policy_context", None),
             "extraction_results": [e.model_dump() for e in extractions],
             "consolidated_data": consolidated.model_dump(),
