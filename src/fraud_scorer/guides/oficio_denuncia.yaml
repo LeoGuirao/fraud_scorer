@@ -1,0 +1,177 @@
+metadata:
+  type: oficio_denuncia
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar oficios de denuncia y validar su coherencia con el siniestro"
+
+definition:
+  nature: "Escrito elaborado por el asegurado o representante legal para presentar la denuncia de hechos ante la autoridad"
+  legal_importance: "Alta - Detona la apertura de la carpeta de investigación y documenta la narrativa inicial"
+  critical_elements:
+    - numero_oficio
+    - fecha_oficio
+    - destinatario_fiscalia
+    - promovente
+    - representacion_legal
+    - descripcion_hechos
+    - lugar
+    - fecha_hora_siniestro
+    - transportista
+    - operador
+    - medio_conduccion
+    - monto_reclamado
+    - anexos_referenciados
+    - acuse_recibido
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del oficio: membrete, numero, fecha, destinatario y firma del promovente; identificar si contiene acuse o sello de recibido.
+    2. Revisar que el escrito se dirija a la fiscalía competente del lugar de los hechos; señalar alertas si se presenta fuera de jurisdicción sin justificación.
+    3. Analizar narrativa de hechos (tiempo, modo, lugar, transportista, operador, mercancía) y compararla con Carta Porte, GPS, denuncias, pedimentos y cartas de reclamación.
+    4. Confirmar que la fecha del oficio y su presentación sean posteriores al siniestro y previas a la carpeta de investigación formal.
+    5. Identificar al promovente/representante legal y corroborar su presencia en el expediente (poderes, cartas notariales, relación con asegurado).
+    6. Validar anexos referenciados y su existencia en expediente (facturas, pedimentos, Carta Porte, licencias).
+    7. Detectar inconsistencias (narrativa diferente, omisión de transportista, lugar distinto) y recomendar acciones (ratificación, entrevista, cotejo con autoridad).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: jurisdiccion_incorrecta
+        detection: "Oficio dirigido a autoridad fuera del lugar de los hechos"
+        severity: "alto"
+        evidence_hint: "Comparar jurisdicción con Carta Porte y GPS"
+        follow_up: "Solicitar justificación o verificar traslado de competencia"
+      - pattern: narrativa_inconsistente
+        detection: "Hechos/participantes difieren de denuncias o documentación"
+        severity: "critico"
+        evidence_hint: "Contrastar con carpeta, Carta Porte, informe ajustador"
+        follow_up: "Escalar a antifraude"
+      - pattern: sin_acuse_recibido
+        detection: "No existe acuse/sello de recepción"
+        severity: "alto"
+        evidence_hint: "Señalar falta de sello"
+        follow_up: "Solicitar constancia de recepción"
+    medium_risk:
+      - pattern: representante_no_identificado
+        detection: "No se acredita la representación legal del promovente"
+        severity: "medio"
+        evidence_hint: "Verificar poderes adjuntos"
+        follow_up: "Solicitar documentos legales"
+      - pattern: fechas_incongruentes
+        detection: "Fechas no alineadas con cronología del siniestro"
+        severity: "medio"
+        evidence_hint: "Comparar con GPS y denuncia"
+        follow_up: "Requerir aclaración"
+      - pattern: anexos_no_presentes
+        detection: "Anexos citados no obran en expediente"
+        severity: "medio"
+        evidence_hint: "Listar anexos faltantes"
+        follow_up: "Requerir integraciones"
+    low_risk:
+      - pattern: formato_informal
+        detection: "Documento sin membrete formal pero con contenido coherente"
+        severity: "bajo"
+        evidence_hint: "Describir formato"
+        follow_up: "Recomendar ratificación"
+
+  validation_rules:
+    numero_oficio:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,20}$"
+    fecha_oficio:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+    - carta_porte_simple
+    - cfdi_carta_porte
+    - pedimento_importacion
+    - carta_aclatoria_comprobantes_peaje
+    - reporte_gps
+    - carpeta_de_investigacion
+
+  evidence_expectations:
+    - "Narrativa alineada con documentación del siniestro"
+    - "Transportista, operador y medios coinciden"
+    - "Fechas y lugares coherentes"
+    - "Anexos referenciados disponibles"
+    - "Acuse o sello de recepción"
+
+  red_flags:
+    critical:
+      - clue: "Narrativa distinta a la denuncia"
+        why: "Riesgo de fabricación"
+      - clue: "Oficio sin acuse"
+        why: "Puede no haber sido presentado"
+    medium:
+      - clue: "Representante no acreditado"
+        why: "Riesgo legal"
+      - clue: "Anexos ausentes"
+        why: "Debilita soporte"
+
+response_template:
+  output_format:
+    documento_analizado: "oficio_denuncia"
+    analisis_completo: |
+      Se verificó el documento que da origen a la denuncia de hechos ante la autoridad. El cual es coincidente/no con la cobertura reclamada por el asegurado, por lo establecido con el contrato de seguros y con el requerimiento formal del contrato de seguros. Y en él se confirma también el aviso del delito ante la autoridad.
+      1) Jurisdicción y autoridad destinataria (competencia territorial, acuse/sello).
+      2) Cronología y narrativa (tiempo, modo, lugar, transportista, operador) vs documentos del siniestro.
+      3) Promovente y acreditación de representación legal.
+      4) Anexos y soportes referidos.
+      5) Observaciones de inconsistencias y recomendaciones.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documento:
+      numero_oficio: ""
+      fecha_oficio: ""
+      destinatario: ""
+      acuse_recibido: false
+      sellos_presentes: []
+      observaciones: ""
+
+    narrativa:
+      promovente: ""
+      representacion_acreditada: false
+      descripcion_hechos: ""
+      lugar: ""
+      fecha_hora_siniestro: ""
+      transportista: ""
+      operador: ""
+      medio_conduccion: []
+      monto_reclamado: 0.0
+      coincide_con_documentos: []
+      discrepancias_detectadas: []
+
+    anexos:
+      anexos_referenciados: []
+      anexos_presentes: []
+      observaciones: ""
+
+    conclusion_correspondencia:
+      corresponde_con_documentacion: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Verificar competencia territorial y acuse"
+        fuente: "Sitio web fiscalía / acuse físico"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Corroborar narrativa con Carta Porte, GPS y denuncias"
+        fuente: "Carta Porte / reporte GPS / carpeta"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar representación legal del promovente"
+        fuente: "Poderes / actas notariales"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar anexos y evidencia de soporte"
+        fuente: "Expediente del siniestro"
+        prioridad: "media"
+        estado: "pendiente"

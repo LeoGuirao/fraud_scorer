@@ -1,0 +1,169 @@
+metadata:
+  type: licencia_del_operador
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar licencias de operador, validar su autenticidad y coherencia con el siniestro"
+
+definition:
+  nature: "Documento oficial que acredita la facultad del conductor para operar el vehículo asegurado"
+  legal_importance: "Alta - Valida la autorización legal del operador y la cobertura del siniestro"
+  critical_elements:
+    - numero_licencia
+    - nombre_operador
+    - fotografia
+    - fecha_emision
+    - fecha_vencimiento
+    - tipo_categoria
+    - entidad_emisora
+    - datos_validacion
+    - firma_operador
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del documento: formato oficial, membrete, número de licencia, fotografía legible, firma y sello.
+    2. Confirmar vigencia (emisión/vencimiento) comparándola con fecha del siniestro y cronología del expediente.
+    3. Validar autenticidad en línea (portal SCT u homólogo) registrando URL, fecha de consulta y resultado; corroborar coincidencia de foto y datos.
+    4. Cruzar nombre y número de licencia con Carta Porte, denuncia, y demás documentos; confirmar que el operador listado coincide con el conductor declarado.
+    5. Revisar nivel (tipo/categoría) y que sea apto para el vehículo involucrado (capacidad, clase).
+    6. Detectar alteraciones visuales (ediciones PDF, cambios de tipografía, enmiendas) y concordar firma con otros documentos (INE, denuncias, contratos).
+    7. Identificar observaciones del portal (estatus vigente/suspendido) y documentar acciones de seguimiento (rectificaciones, solicitud de copia certificada).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: licencia_vencida
+        detection: "La licencia está vencida al momento del siniestro"
+        severity: "critico"
+        evidence_hint: "Comparar fecha de vencimiento con fecha del siniestro"
+        follow_up: "Solicitar aclaración al asegurado y evaluar cobertura"
+      - pattern: validacion_no_coincide
+        detection: "Portal SCT devuelve datos diferentes (foto, nombre, estatus)"
+        severity: "critico"
+        evidence_hint: "Captura de pantalla de la validación con diferencias"
+        follow_up: "Escalar a área jurídica y requerir documentación oficial"
+      - pattern: alteracion_documento
+        detection: "Se observan ediciones o manipulaciones evidentes"
+        severity: "alto"
+        evidence_hint: "Describir áreas alteradas (firmas, fechas, sellos)"
+        follow_up: "Solicitar copia certificada y confirmar con autoridad emisora"
+    medium_risk:
+      - pattern: foto_no_coincide
+        detection: "Fotografía impresa difiere de la mostrada en portal o en otros documentos"
+        severity: "medio"
+        evidence_hint: "Comparar foto en portal con licencia y anexar evidencia"
+        follow_up: "Requerir aclaración y documentos adicionales (INE, declaración)"
+      - pattern: nombre_diferente
+        detection: "Nombre del operador no coincide con Carta Porte o denuncia"
+        severity: "medio"
+        evidence_hint: "Detallar discrepancia de nombre y documento comparado"
+        follow_up: "Solicitar corrección y verificar identidad legal"
+    low_risk:
+      - pattern: datos_secundarios_incompletos
+        detection: "Falta de campos secundarios (domicilio, grupo sanguíneo) sin impacto legal"
+        severity: "bajo"
+        evidence_hint: "Listar campos ausentes"
+        follow_up: "Recomendar actualización administrativa"
+
+  validation_rules:
+    numero_licencia:
+      type: pattern
+      pattern: "^[A-Z0-9-]{6,20}$"
+    fecha_emision:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    fecha_vencimiento:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    nombre_operador:
+      type: pattern
+      pattern: "^.{3,}$"
+
+  cross_reference_documents:
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - pedimento_importacion
+    - denuncias
+    - identificacion_oficial
+    - informe_final_del_ajustador
+
+  evidence_expectations:
+    - "Captura o URL de validación oficial (SCT u organismo competente)"
+    - "Fechas de emisión/vencimiento coherentes con siniestro"
+    - "Coincidencia de nombre y fotografía con otros documentos"
+    - "Licencia vigente y categoría acorde al vehículo"
+    - "Firma consistente con otros soportes (denuncia, INE)"
+
+  red_flags:
+    critical:
+      - clue: "Validación oficial rechazada o licencia no registrada"
+        why: "Indica documento apócrifo y riesgo de cobertura"
+      - clue: "Licencia vencida antes del siniestro"
+        why: "Conduce a pérdida de cobertura y posible agravamiento del riesgo"
+    medium:
+      - clue: "Categoría o tipo de licencia no apta para el vehículo"
+        why: "Sugiere incumplimiento de obligaciones contractuales"
+      - clue: "Firma o foto distintas en documentos clave"
+        why: "Riesgo de suplantación o documentación alterada"
+
+response_template:
+  output_format:
+    documento_analizado: "licencia_del_operador"
+    analisis_completo: |
+      De acuerdo al análisis de los datos contenidos, resulta auténtica (sí/no) y se detallan las razones:
+      1) Vigencia vs fecha del siniestro.
+      2) Validación en portal (URL, fecha, coincidencias de nombre/foto).
+      3) Concordancia de datos con Carta Porte, denuncia e identificación.
+      4) Revisión de firma, alteraciones y categoría de licencia.
+      5) Observaciones sobre cobertura y recomendaciones de seguimiento.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documento:
+      numero_licencia: ""
+      nombre_operador: ""
+      fecha_emision: ""
+      fecha_vencimiento: ""
+      tipo_categoria: ""
+      entidad_emisora: ""
+      observaciones: ""
+
+    validacion_en_linea:
+      url_portal: ""
+      fecha_consulta: ""
+      resultado: ""
+      coincidencia_fotografia: false
+      datos_coinciden: []
+      evidencia_adjunta: []
+
+    consistencia_logistica:
+      coincide_con_carta_porte: false
+      coincide_con_denuncia: false
+      firma_coinicide: false
+      discrepancias_detectadas: []
+
+    conclusion_autenticidad:
+      es_autentica: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Validar vigencia y autenticidad en portal SCT"
+        fuente: "Portal SCT u organismo competente"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Corroborar nombre y foto con Carta Porte y denuncias"
+        fuente: "Carta Porte / Denuncia"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar firma contra identificación oficial"
+        fuente: "INE / documentos de identidad"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Confirmar categoría de licencia versus tipo de vehículo"
+        fuente: "Póliza / carta porte"
+        prioridad: "media"
+        estado: "pendiente"

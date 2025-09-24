@@ -1,0 +1,179 @@
+metadata:
+  type: identificacion_oficial
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar identificaciones oficiales mexicanas y validar la identidad de los involucrados"
+
+definition:
+  nature: "Documento oficial de identidad emitido por autoridad mexicana (INE, pasaporte, cédula, licencia)"
+  legal_importance: "Alta - Acredita identidad y representación de las partes en el siniestro"
+  critical_elements:
+    - tipo_identificacion
+    - numero_documento
+    - nombre_completo
+    - fotografia
+    - firma
+    - domicilio
+    - fecha_emision
+    - fecha_vigencia
+    - entidad_emisora
+    - curp
+
+methodology:
+  analysis_approach: |
+    1. Confirmar integridad del documento: formato oficial, hologramas, sellos, número de documento y campos obligatorios.
+    2. Verificar vigencia (fecha de emisión/vencimiento) contra la fecha del siniestro y uso en el expediente.
+    3. Validar identidad y CURP en portales oficiales (RENAPO, INE, Secretaría correspondiente) documentando URL, fecha y resultado.
+    4. Comparar fotografía con entrevistas, cartas, cartas de porte o licencias para confirmar identidad visual.
+    5. Cruzar domicilio con comprobante correspondiente y con datos de póliza o Carta Porte.
+    6. Corroborar firmas con denuncias, cartas de reclamación, Carta Porte, contratos o licencias.
+    7. Detectar alteraciones (ediciones digitales, fondos inconsistentes) y registrar acciones de seguimiento (solicitar copia certificada, entrevista presencial).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: documento_vencido
+        detection: "Identificación vencida a la fecha del siniestro o del uso en expediente"
+        severity: "alto"
+        evidence_hint: "Comparar fecha de vigencia con fecha del siniestro"
+        follow_up: "Solicitar identificación vigente o aclaración formal"
+      - pattern: validacion_oficial_rechazada
+        detection: "Portal oficial (RENAPO/INE) no reconoce CURP o datos"
+        severity: "critico"
+        evidence_hint: "Capturar resultado del portal y URL"
+        follow_up: "Requerir documento alterno o certificación notarial"
+      - pattern: fotografia_incongruente
+        detection: "Fotografía no coincide con entrevistas/documentos o evidencia de suplantación"
+        severity: "alto"
+        evidence_hint: "Comparar foto con entrevistas y otros documentos"
+        follow_up: "Solicitar entrevista presencial y copia certificada"
+    medium_risk:
+      - pattern: domicilio_diferente
+        detection: "Domicilio declarado no coincide con comprobante o póliza"
+        severity: "medio"
+        evidence_hint: "Listar direcciones discrepantes"
+        follow_up: "Solicitar comprobante actualizado"
+      - pattern: firma_no_coincide
+        detection: "Firma difiere respecto a cartas, denuncias o contratos"
+        severity: "medio"
+        evidence_hint: "Anexar comparativo de firmas"
+        follow_up: "Requerir ratificación firmada"
+      - pattern: documento_editado
+        detection: "Se observan alteraciones en la imagen (etiquetas, fotos montadas)"
+        severity: "medio"
+        evidence_hint: "Señalar zonas modificadas"
+        follow_up: "Solicitar copia original"
+    low_risk:
+      - pattern: campos_secundarios_incompletos
+        detection: "Campos opcionales (color de ojos, observaciones) ausentes"
+        severity: "bajo"
+        evidence_hint: "Enumerar campos faltantes"
+        follow_up: "Recomendar actualización administrativa"
+
+  validation_rules:
+    numero_documento:
+      type: pattern
+      pattern: "^[A-Z0-9-]{6,20}$"
+    nombre_completo:
+      type: pattern
+      pattern: "^.{3,}$"
+    fecha_emision:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    fecha_vigencia:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    curp:
+      type: pattern
+      pattern: "^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$"
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - licencia_del_operador
+    - denuncias
+    - comprobante_de_domicilio
+    - pedimento_importacion
+
+  evidence_expectations:
+    - "Validación CURP y/o RENAPO/INE exitosa con evidencia"
+    - "Coincidencia de fotografía con entrevistas y documentos logísticos"
+    - "Firma consistente en múltiples soportes"
+    - "Domicilio alineado con comprobante y póliza"
+    - "Documento vigente al momento del siniestro"
+
+  red_flags:
+    critical:
+      - clue: "CURP inexistente o documento dado de baja"
+        why: "Indica posible suplantación"
+      - clue: "Documento vencido o alterado"
+        why: "Riesgo de pérdida de cobertura y fraude"
+    medium:
+      - clue: "Domicilio distinto al comprobante o póliza"
+        why: "Puede ocultar relación con el siniestro"
+      - clue: "Firma inconsistente con denuncias"
+        why: "Sugiere falsificación"
+
+response_template:
+  output_format:
+    documento_analizado: "identificacion_oficial"
+    analisis_completo: |
+      De acuerdo al análisis de los datos contenidos, resulta auténtica (sí/no) y se detallan las razones:
+      1) Vigencia y coincidencia de CURP.
+      2) Resultado de validación oficial (URL, fecha, datos comparados).
+      3) Concordancia de fotografía, firma y domicilio con los expedientes.
+      4) Observaciones de alteraciones y hallazgos relevantes.
+      5) Recomendaciones de seguimiento (ratificación, documentación adicional).
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documento:
+      tipo_identificacion: ""
+      numero_documento: ""
+      entidad_emisora: ""
+      fecha_emision: ""
+      fecha_vigencia: ""
+      curp: ""
+      observaciones: ""
+
+    validacion_oficial:
+      url_portal: ""
+      fecha_consulta: ""
+      resultado: ""
+      coincidencia_datos: []
+      coincidencia_foto: false
+      evidencia_adjunta: []
+
+    consistencia_con_expediente:
+      nombre_coincide: false
+      domicilio_coincide: false
+      firma_coincide: false
+      documentos_referenciados: []
+      discrepancias_detectadas: []
+
+    conclusion_autenticidad:
+      es_autentica: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Validar CURP y datos en portal oficial"
+        fuente: "RENAPO/INE"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cotejar domicilio con comprobante"
+        fuente: "Comprobante de domicilio"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Comparar firma y fotografía con otros documentos"
+        fuente: "Carta de reclamación / denuncia / Carta Porte"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Confirmar vigencia y categoría de la identificación"
+        fuente: "Autoridad emisora"
+        prioridad: "media"
+        estado: "pendiente"

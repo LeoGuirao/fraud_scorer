@@ -1,0 +1,182 @@
+metadata:
+  type: protocolo_de_accion_y_reaccion
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar protocolos de acción y reacción de empresas de seguridad y validar que coincidan con el siniestro"
+
+definition:
+  nature: "Documento operativo emitido por la empresa de seguridad que establece actuaciones ante eventos de robo"
+  legal_importance: "Media - Acredita procedimientos y respuesta operativa del asegurado/transportista"
+  critical_elements:
+    - numero_protocolo
+    - empresa_seguridad
+    - permisos_ssp
+    - vigencia_permiso
+    - nombre_operador
+    - unidad_monitoreada
+    - horarios_seguimiento
+    - ruta_monitoreada
+    - eventos_reaccion
+    - acciones_ejecutadas
+    - responsables
+    - contratante
+    - documentos_soporte
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del protocolo: membrete de la empresa, folio, fecha, firmas responsables y lista de anexos.
+    2. Confirmar que la empresa de seguridad está registrada y tiene permisos vigentes (Secretaría de Seguridad Pública u autoridad correspondiente).
+    3. Revisar cronología y seguimiento (horas, eventos) y corroborar que coincida con Carta Porte, GPS, denuncias y cartas de reclamación.
+    4. Validar identificación del operador y unidad monitoreada (placas, características) contra Carta Porte y licencias.
+    5. Analizar las acciones y medidas ejecutadas y verificar si cumplen condiciones de cobertura establecidas en la póliza (match con cláusulas).
+    6. Evaluar comunicación con asegurado/transportista y si se siguieron protocolos contratados (contratante, subcontrataciones, cadena de mando).
+    7. Detectar omisiones (permisos vencidos, discrepancias de ruta) y recomendar acciones (actualización de contrato, entrevista, legal).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: empresa_sin_permiso
+        detection: "Empresa no registra permisos vigentes en SSP o autoridad competente"
+        severity: "critico"
+        evidence_hint: "Documentar búsqueda oficial"
+        follow_up: "Solicitar acreditación o evaluar incumplimiento contractual"
+      - pattern: cronologia_diferente
+        detection: "Horarios/eventos no coinciden con Carta Porte, GPS o denuncia"
+        severity: "alto"
+        evidence_hint: "Listar discrepancias de modo, tiempo, lugar"
+        follow_up: "Requerir aclaración formal y revisión técnica"
+      - pattern: operador_no_coincide
+        detection: "Operador monitoreado difiere del declarado en documentos logísticos"
+        severity: "alto"
+        evidence_hint: "Comparar nombres y licencias"
+        follow_up: "Solicitar rectificación y validación de identidad"
+    medium_risk:
+      - pattern: medidas_insuficientes
+        detection: "Protocolo no registra acciones acordadas en contrato/póliza"
+        severity: "medio"
+        evidence_hint: "Mencionar cláusulas no cumplidas"
+        follow_up: "Recomendar revisión de contrato y capacitación"
+      - pattern: permisos_vencidos
+        detection: "Permiso SSP caducado o en trámite"
+        severity: "medio"
+        evidence_hint: "Comparar vigencia con fecha del siniestro"
+        follow_up: "Solicitar renovación y evidencia"
+      - pattern: documentos_no_anexados
+        detection: "Protocolo cita anexos (bitácoras, grabaciones) que no obran en expediente"
+        severity: "medio"
+        evidence_hint: "Enumerar anexos faltantes"
+        follow_up: "Requerir anexos y validar contenidos"
+    low_risk:
+      - pattern: campos_administrativos_incompletos
+        detection: "Datos secundarios (contactos, extensiones) faltantes"
+        severity: "bajo"
+        evidence_hint: "Listar campos"
+        follow_up: "Recomendar actualización"
+
+  validation_rules:
+    numero_protocolo:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,20}$"
+    vigencia_permiso:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    horarios_seguimiento:
+      type: pattern
+      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d(?:\s*-\s*(?:[01]\d|2[0-3]):[0-5]\d)?$"
+
+  cross_reference_documents:
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+    - denuncia_de_los_hechos
+    - informe_final_del_ajustador
+    - reporte_gps
+    - pedimento_importacion
+
+  evidence_expectations:
+    - "Permisos y registro de la empresa de seguridad corroborados"
+    - "Cronología y eventos alineados con documentos del siniestro"
+    - "Identificación de operador y unidad coincidente"
+    - "Acciones y medidas ejecutadas según contrato"
+    - "Registro de comunicación y respuesta"
+
+  red_flags:
+    critical:
+      - clue: "Empresa no autorizada"
+        why: "Riesgo de incumplimiento contractual"
+      - clue: "Cronología discrepante"
+        why: "Sugiere relato alterado"
+    medium:
+      - clue: "Permisos vencidos"
+        why: "Debilita obligación de respuesta"
+      - clue: "Acciones no documentadas"
+        why: "Indica protocolo incompleto"
+
+response_template:
+  output_format:
+    documento_analizado: "protocolo_de_accion_y_reaccion"
+    analisis_completo: |
+      Se confirma que la empresa tiene la facultad para brindar los servicios requeridos ante el contrato de seguro. Se confirmó y verificó:
+      1) Registro y permisos vigentes de la empresa de seguridad (fuente de verificación).
+      2) Cronología de seguimiento y eventos vs Carta Porte, GPS, denuncias y cartas de reclamación.
+      3) Identificación de operador, unidad y ruta monitoreada.
+      4) Acciones ejecutadas y cumplimiento del protocolo contratado.
+      5) Observaciones de inconsistencias y recomendaciones (actualización de contrato, entrevistas, acciones legales).
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    empresa_seguridad:
+      nombre: ""
+      permisos_ssp: ""
+      vigencia_permiso: ""
+      permisos_validos: false
+      fuente_validacion: ""
+      observaciones: ""
+
+    seguimiento:
+      numero_protocolo: ""
+      fecha_emision: ""
+      horarios_seguimiento: []
+      ruta_monitoreada: []
+      eventos_reaccion: []
+      coincide_con_documentos: []
+      discrepancias_detectadas: []
+
+    operador_y_unidad:
+      nombre_operador: ""
+      unidad: ""
+      placas_series: []
+      coincide_con_carta_porte: false
+      observaciones: ""
+
+    acciones_medidas:
+      acciones_ejecutadas: []
+      cumplimiento_contrato: "pendiente"
+      comentarios: ""
+
+    conclusion_facultad:
+      empresa_facultada: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Verificar registro y permisos de la empresa de seguridad"
+        fuente: "Secretaría de Seguridad Pública / registros mercantiles"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cruzar cronología con Carta Porte y GPS"
+        fuente: "Carta Porte / reporte GPS"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar operador y unidad con documentos logísticos"
+        fuente: "Carta Porte / licencias"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar cumplimiento contractual y cláusulas de cobertura"
+        fuente: "Póliza / contrato de monitoreo"
+        prioridad: "media"
+        estado: "pendiente"

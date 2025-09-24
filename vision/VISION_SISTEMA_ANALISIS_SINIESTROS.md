@@ -7,12 +7,15 @@
 
 Este documento define la visión integral para un **Sistema de Análisis de Siniestros Inteligente** de siguiente generación, diseñado para revolucionar la manera en que las compañías de seguros evalúan y procesan reclamaciones mediante la automatización inteligente y el análisis predictivo de fraude.
 
-El sistema combina tecnologías de punta incluyendo:
-- **Procesamiento OCR avanzado** con Azure Document Intelligence
-- **Inteligencia Artificial generativa** (GPT-4) para análisis semántico
-- **Machine Learning adaptativo** para mejora continua
+El sistema combina actualmente:
+- **Procesamiento OCR** con Azure Document Intelligence
+- **Inteligencia Artificial generativa** (GPT-4o) para extracción y consolidación
+- **Motor de análisis de fraude por documento** (operativo, ver `GUIA_IMPLEMENTACION_ANALISIS_INDIVIDUAL_DOCUMENTOS.md`)
+
+Y proyecta incorporar en el _roadmap_:
+- **Machine Learning adaptativo** reforzado con _feedback_ humano
 - **Sistema de validación multicapa** con APIs gubernamentales
-- **Motor de análisis forense** para detección de alteraciones documentales
+- **Motor de análisis forense documental**
 
 ### 🎯 Objetivo Principal
 Generar reportes de análisis de siniestros de calidad profesional de manera **automatizada**, reduciendo el tiempo de análisis de días a minutos mientras se incrementa la precisión en la detección de tentativas de fraude.
@@ -25,84 +28,88 @@ Generar reportes de análisis de siniestros de calidad profesional de manera **a
 
 #### **Componentes Core Implementados**
 
-1. **Motor OCR (Azure Document Intelligence)**
+1. **Configuración de modelos IA**
+   - Ubicación: `src/fraud_scorer/settings.py`
+   - Estado: ⚠️ En transición (configuración lista, llamadas activas siguen en GPT-4o/4o-mini)
+   - Modelos configurados: familia `gpt-5` definida con _fallback_ a `gpt-4o` / `gpt-4o-mini`; los componentes operativos aún invocan `gpt-4o-mini`.
+   - Próximos pasos: migrar extractor, clasificador y analizador para usar GPT-5 y monitorear costos.
+
+2. **Motor OCR (Azure Document Intelligence)**
    - Ubicación: `src/fraud_scorer/processors/ocr/azure_ocr.py`
    - Estado: ✅ Funcional
-   - Capacidad: Extracción de texto, tablas, entidades y metadatos
-   - Mejoras necesarias: Implementar procesamiento paralelo y fallback a Tesseract
+   - Capacidades: extracción de texto, tablas, _key-value pairs_ y metadatos.
+   - Mejoras necesarias: procesamiento paralelo y fallback a Tesseract (roadmap en `vision/RECURSOS_DESARROLLO_FRAUD_SCORER_2025.md`).
 
-2. **Sistema de Caché Inteligente**
+3. **Sistema de Caché Inteligente**
    - Ubicación: `src/fraud_scorer/storage/ocr_cache.py`
    - Estado: ⚠️ Parcialmente funcional
-   - Arquitectura: Dual (hash-based shards + vista humana organizada)
-   - Mejoras críticas:
-     - Sincronización DB-FS mejorada
-     - Garbage collection automático
-     - Métricas de eficiencia en tiempo real
+   - Arquitectura: shards por hash + vista por caso (`case_index/`).
+   - Riesgos actuales: sincronización DB/FS no atómica, limpieza manual de _shards_, métricas persistentes incompletas.
 
-3. **Motor de Extracción IA**
+4. **Motor de Extracción IA**
    - Ubicación: `src/fraud_scorer/processors/ai/ai_field_extractor.py`
-   - Estado: ✅ Funcional
-   - Modelo: GPT-4o-mini (económico) / GPT-4o (precisión)
-   - Mejoras propuestas:
-     - Implementar prompt engineering dinámico
-     - Cache de embeddings para documentos similares
-     - Fine-tuning con casos históricos
+   - Estado: ✅ Estable
+   - Funcionalidad: extracción guiada por tipo de documento con restricciones en `ExtractionConfig`.
+   - Pendientes: _prompt engineering_ dinámico, caché semántico y _fine-tuning_ basado en _feedback_.
 
-4. **Sistema de Consolidación**
+5. **Sistema de Consolidación**
    - Ubicación: `src/fraud_scorer/processors/ai/ai_consolidator.py`
    - Estado: ✅ Funcional básico
-   - Lógica: Ponderación por confiabilidad de fuente
-   - Mejoras necesarias:
-     - Sistema de votación con pesos adaptativos
-     - Detección de conflictos críticos
-     - Trazabilidad de decisiones
+   - Capacidades: resolución de conflictos, trazabilidad parcial (`consolidation_sources`) y validaciones conservadoras.
+   - Pendientes: pesos adaptativos por contexto, reporte detallado y alertas de inconsistencias críticas.
 
-5. **Base de Datos Relacional**
-   - Ubicación: `src/fraud_scorer/storage/db.py`
-   - Estado: ⚠️ Requiere optimización
-   - Esquema: 9 tablas principales con índices
-   - Problemas identificados:
-     - Duplicación de registros
-     - Falta de constraints únicos compuestos
-     - Necesidad de migración a PostgreSQL para producción
+6. **Motor de Clasificación de Documentos**
+   - Ubicación: `src/fraud_scorer/processors/document_classifier.py`
+   - Estado: ✅ Operativo
+   - Descripción: clasificación híbrida (heurísticas + LLM) con más de 30 tipos soportados y override manual (fase 1.4.1 en `run_report.py`).
+
+7. **Motor de Análisis de Fraude por Documento**
+   - Ubicación: `src/fraud_scorer/analyzers/fraud_analyzer.py`, gestor de guías en `src/fraud_scorer/analyzers/fraud_guide_manager.py` y plantillas YAML en `src/fraud_scorer/guides/`
+   - Estado: ✅ Operativo (fase 3.5 del pipeline, invocado vía `scripts/run_report.py --fraud`)
+   - Rol: genera narrativas, indicadores y puntajes documentales basados en OCR + campos extraídos; persiste resultados en `fraud_analyses` y expone la sección “Análisis por documento” del reporte.
+   - Especificaciones: salida validada contra esquema JSON (`risk_level`, `fraud_score`, `confidence`, `indicators`, `evidence`, `recommendations`), normalización score↔riesgo (bajo/medio/alto/crítico), guarda `analysis_id` y `prompt_hash` para trazabilidad y reutiliza caché (`md5(document_id_type_version_model)`).
+   - Salvaguardas: prompt con defensa anti prompt-injection, prohibición de conclusiones globales e instrucciones de documentar evidencia y `validation_tasks` pendientes (ver `GUIA_IMPLEMENTACION_ANALISIS_INDIVIDUAL_DOCUMENTOS.md`).
+
+8. **Orquestador de Pipeline (FraudAnalysisSystemV2)**
+   - Ubicación: `scripts/run_report.py`
+   - Estado: ✅ End-to-end funcional
+   - Rol: coordina OCR, clasificación, extracción, consolidación, análisis de fraude y generación de reportes con seguimiento de progreso.
+
+9. **Generadores de Reporte**
+   - Ubicación: `src/fraud_scorer/templates/`
+   - Estado: ✅ Carátula y sección de fraude / ⚠️ Secciones narrativas pendientes
+   - Componentes: `AIReportGenerator`, `FraudReportGenerator`, `report_template.html`.
+
+10. **Persistencia y Servicios Auxiliares**
+    - Ubicación: `src/fraud_scorer/storage/` y `src/fraud_scorer/services/replay_service.py`
+    - Estado: ⚠️ Necesita afinación
+    - Detalle: SQLite (`cases.db`) con índices únicos (`idx_cases_case_id`, `idx_docs_case_hash`), servicios de _replay_ y métricas de caché. Migración a PostgreSQL planificada.
 
 #### **Componentes Propuestos para Implementar**
 
-1. **Motor de Machine Learning Adaptativo**
+1. **Motor de Machine Learning Adaptativo** *(roadmap)*
    - Framework sugerido: **LightGBM** + **Active Learning**
-   - Funcionalidad:
-     - Aprendizaje incremental de patrones de fraude
-     - Retroalimentación supervisada de analistas
-     - Auto-ajuste de umbrales de riesgo
-   - Implementación:
-     ```python
-     class AdaptiveFraudDetector:
-         def __init__(self):
-             self.model = LGBMClassifier()
-             self.feature_extractor = DocumentFeatureExtractor()
-             self.feedback_buffer = FeedbackBuffer(max_size=1000)
+   - Objetivo: incorporar _feedback_ humano y ajuste incremental de umbrales.
 
-         def learn_from_feedback(self, document_features, analyst_decision, confidence):
-             # Active learning loop
-             pass
-     ```
+2. **Sistema de Validación Híbrido** *(en implementación)*
+   - **Fase actual**: Verificaciones manuales asistidas por IA con checklist inteligente
+   - **Fase futura**: Integraciones automáticas con SAT, REPUVE, SCT, CURP/RENAPO, Fiscalías
+   - **Arquitectura modular**: Permite transición suave de manual a automático sin cambios en el código principal
 
-2. **Sistema de Validación Externa**
-   - APIs a integrar:
-     - **SAT** - Validación de CFDI y RFC
-     - **REPUVE** - Verificación vehicular
-     - **INE/IFE** - Validación de identidades
-     - **CURP/RENAPO** - Verificación de personas
-   - Arquitectura: Sistema de plugins con fallback y retry logic
+3. **Motor de Análisis Forense Digital** *(roadmap)*
+   - Capacidades meta: análisis de metadatos, capas, firmas y consistencia gráfica.
+   - Herramientas candidatas: PyPDF2 + visión computacional.
 
-3. **Motor de Análisis Forense Digital**
-   - Capacidades:
-     - Detección de alteraciones en metadatos PDF
-     - Análisis de consistencia tipográfica
-     - Detección de capas y elementos superpuestos
-     - Verificación de firmas digitales
-   - Herramientas: PyPDF2 + Computer Vision
+
+#### **Inventario del Sistema Actual**
+
+- **Pipeline principal (`scripts/run_report.py`)**: orquesta OCR, clasificación, extracción, consolidación, análisis de fraude y generación HTML/PDF con control de progreso. Estado: ✅ en uso.
+- **Procesadores (`src/fraud_scorer/processors/`)**: Azure OCR, extracción guiada, consolidación, clasificador y organizador de documentos. Estado: ✅ con mejoras planificadas.
+- **Analizadores (`src/fraud_scorer/analyzers/`)**: motor de fraude y gestor de guías YAML (`src/fraud_scorer/guides/`). Estado: ✅ piloto, requiere ampliación de guías.
+- **Plantillas (`src/fraud_scorer/templates/`)**: generadores y `report_template.html` para la carátula + sección de fraude; faltan secciones narrativas. Estado: ⚠️ incompleto.
+- **Persistencia (`src/fraud_scorer/storage/`)**: DB SQLite, caché OCR, métricas y servicios de _replay_. Estado: ⚠️ requiere hardening y migración a PostgreSQL.
+- **Interfaz web y API (`src/fraud_scorer/api/`, `src/fraud_scorer/ui/`)**: FastAPI con rutas de carga, _replay_, _feedback_ y prototipos de interfaz. Estado: ⚠️ funcional básico; carece de plantilla de feedback y dashboard final.
+
 
 ---
 
@@ -113,7 +120,7 @@ Generar reportes de análisis de siniestros de calidad profesional de manera **a
 Tras el análisis exhaustivo de los reportes reales de HDI Seguros, he identificado la estructura precisa y los patrones de contenido que deben replicarse:
 
 #### **1. INFORMACIÓN GENERAL (CARÁTULA)**
-**Estado Actual:** ✅ Parcialmente implementado
+**Estado actual:** ⚠️ Parcialmente implementado (carátula generada; faltan campos formateados consistentemente)
 **Campos exactos identificados:**
 - **Número de siniestro**: Formato YYYYXXXXXXX (ej: 20250000004129)
 - **Nombre del asegurado**: Razón social completa
@@ -135,12 +142,12 @@ Tras el análisis exhaustivo de los reportes reales de HDI Seguros, he identific
 - Detección automática del despacho de ajustadores
 
 #### **2. ANÁLISIS DEL TURNO PARA SU INVESTIGACIÓN**
-**Estado:** ✅ Texto estático identificado
+**Estado actual:** 🔴 Texto definido pero no integrado (no aparece en `report_template.html`).
 **Texto estándar usado:**
 "Como inicio del presente análisis documental y validación de documentación que se realizó de forma técnica basada en principios de criminalística, jurídicos y criminológicos para postular una sugerencia con sustentos indubitables a la compañía."
 
 #### **3. PLANTEAMIENTO DEL PROBLEMA**
-**Estado:** ⚠️ Semi-dinámico
+**Estado actual:** 🔴 Pendiente (plantilla y lógica aún no implementadas; requerirá reutilizar motor de extracción)
 **Patrones identificados:**
 - Inicia con contexto del tipo de reclamación
 - Menciona el asegurado y fecha del siniestro
@@ -158,7 +165,7 @@ def generar_planteamiento(datos_siniestro):
 ```
 
 #### **4. MÉTODOS EMPLEADOS PARA LA INVESTIGACIÓN**
-**Estado:** ✅ Lista dinámica según el caso
+**Estado actual:** 🔴 No implementado (solo se ha documentado el patrón; falta lógica y plantilla)
 **Métodos comunes identificados:**
 - Análisis y validación de la documentación proporcionada por el asegurado
 - Consultas gubernamentales (SAT, REPUVE, SCT)
@@ -169,7 +176,7 @@ def generar_planteamiento(datos_siniestro):
 - Validación de ministerios públicos
 
 #### **5. ESTUDIO DEL ASEGURADO**
-**Estado:** 🔴 Básico, necesita mejoras
+**Estado actual:** 🔴 Planeado (investigación manual fuera del sistema; no hay módulo automatizado ni plantilla).
 **Estructura real identificada:**
 1. Nombre/Razón social
 2. RFC (cuando aplica)
@@ -194,7 +201,7 @@ económicas de {asegurado_data['giro_comercial']}.
 ```
 
 #### **6. ANÁLISIS DE LA DOCUMENTACIÓN [SECCIÓN MÁS EXTENSA]**
-**Estado:** ⚠️ Parcialmente implementado
+**Estado actual:** ⚠️ Implementado para análisis individual (ver `GUIA_IMPLEMENTACION_ANALISIS_INDIVIDUAL_DOCUMENTOS.md`); pendiente integrar correlación automática y síntesis en Observaciones/Conclusiones.
 **Estructura real por documento:**
 
 Cada documento analizado sigue este patrón:
@@ -206,7 +213,7 @@ Cada documento analizado sigue este patrón:
 [Si hay anomalías: descripción detallada]
 ```
 
-**Documentos típicos analizados (orden común):**
+**Documentos típicos priorizados para guías YAML:**
 1. **CARTA RECLAMACIÓN DIRIGIDA A HDI SEGUROS**
 2. **CARTA RECLAMACIÓN DIRIGIDA AL TRANSPORTISTA**
 3. **CARTA RESPUESTA TRANSPORTISTA**
@@ -223,14 +230,21 @@ Cada documento analizado sigue este patrón:
 14. **SEGUIMIENTO GPS**
 15. **CONSULTAS WEB DE INVOLUCRADOS**
 
-**Sistema de análisis correlacionado necesario:**
+**Especificaciones operativas vigentes:**
+- Salida JSON validada por esquema (`risk_level`, `fraud_score`, `confidence`, `indicators`, `evidence`, `recommendations`).
+- Normalización score↔riesgo: bajo ≤0.30, medio <0.60, alto <0.85, crítico ≥0.85 (rechazo automático de combinaciones inválidas vía Pydantic).
+- Persistencia en `fraud_analyses` con índices por caso, riesgo, score y `prompt_hash`.
+- Clave de caché: `md5(f"{document_id}_{document_type}_{guide_version}_{model}")`.
+- Guardas en prompt: ignorar instrucciones internas, documentar evidencia con ubicación y registrar `validation_tasks` pendientes.
+
+**Sistema de análisis correlacionado necesario (roadmap):**
 ```python
 class AnalizadorDocumental:
     def analizar_con_contexto(self, documento, contexto_global):
         # Análisis individual
         analisis = self.analisis_base(documento)
 
-        # Correlación con otros documentos
+        # Correlación con otros documentos (futuro)
         contradicciones = self.detectar_contradicciones(analisis, contexto_global)
 
         # Validaciones externas
@@ -241,10 +255,13 @@ class AnalizadorDocumental:
         contexto_global.actualizar(analisis)
 
         return self.formatear_para_reporte(analisis, contradicciones)
+
 ```
 
+> **Nota:** El motor documental genera únicamente riesgo y recomendaciones a nivel de cada documento. El score global del siniestro se consolidará más adelante en la etapa de Observaciones → Conclusiones, usando los resultados individuales como insumo.
+
 #### **7. CONSIDERACIONES/OBSERVACIONES**
-**Estado:** 🔴 No implementado
+**Estado actual:** 🔴 Roadmap (depende de consolidar la sección anterior y diseñar plantilla específica)
 **Estructura real identificada:**
 - Lista numerada de hallazgos principales
 - Cada punto es una síntesis de evidencia clave
@@ -271,7 +288,7 @@ class GeneradorConsideraciones:
 ```
 
 #### **8. CONCLUSIÓN DE VERIFICACIÓN**
-**Estado:** 🔴 No implementado
+**Estado actual:** 🔴 Roadmap (motor pendiente; requiere consolidar Observaciones con los resultados documentales antes de generar la decisión final)
 **Estructura real identificada:**
 
 **Para casos CON TENTATIVA:**
@@ -286,11 +303,11 @@ class GeneradorConsideraciones:
 - Observaciones para el área de ajuste
 - Recomendaciones de indemnización con ajustes si aplican
 
-**Motor de decisión necesario:**
+**Motor de decisión necesario (consumirá score global derivado de Observaciones):**
 ```python
 class MotorConclusion:
-    def generar_conclusion(self, evidencias, score_fraude):
-        if score_fraude > 0.7:
+    def generar_conclusion(self, evidencias, score_global):
+        if score_global > 0.7:
             return self.conclusion_con_tentativa(evidencias)
         else:
             return self.conclusion_sin_tentativa(evidencias)
@@ -382,9 +399,26 @@ class FraudScoringEngine:
 
 ## 🔍 SISTEMA DE VALIDACIONES CRÍTICAS
 
-### Validaciones Automáticas Implementadas y Por Implementar
+### Sistema de Verificaciones Manuales con Migración Futura a APIs
 
-#### **Validaciones Gubernamentales (APIs)**
+> **Estado actual:** 🟡 En implementación — Sistema de verificaciones manuales asistidas por IA. Las integraciones automáticas con APIs gubernamentales (SAT/REPUVE/SCT) se agregarán en fases posteriores del roadmap.
+
+#### **Fase Actual: Verificaciones Manuales Inteligentes**
+
+El sistema actualmente implementa un enfoque híbrido donde:
+1. **El sistema analiza los documentos** y detecta qué verificaciones son necesarias
+2. **Genera un checklist inteligente** para el analista con instrucciones específicas
+3. **El analista realiza las verificaciones manualmente** en los portales gubernamentales
+4. **Captura los resultados** en una interfaz estructurada
+5. **El sistema procesa los datos verificados** para el análisis de fraude
+
+Este enfoque temporal permite:
+- ✅ Verificaciones reales y confiables desde el día 1
+- ✅ Aprendizaje sobre patrones de verificación
+- ✅ Preparación de la estructura para automatización futura
+- ✅ Trazabilidad completa de todas las verificaciones
+
+#### **Validaciones Gubernamentales (Actualmente Manuales, Futuro APIs)**
 
 1. **SAT - Servicio de Administración Tributaria**
    - Validación de CFDI (Cartas Porte)
@@ -413,42 +447,50 @@ class FraudScoringEngine:
    - Verificación de ministerios públicos
    - Cédulas profesionales
 
-### Arquitectura de Validación Propuesta
+### Arquitectura de Validación Modular (Manual → Automática)
 
 ```python
-class ValidationOrchestrator:
-    def __init__(self):
-        self.validators = {
-            'sat': SATValidator(),
-            'repuve': REPUVEValidator(),
-            'sct': SCTValidator(),
-            'curp': CURPValidator(),
-            'fiscalia': FiscaliaValidator()
+class VerificationChecklistGenerator:
+    """
+    Genera lista dinámica de verificaciones basada en documentos detectados
+    """
+    def generate_checklist(self, documents_detected, case_type):
+        checklist = {
+            'case_id': documents_detected[0].case_id,
+            'verifications': [],
+            'priority': 'high' if self._is_high_risk(case_type) else 'normal'
         }
-        self.cache = ValidationCache()
 
-    async def validate_document(self, doc_type, doc_data):
-        # Verificar cache primero
-        cached = self.cache.get(doc_data['hash'])
-        if cached:
-            return cached
+        for doc in documents_detected:
+            if doc.type in self.verification_rules:
+                for verification in self.verification_rules[doc.type]:
+                    checklist['verifications'].append({
+                        'verification_id': f"{doc.id}_{verification['id']}",
+                        'document_name': doc.name,
+                        'verification_type': verification['type'],
+                        'description': self._get_verification_description(
+                            verification['id'], doc.extracted_data
+                        ),
+                        'data_to_verify': self._extract_verification_data(doc),
+                        'expected_format': self._get_expected_format(verification['id'])
+                    })
 
-        # Determinar validadores necesarios
-        validators_needed = self.get_validators_for_doc(doc_type)
+        return checklist
 
-        # Ejecutar validaciones en paralelo
-        results = await asyncio.gather(*[
-            self.validators[v].validate(doc_data)
-            for v in validators_needed
-        ])
+class VerificationService:
+    """
+    Servicio modular que permite cambiar entre manual y automático
+    """
+    def __init__(self, mode='manual'):  # Por defecto manual, cambiará a 'automatic' en el futuro
+        self.mode = mode
+        self.providers = {
+            'manual': ManualVerificationProvider(),
+            'automatic': AutomaticVerificationProvider()  # Para implementación futura
+        }
 
-        # Consolidar resultados
-        validation_result = self.consolidate_results(results)
-
-        # Guardar en cache
-        self.cache.save(doc_data['hash'], validation_result)
-
-        return validation_result
+    async def verify(self, verification_type, data):
+        provider = self.providers[self.mode]
+        return await provider.verify(verification_type, data)
 
     def get_validators_for_doc(self, doc_type):
         mapping = {
@@ -461,11 +503,102 @@ class ValidationOrchestrator:
             'identidad': ['curp']
         }
         return mapping.get(doc_type, [])
+
+class ManualVerificationProvider:
+    """Provider para verificaciones manuales (actual)"""
+
+    async def verify(self, verification_type, data):
+        # Genera instrucciones para el analista
+        instructions = self.generate_instructions(verification_type, data)
+
+        # Espera input manual a través de interfaz
+        result = await self.wait_for_manual_input(instructions)
+
+        # Formatea resultado en estructura estándar
+        return self.format_result(result)
+
+    def generate_instructions(self, v_type, data):
+        instructions = {
+            'SAT': f"Por favor verifique en portal SAT el CFDI: {data.get('folio_fiscal')}",
+            'REPUVE': f"Verifique en REPUVE el NIV: {data.get('niv')}",
+            'SCT': f"Consulte en SCT la licencia: {data.get('numero_licencia')}",
+            'FISCALIA': f"Valide con fiscalía la C.I.: {data.get('numero_carpeta')}"
+        }
+        return instructions.get(v_type, "Verificación manual requerida")
+
+class VerificationInterface:
+    """
+    Interfaz para que el analista ingrese resultados de verificaciones
+    """
+    def render_verification_form(self, checklist):
+        form_structure = {
+            'case_id': checklist['case_id'],
+            'total_verifications': len(checklist['verifications']),
+            'sections': []
+        }
+
+        # Agrupar por tipo de verificación
+        for verification in checklist['verifications']:
+            form_structure['sections'].append({
+                'title': f'Verificación {verification["verification_type"]}',
+                'fields': self.get_fields_for_type(verification['verification_type']),
+                'data_to_verify': verification['data_to_verify']
+            })
+
+        return form_structure
+
+class VerificationProcessor:
+    """
+    Procesa las verificaciones completadas y enriquece el análisis
+    """
+    def process_verifications(self, verification_results):
+        fraud_signals = []
+        enriched_data = {}
+
+        for verification in verification_results:
+            # Detectar señales de fraude basadas en verificaciones
+            if self._is_fraud_signal(verification):
+                fraud_signals.append(self._create_fraud_signal(verification))
+
+            # Enriquecer datos para análisis posterior
+            enriched_data[verification['id']] = verification['result_data']
+
+        return {
+            'fraud_signals': fraud_signals,
+            'enriched_data': enriched_data,
+            'fraud_score_adjustment': self._calculate_fraud_impact(fraud_signals)
+        }
 ```
+
+### Pipeline de Procesamiento con Verificaciones Manuales
+
+```mermaid
+graph TD
+    A[Carga de Documentos] --> B[OCR + Clasificación]
+    B --> C[Extracción Inicial]
+    C --> D[Generación de Checklist de Verificaciones]
+    D --> E[Interfaz de Verificación Manual para Analista]
+    E --> F[Analista Completa Verificaciones]
+    F --> G[Sistema Procesa Verificaciones]
+    G --> H[Análisis de Fraude con Datos Verificados]
+    H --> I[Correlaciones y Validación Cruzada]
+    I --> J[Reporte Final]
+```
+
+### Ventajas del Sistema Híbrido
+
+1. **Implementación Inmediata**: No requiere esperar las integraciones con APIs gubernamentales
+2. **Aprendizaje Continuo**: El sistema aprende de las verificaciones manuales para mejorar
+3. **Flexibilidad**: Funciona con verificaciones manuales ahora, APIs después
+4. **Trazabilidad Completa**: Cada verificación queda registrada con el analista responsable
+5. **Migración Suave**: Cuando las APIs estén disponibles, solo se cambia `mode='automatic'`
+6. **Fallback Robusto**: Si una API falla en el futuro, se puede volver a modo manual
 
 ---
 
 ## 🤖 SISTEMA DE MACHINE LEARNING ADAPTATIVO
+
+> **Estado actual:** 🔴 Roadmap — el flujo de feedback/entrenamiento aún no está operando; depende de completar la interfaz de feedback y pipeline de reentrenamiento.
 
 ### Arquitectura Propuesta de Retroalimentación
 
@@ -509,6 +642,8 @@ class FeedbackSystem:
         if self.feedback_db.pending_count() > 50:
             self.trigger_retraining()
 ```
+
+Estado actual: rutas `/feedback` disponibles en `src/fraud_scorer/api/web_interface.py`, pero dependen de la plantilla ausente `report_template_feedback.html`; el aprendizaje adaptativo está inoperante hasta completar esa interfaz y flujo.
 
 **2. Mejora de Guías YAML Dinámicas:**
 ```python
@@ -894,22 +1029,31 @@ class SystemMetrics:
 ## 🚀 ROADMAP DE IMPLEMENTACIÓN
 
 ### Fase 1: Estabilización (1-2 meses)
-- [ ] Resolver problemas de duplicación en DB
+- [ ] Resolver problemas de duplicación/confianza en DB
 - [ ] Implementar sincronización Cache-DB robusta
 - [ ] Migrar a PostgreSQL
 - [ ] Añadir tests de integración
+- [ ] Integrar secciones narrativas (Turno, Planteamiento, Métodos, Observaciones, Conclusión) en `report_template.html`
 
 ### Fase 2: Machine Learning (2-3 meses)
-- [ ] Implementar sistema de feedback estructurado
+- [ ] Implementar sistema de feedback estructurado (plantilla `report_template_feedback.html` + UX)
 - [ ] Desarrollar modelo base de detección de fraude
 - [ ] Crear pipeline de reentrenamiento automático
 - [ ] Integrar Active Learning
 
-### Fase 3: Integraciones Externas (1-2 meses)
-- [ ] Conectar APIs gubernamentales (SAT, REPUVE)
-- [ ] Implementar sistema de validación de identidades
-- [ ] Añadir verificación de documentos fiscales
-- [ ] Crear sistema de plugins para nuevas APIs
+### Fase 2.5: Sistema de Verificaciones Manuales (INMEDIATO - 2 semanas)
+- [ ] Implementar generador de checklist inteligente
+- [ ] Crear interfaz de captura de verificaciones
+- [ ] Integrar procesador de verificaciones al pipeline
+- [ ] Sistema de detección de fraude con datos verificados
+- [ ] Documentación y entrenamiento para analistas
+
+### Fase 3: Migración a APIs Gubernamentales (3-4 meses después)
+- [ ] Conectar APIs gubernamentales (SAT, REPUVE, SCT, CURP/RENAPO)
+- [ ] Migrar de modo 'manual' a modo 'automatic' en VerificationService
+- [ ] Mantener fallback manual cuando APIs no estén disponibles
+- [ ] Sistema de caché y retry para APIs
+- [ ] Monitoreo y alertas de disponibilidad de APIs
 
 ### Fase 4: Análisis Avanzado (2-3 meses)
 - [ ] Motor de análisis forense digital
@@ -1043,10 +1187,11 @@ El sistema debe replicar el estilo profesional observado:
    - Alertas en tiempo real cuando se encuentren inconsistencias
    - Matriz de correlación visual para el analista
 
-2. **Validador Automático de APIs Gubernamentales**
-   - Integración con SAT para CFDI en tiempo real
-   - Conexión con REPUVE para verificación vehicular
-   - Sistema de fallback cuando las APIs no respondan
+2. **Sistema de Verificaciones Manuales Inteligente** *(Implementación inmediata)*
+   - Generador automático de checklists basado en documentos detectados
+   - Interfaz estructurada para captura de verificaciones por analistas
+   - Procesamiento inteligente de datos verificados para detección de fraude
+   - **Migración futura**: Integración con APIs SAT/REPUVE/SCT cuando estén disponibles
 
 3. **Generador de Narrativa Profesional**
    - Templates específicos por tipo de documento
@@ -1150,7 +1295,7 @@ El sistema debe replicar el estilo profesional observado:
 
 *Documento preparado con visión estratégica y técnica para revolucionar el análisis de siniestros mediante tecnología de vanguardia.*
 
-**Versión:** 1.0
+**Versión:** 2.1
 **Fecha:** Septiembre 2025
 **Autor:** Leonardo Guirao - CTO
-**Estado:** Borrador
+**Estado:** Actualizado con Sistema de Verificaciones Manuales

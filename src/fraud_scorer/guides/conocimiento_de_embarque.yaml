@@ -1,0 +1,181 @@
+metadata:
+  type: conocimiento_de_embarque
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar conocimientos de embarque y validar la trazabilidad marítima de mercancías"
+
+definition:
+  nature: "Documento portuario que avala la entrega de mercancía al transportista, indicando origen, destino y condiciones de embarque"
+  legal_importance: "Alta - Sustenta la entrega y responsabilidad del transporte en operaciones marítimas"
+  critical_elements:
+    - numero_conocimiento
+    - fecha_salida
+    - hora_salida
+    - puerto_origen
+    - puerto_destino
+    - nombre_transportista
+    - nombre_operador
+    - firma_operador
+    - identificacion_unidad
+    - placas_unidad
+    - descripcion_mercancia
+    - peso
+    - valor_carga
+    - documentos_anexos
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del documento: membrete, folio, fecha y firma de salida del operador o checador.
+    2. Confirmar punto de origen, destino y horario; correlacionarlos con Carta Porte, pedimento, reporte GPS y cartas de reclamación.
+    3. Validar datos del transportista, operador y unidad (placas, identificaciones) con documentos logísticos y licencias.
+    4. Analizar la mercancía (descripción, peso, valor) y cruzar con facturas, pedimentos y CFDI.
+    5. Revisar que la firma del operador coincida con otros documentos (licencia, Carta Porte, denuncia).
+    6. Evaluar formatos (puede ser informal) y detectar alteraciones (ediciones, campos faltantes); registrar acciones de seguimiento.
+    7. Documentar hallazgos relevantes para trazabilidad y acciones jurídicas/subrogatorias.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: datos_operador_incorrectos
+        detection: "Nombre/firma del operador no coincide con Carta Porte o denuncias"
+        severity: "alto"
+        evidence_hint: "Comparar firmas y nombres"
+        follow_up: "Solicitar aclaración o ratificación"
+      - pattern: origen_destino_incongruente
+        detection: "Origen/destino difiere de lo declarado en documentos logísticos"
+        severity: "alto"
+        evidence_hint: "Listar discrepancias"
+        follow_up: "Requerir corrección y validar documentos relacionados"
+      - pattern: peso_valor_no_alineado
+        detection: "Peso o valor no coincide con pedimento/facturas"
+        severity: "alto"
+        evidence_hint: "Comparar valores exactos"
+        follow_up: "Solicitar documentación adicional"
+    medium_risk:
+      - pattern: horario_no_corresponde
+        detection: "Hora de salida no coincide con reportes GPS o declaraciones"
+        severity: "medio"
+        evidence_hint: "Citar horas y documentos comparados"
+        follow_up: "Requerir aclaración"
+      - pattern: formato_informal_sin_respaldo
+        detection: "Documento informal sin sellos ni respaldo logístico"
+        severity: "medio"
+        evidence_hint: "Describir ausencia de elementos formales"
+        follow_up: "Solicitar confirmación escrita o bitácoras oficiales"
+      - pattern: datos_unidad_incompletos
+        detection: "Faltan placas o identificadores del vehículo"
+        severity: "medio"
+        evidence_hint: "Enumerar campos faltantes"
+        follow_up: "Requerir información complementaria"
+    low_risk:
+      - pattern: campos_secundarios_vacios
+        detection: "Campos opcionales (contactos, notas) vacíos"
+        severity: "bajo"
+        evidence_hint: "Listar campos"
+        follow_up: "Recomendar completar"
+
+  validation_rules:
+    numero_conocimiento:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,20}$"
+    fecha_salida:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    hora_salida:
+      type: pattern
+      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d$"
+    peso:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+    valor_carga:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+
+  cross_reference_documents:
+    - carta_porte_simple
+    - cfdi_carta_porte
+    - pedimento_importacion
+    - facturas_comerciales_internacionales
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+    - denuncia_de_los_hechos
+    - reporte_gps
+
+  evidence_expectations:
+    - "Fecha y hora de salida coherentes con documentos del siniestro"
+    - "Transportista, operador y unidad coincidentes"
+    - "Mercancía (peso/valor) alineada con pedimento y facturas"
+    - "Firma del operador auténtica"
+    - "Ruta declarada consistente con expedientes"
+
+  red_flags:
+    critical:
+      - clue: "Operador o unidad distinta"
+        why: "Dificulta trazabilidad"
+      - clue: "Origen/destino divergente"
+        why: "Sugiere inconsistencias logísticas"
+    medium:
+      - clue: "Hora de salida incompatible"
+        why: "Crea duda sobre cronología"
+      - clue: "Documento informal sin respaldo"
+        why: "Riesgo de soporte insuficiente"
+
+response_template:
+  output_format:
+    documento_analizado: "conocimiento_de_embarque"
+    analisis_completo: |
+      Se confirmó la notificación sobre la salida de la mercancía, ya que estas corresponden con los documentos presentados durante la reclamación. Se detalla:
+      1) Fecha, hora, origen y destino vs Carta Porte, pedimento y GPS.
+      2) Operador, transportista, unidad (placas/series) y coincidencia de firmas.
+      3) Mercancía (descripción, peso, valor) comparada con facturas y pedimento.
+      4) Observaciones sobre formato, anexos y soporte documental.
+      5) Recomendaciones para seguimiento o complementación.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    salida_mercancia:
+      numero_conocimiento: ""
+      fecha_salida: ""
+      hora_salida: ""
+      origen: ""
+      destino: ""
+      coincide_con_documentos: []
+
+    operador_y_unidad:
+      nombre_operador: ""
+      firma_operador: ""
+      firma_coincide: false
+      transportista: ""
+      placas_unidad: ""
+      observaciones: ""
+
+    mercancia:
+      descripcion_mercancia: ""
+      peso: 0.0
+      valor_carga: 0.0
+      coincide_con_facturas: false
+      coincide_con_pedimento: false
+      observaciones: ""
+
+    observaciones_generales:
+      formato_formal: false
+      anexos_presentes: []
+      discrepancias: []
+
+    validation_tasks:
+      - tarea: "Cruzar fecha y hora con Carta Porte y GPS"
+        fuente: "Carta Porte / reporte GPS"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Validar operador y unidad con licencias y Carta Porte"
+        fuente: "Licencia del operador / Carta Porte"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar peso y valor con facturas y pedimento"
+        fuente: "Factura / pedimento"
+        prioridad: "media"
+        estado: "pendiente"

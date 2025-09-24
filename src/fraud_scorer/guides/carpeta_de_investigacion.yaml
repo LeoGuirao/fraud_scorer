@@ -1,0 +1,194 @@
+metadata:
+  type: carpeta_de_investigacion
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar carpetas de investigación, validar su coherencia con el siniestro y detectar señales de fraude"
+
+definition:
+  nature: "Registro oficial del Ministerio Público que documenta denuncias, actos de investigación y pruebas del delito"
+  legal_importance: "Alta - Acredita que la autoridad conoce el delito y respalda la cobertura del siniestro"
+  critical_elements:
+    - numero_carpeta
+    - fiscalia
+    - agente_ministerio_publico
+    - fecha_apertura
+    - hora_apertura
+    - denunciante
+    - declaracion_afectado
+    - transportista_identificado
+    - operador_identificado
+    - medio_conduccion
+    - lugar_hechos
+    - modus_operandi
+    - monto_reclamado
+    - documentos_anexos
+    - sellos_firmas
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad: folios completos, sellos originales (no impresos), firmas del MP y paginación continua (sin saltos).
+    2. Confirmar que la fiscalía pertenece a la jurisdicción del lugar del siniestro y que el agente/fiscal está vigente (consulta rápida).
+    3. Analizar declaración del afectado y narrativa de hechos; validar que fechas, horas, transportista, operador, vehículo y modus operandi coinciden con Carta Porte, licencias, reportes GPS y cartas de reclamación.
+    4. Corroborar fecha y hora de la denuncia posteriores al siniestro, y que el número de carpeta corresponda al año.
+    5. Revisar anexos (facturas, pedimentos, acreditaciones de propiedad) y confirmar su concordancia con la documentación del siniestro.
+    6. Detectar alteraciones (tipografía distinta, tachaduras, hojas insertadas) y registrar acciones de seguimiento (solicitar cotejo oficial, copia certificada).
+    7. Evaluar consistencia con otras pruebas: transportista legalmente constituido, medio de conducción, ruta, cobertura de seguro, monto reclamado.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: fiscalia_fuera_jurisdiccion
+        detection: "Fiscalía que tomó conocimiento se ubica fuera de la delimitación donde ocurrieron los hechos"
+        severity: "alto"
+        evidence_hint: "Comparar municipio/estado con Carta Porte y denuncia"
+        follow_up: "Solicitar explicación formal y verificar traslado de competencia"
+      - pattern: hojas_faltantes
+        detection: "Paginación incompleta o saltos de folio"
+        severity: "alto"
+        evidence_hint: "Indicar folios ausentes"
+        follow_up: "Solicitar copia certificada y revisada"
+      - pattern: declaracion_no_coincide
+        detection: "Declaración difiere respecto a transportista, operador, ruta o modus operandi"
+        severity: "critico"
+        evidence_hint: "Comparar con Carta Porte, GPS, informe ajustador"
+        follow_up: "Escalar a antifraude y requerir aclaraciones"
+    medium_risk:
+      - pattern: sellos_imprenta
+        detection: "Sellos o firmas parecen impresos o digitalizados"
+        severity: "medio"
+        evidence_hint: "Describir apariencia del sello/firma"
+        follow_up: "Requerir cotejo con autoridad"
+      - pattern: apertura_previa
+        detection: "Fecha/hora de denuncia anterior al siniestro"
+        severity: "medio"
+        evidence_hint: "Comparar cronología"
+        follow_up: "Solicitar aclaración de la autoridad"
+      - pattern: anexos_incompletos
+        detection: "Carpeta menciona anexos que no se incluyen"
+        severity: "medio"
+        evidence_hint: "Listar anexos faltantes"
+        follow_up: "Requerir anexos y validar contenido"
+    low_risk:
+      - pattern: tipografia_variada_no_critica
+        detection: "Fuentes distintas en anexos pero no en evidencias clave"
+        severity: "bajo"
+        evidence_hint: "Identificar secciones"
+        follow_up: "Recomendar revisión formal"
+
+  validation_rules:
+    numero_carpeta:
+      type: pattern
+      pattern: "^[A-Z0-9-]{6,20}$"
+    fecha_apertura:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    hora_apertura:
+      type: pattern
+      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d$"
+    monto_reclamado:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - pedimento_importacion
+    - licencia_del_operador
+    - informe_final_del_ajustador
+    - reporte_gps
+    - facturas_comerciales_internacionales
+
+  evidence_expectations:
+    - "Narrativa del siniestro alineada con Carta Porte, denuncias y GPS"
+    - "Transportista, operador y vehículo coinciden con documentos logísticos"
+    - "Anexos (facturas, acreditación de propiedad) presentes"
+    - "Fecha y hora de denuncia posteriores al siniestro"
+    - "Firmas y sellos originales"
+
+  red_flags:
+    critical:
+      - clue: "Fiscalía fuera de jurisdicción sin justificación"
+        why: "Sugiere posible simulación"
+      - clue: "Declaración contradictoria"
+        why: "Indica riesgo de fraude"
+    medium:
+      - clue: "Anexos faltantes"
+        why: "Impide validar propiedad"
+      - clue: "Sellos sospechosos"
+        why: "Puede indicar manipulación"
+
+response_template:
+  output_format:
+    documento_analizado: "carpeta_de_investigacion"
+    analisis_completo: |
+      De acuerdo al documento se confirma la ocurrencia en cuestión de la declaración del operador con la documentación proporcionada. Se confirma el robo de la mercancía reclamada por parte del asegurado, así como todos los hechos, como todos los datos que conllevaron al delito objeto de la reclamación a la aseguradora.
+      1) Jurisdicción y autoridad que tomó conocimiento (verificar vigencia del fiscal y competencia territorial).
+      2) Cronología y narrativa del siniestro vs Carta Porte, GPS, denuncias y cartas de reclamación.
+      3) Identificación de transportista, operador, medios de conducción y mercancía (match con documentos logísticos).
+      4) Revisión de anexos (facturas, pedimentos, acreditaciones) y sellos/firmas originales.
+      5) Observaciones de inconsistencias y recomendaciones para seguimiento o escalamiento antifraude.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_documento:
+      numero_carpeta: ""
+      fiscalia: ""
+      agente_mp: ""
+      fecha_apertura: ""
+      hora_apertura: ""
+      paginacion_completa: false
+      sellos_originales: false
+      firmas_presentes: []
+      observaciones: ""
+
+    narrativa_hechos:
+      declaracion_afectado: ""
+      transportista: ""
+      operador: ""
+      medio_conduccion: []
+      lugar: ""
+      modus_operandi: ""
+      monto_reclamado: 0.0
+      coincide_con_documentos: []
+      discrepancias_detectadas: []
+
+    anexos:
+      facturas_presentes: false
+      pedimentos_presentes: false
+      acreditacion_propiedad: false
+      otros_anexos: []
+      observaciones: ""
+
+    jurisdiccion:
+      competencia_territorial: false
+      justificacion_fuera_jurisdiccion: ""
+      fiscal_vigente: false
+      fuente_verificacion: ""
+
+    conclusion_correspondencia:
+      corresponde_con_documentacion: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Verificar competencia territorial de la fiscalía"
+        fuente: "Registro oficial / sitio web de fiscalías"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cotejar narrativa con Carta Porte, GPS y cartas de reclamación"
+        fuente: "Expediente del siniestro"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar autenticidad de sellos y firmas"
+        fuente: "Autoridad emisora / cotejo notarial"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar anexos de acreditación de propiedad"
+        fuente: "Expediente / facturas"
+        prioridad: "media"
+        estado: "pendiente"

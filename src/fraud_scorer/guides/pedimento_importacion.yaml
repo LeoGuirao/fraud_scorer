@@ -1,0 +1,230 @@
+metadata:
+  type: pedimento_importacion
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía avanzada para auditar pedimentos de importación, validar su legalidad fiscal y cruzarlos con evidencias logísticas y comerciales"
+
+definition:
+  nature: "Documento fiscal electrónico emitido por la autoridad aduanera que declara mercancías que ingresan al país"
+  legal_importance: "Alta - Acredita cumplimiento de requisitos de comercio exterior y pago de contribuciones"
+  critical_elements:
+    - numero_pedimento
+    - aduana_numero
+    - aduana_nombre
+    - fecha_pago
+    - agente_aduanal
+    - importador
+    - exportador
+    - fracciones_arancelarias
+    - descripcion_mercancias
+    - cantidad
+    - unidad_medida
+    - peso_neto
+    - peso_bruto
+    - valor_aduana
+    - impuestos_pagados
+    - medio_transporte
+    - pais_origen
+    - pais_destino
+    - fecha_entrada
+    - puerto_ingreso
+    - validacion_qr_url
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad documental: formato oficial, códigos de barras/QR, sellos digitales, número de pedimento completo (aduana + ejercicio + patente + progresivo).
+    2. Confirmar autenticidad mediante validación QR o portal SAT, documentando URL y resultado; comparar datos recuperados con los del documento físico.
+    3. Validar que fecha de pago/entrada sea previa al siniestro y que el pedimento corresponda a la aduana/puerto correcto (listar códigos y cruzar con ruta logística).
+    4. Cruzar mercancías (descripción, fracciones, cantidades, peso, valor aduana) con factura comercial internacional, CFDI Carta Porte y carta porte simple.
+    5. Verificar que importador/razón social coincida con el asegurado o exista cesión/documentación justificativa.
+    6. Revisar impuestos pagados y comprobar evidencia de pago; ausencia de comprobante puede indicar irregularidad.
+    7. Identificar alteraciones (edición PDF, cambios de tipografía, inconsistencias de foliado) o divergencias en sellos digitales.
+    8. Registrar indicadores de riesgo y recomendar acciones de seguimiento (solicitar pedimento original, validaciones adicionales, confirmación con agente aduanal).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: pedimento_no_validado
+        detection: "El QR/portal SAT no reconoce el pedimento o devuelve estatus inválido/cancelado"
+        severity: "critico"
+        evidence_hint: "Capturar resultado del portal y URL de validación"
+        follow_up: "Solicitar pedimento vigente o aclaración formal con agente aduanal"
+      - pattern: pago_no_registrado
+        detection: "No existe evidencia de pago de contribuciones o la fecha de pago es posterior al siniestro"
+        severity: "critico"
+        evidence_hint: "Documentar ausencia de línea de captura o diferencias de fecha"
+        follow_up: "Solicitar comprobante de pago y validar con SAT"
+      - pattern: importador_no_coincide
+        detection: "Nombre del importador distinto al asegurado sin cesión ni contrato"
+        severity: "alto"
+        evidence_hint: "Comparar razón social del pedimento con póliza y factura"
+        follow_up: "Requerir contrato o cesión de derechos"
+      - pattern: fracciones_incorrectas
+        detection: "Fracciones arancelarias no corresponden a mercancía reclamada"
+        severity: "alto"
+        evidence_hint: "Citar fracción declarada vs mercancía"
+        follow_up: "Solicitar dictamen de clasificación arancelaria"
+    medium_risk:
+      - pattern: peso_valor_inconsistente
+        detection: "Peso o valor aduana no coincide con factura/Carta Porte"
+        severity: "medio"
+        evidence_hint: "Comparar cifras exactas con factura o CFDI"
+        follow_up: "Requerir ajustes documentales y explicación"
+      - pattern: datos_transporte_incompletos
+        detection: "Medio de transporte o patente no cumplen con requisitos (faltan números de transporte)"
+        severity: "medio"
+        evidence_hint: "Listar campos faltantes"
+        follow_up: "Solicitar pedimento complementario o documentación adicional"
+      - pattern: fecha_proxima_siniestro
+        detection: "Fecha de entrada muy cercana al siniestro sin evidencia logística"
+        severity: "medio"
+        evidence_hint: "Detallar diferencia de días"
+        follow_up: "Requerir soporte logístico (GPS, peajes)"
+    low_risk:
+      - pattern: errores_formato_menores
+        detection: "Errores ortográficos o abreviaturas en campos secundarios"
+        severity: "bajo"
+        evidence_hint: "Enumerar errores y confirmar que no impactan validez"
+        follow_up: "Recomendar actualización documental"
+
+  validation_rules:
+    numero_pedimento:
+      type: pattern
+      pattern: "^[0-9]{2}-[0-9]{2}-[0-9]{4}-[0-9]{3}-[0-9]{6}$"
+    fecha_pago:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    fecha_entrada:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    peso_bruto:
+      type: range
+      min: 0.01
+    valor_aduana:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+    impuestos_pagados:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+    pais_origen:
+      type: pattern
+      pattern: "^[A-Z]{2}$"
+    pais_destino:
+      type: pattern
+      pattern: "^[A-Z]{2}$"
+
+  cross_reference_documents:
+    - facturas_comerciales_internacionales
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - carta_aclatoria_comprobantes_peaje
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - reportes_gps
+    - comprobante_pago_liquidacion
+
+  evidence_expectations:
+    - "Validación QR/SAT exitosa con captura o URL registrada"
+    - "Fechas de pago y entrada previas al siniestro"
+    - "Importador coincide con asegurado o se documenta cesión"
+    - "Pesos y valores coherentes con factura y Carta Porte"
+    - "Puerto/aduana de ingreso alineado con ruta logística declarada"
+
+  red_flags:
+    critical:
+      - clue: "Pedimento sin timbrado digital ni QR válido"
+        why: "Sugiere documento apócrifo o manipulado"
+      - clue: "Contribuciones cero o no pagadas pese a mercancía gravada"
+        why: "Alto riesgo de falsa importación"
+    medium:
+      - clue: "Aduana declarada no corresponde a ruta de transporte"
+        why: "Indica posible simulación o error material"
+      - clue: "Importador distinto al asegurado sin carta de cesión"
+        why: "Puede invalidar cobertura"
+
+response_template:
+  output_format:
+    documento_analizado: "pedimento_importacion"
+    analisis_completo: |
+      Elaborar 3-5 párrafos técnicos que incluyan:
+      1) Preámbulo con número de pedimento, aduana/puerto, fecha de entrada y nombre del importador (resaltar si difiere del asegurado).
+      2) Resumen de mercancías declaradas (descripción, fracciones, peso, valor) y comparación con documentos soporte.
+      3) Resultado de la validación QR/portal SAT incluyendo URL y mini análisis de consistencia.
+      4) Verificación de fechas de pago/entrada vs siniestro, coincidencia de importador y ruta.
+      5) Indicadores de fraude detectados y recomendaciones (pago, permisos, cross-check con facturas, Carta Porte, GPS).
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    validaciones_qr:
+      url_consulta: ""
+      resultado_portal: ""
+      consistencia_datos: []
+      fecha_validacion: ""
+
+    integridad_documento:
+      formato_oficial: false
+      qr_presente: false
+      sellos_digitales: []
+      alteraciones_detectadas: []
+      observaciones: ""
+
+    datos_comercio_exterior:
+      numero_pedimento: ""
+      aduana_numero: ""
+      aduana_nombre: ""
+      fecha_pago: ""
+      fecha_entrada: ""
+      pais_origen: ""
+      pais_destino: ""
+      agente_aduanal: ""
+      importador: ""
+      exportador: ""
+
+    mercancias:
+      fracciones_arancelarias: []
+      descripcion_mercancias: []
+      cantidad_total: 0.0
+      unidad_medida: ""
+      peso_neto: 0.0
+      peso_bruto: 0.0
+      valor_aduana: 0.0
+      impuestos_pagados: 0.0
+
+    logistica:
+      medio_transporte: ""
+      puerto_ingreso: ""
+      ruta_declarada: []
+      concordancia_ruta_logistica: "pendiente"
+
+    validacion_cruzada:
+      factura_internacional: "pendiente"
+      cfdi_carta_porte: "pendiente"
+      carta_porte_simple: "pendiente"
+      carta_aclaratoria_peaje: "pendiente"
+      gps_bitacoras: "pendiente"
+      observaciones: ""
+
+    validation_tasks:
+      - tarea: "Validar pedimento en portal SAT y guardar evidencia"
+        fuente: "Portal SAT / QR"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar pago de contribuciones y obtener recibos"
+        fuente: "Autoridad aduanera / importador"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cruzar mercancías, pesos y valores con factura y Carta Porte"
+        fuente: "Facturas / CFDI Carta Porte"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar coincidencia de importador con asegurado o cesión legal"
+        fuente: "Póliza / contratos"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Corroborar puerto de ingreso con ruta logística y evidencias"
+        fuente: "Reportes GPS / bitácoras"
+        prioridad: "media"
+        estado: "pendiente"

@@ -1,54 +1,111 @@
 metadata:
   type: facturas_comerciales_internacionales
-  version: "1.0"
+  version: "1.1"
   author: "Sistema Experto HDI"
-  last_updated: "2025-01-15"
-  description: "Guía especializada para el análisis de facturas internacionales ligadas a operaciones de importación/exportación como comprobante de origen y propiedad de mercancía"
+  last_updated: "2025-02-15"
+  description: "Guía reforzada para auditar facturas comerciales internacionales, validar autenticidad fiscal y congruencia logística con el siniestro"
 
 definition:
-  nature: "Documento fiscal internacional que acredita propiedad y origen de mercancías importadas o exportadas"
-  legal_importance: "Alta - Es la evidencia principal de adquisición legítima de mercancías"
+  nature: "Factura comercial emitida por proveedor extranjero que acredita propiedad, valor y condiciones de compraventa internacional de mercancías"
+  legal_importance: "Alta - Sustenta la legítima adquisición de mercancía asegurada y respalda valores reclamados"
   critical_elements:
     - emisor_extranjero
+    - rfc_o_tax_id_emisor
     - nombre_asegurado
+    - direccion_entrega
+    - incoterm
     - descripcion_mercancias
+    - fraccion_arancelaria
     - cantidad_facturada
+    - unidad_medida
+    - valor_unitario
     - valor_factura
     - moneda
+    - tipo_cambio_aplicado
     - fecha_factura
     - numero_factura
     - pedimento_aduanal
     - comprobante_pago
+    - numero_orden_compra
+    - puerto_origen
+    - puerto_destino
+    - condiciones_pago
 
 methodology:
   analysis_approach: |
-    1. Verificar integridad formal de la factura (emisor, número, fecha, divisa, sello o autenticidad).
-    2. Validar que la fecha de emisión sea previa a la fecha del siniestro.
-    3. Revisar que la factura esté emitida a nombre del asegurado (titular de la cobertura).
-    4. Analizar coherencia entre cantidad facturada y cantidad reclamada.
-    5. Confirmar correspondencia entre pedimentos aduanales, comprobantes de pago y la mercancía descrita.
-    6. Identificar discrepancias graves (factura a tercero, reclamación mayor a la mercancía facturada).
-    7. Señalar hallazgos relevantes como excedentes de mercancía que no invalidan la reclamación.
+    1. Validar autenticidad documental: datos fiscales del emisor, número de factura, sellos, timbres o códigos verificación.
+    2. Confirmar que el asegurado figure como comprador/consignatario y que los datos de entrega coincidan con la póliza o carta de reclamación.
+    3. Revisar coherencia temporal entre fecha de factura, fecha de embarque/pedimento y fecha del siniestro.
+    4. Analizar contenido comercial: descripción, fracciones arancelarias, cantidades, unidades, valores unitarios y totales vs. lo reclamado.
+    5. Verificar incoterm, condiciones de pago y tipo de cambio aplicados, contrastándolos con los soportes financieros y aduanales.
+    6. Cotejar la factura con pedimentos, comprobantes de pago, cartas porte y documentos de transporte para asegurar trazabilidad.
+    7. Identificar señales de alteración (enmiendas, diferencias de formato, inconsistencias de moneda, proveedores vetados).
+    8. Registrar acciones de seguimiento (validación con proveedor, confirmación bancaria, revisión de listas negras).
 
   fraud_indicators:
     high_risk:
       - pattern: factura_no_a_nombre_del_asegurado
-        detection: "La factura está emitida a un tercero distinto al asegurado"
+        detection: "La factura está emitida a un tercero sin cesión documentada ni relación contractual con el asegurado"
         severity: "critico"
+        evidence_hint: "Comparar razón social del comprador vs. póliza/CIF y señalar discrepancia"
+        follow_up: "Solicitar carta de cesión o emitir rechazo hasta aclaración legal"
       - pattern: reclamo_mayor_facturado
-        detection: "El monto o la cantidad reclamada excede lo indicado en la factura"
+        detection: "Monto o cantidad reclamada excede lo facturado o incluye mercancía no descrita"
         severity: "critico"
+        evidence_hint: "Presentar tabla comparativa factura vs. reclamación con diferencias"
+        follow_up: "Requerir respaldo adicional o ajustar reclamación al valor documentado"
+      - pattern: pedimento_incompatible
+        detection: "El pedimento asociado no corresponde a la factura (fracciones, valores, cantidades) o está cancelado"
+        severity: "alto"
+        evidence_hint: "Referenciar número de pedimento y detalle inconsistente"
+        follow_up: "Validar en sistema aduanal y solicitar rectificación del agente aduanal"
+      - pattern: proveedor_en_listas_restrictivas
+        detection: "Proveedor aparece en listas negras, OFAC o alertas internas"
+        severity: "alto"
+        evidence_hint: "Citar lista y fecha de verificación"
+        follow_up: "Escalar a compliance y suspender pago hasta dictamen"
+      - pattern: fechas_incongruentes
+        detection: "Factura fechada después del siniestro o posterior a la fecha del pedimento"
+        severity: "alto"
+        evidence_hint: "Calcular diferencia de días entre eventos y documentar"
+        follow_up: "Solicitar aclaración y verificar correcciones aduanales"
+      - pattern: divisa_inconsistente
+        detection: "Moneda declarada en factura difiere de pedimentos o comprobantes de pago sin explicación"
+        severity: "alto"
+        evidence_hint: "Indicar divisas implicadas y montos"
+        follow_up: "Requerir documentación bancaria y contrato comercial"
     medium_risk:
-      - pattern: fecha_posterior_siniestro
-        detection: "La fecha de la factura es posterior a la fecha de ocurrencia del siniestro"
+      - pattern: tipo_cambio_no_soportado
+        detection: "Tipo de cambio no coincide con comprobantes bancarios o fecha oficial"
         severity: "medio"
-      - pattern: pedimento_invalido
-        detection: "El pedimento aduanal o comprobante de pago es inexistente o inválido"
+        evidence_hint: "Comparar tipo de cambio factura vs. DOF/banco"
+        follow_up: "Solicitar comprobante de pago o ajuste contable"
+      - pattern: incoterm_incongruente
+        detection: "Incoterm declarado no coincide con responsabilidades asumidas en póliza o pedimento"
         severity: "medio"
+        evidence_hint: "Describir incoterm y obligación que se contradice"
+        follow_up: "Requerir contrato comercial o carta del agente aduanal"
+      - pattern: versiones_multiple_factura
+        detection: "Existen versiones distintas de la factura sin justificante de corrección"
+        severity: "medio"
+        evidence_hint: "Detallar diferencias entre versiones y fechas de emisión"
+        follow_up: "Solicitar versión certificada y explicación del proveedor"
+      - pattern: discrepancia_unidad_medida
+        detection: "Unidades o medidas difieren respecto a pedimento/carta porte"
+        severity: "medio"
+        evidence_hint: "Enumerar unidades en ambos documentos"
+        follow_up: "Validar conversión y ajuste documental"
     low_risk:
       - pattern: errores_formato_menores
-        detection: "Errores tipográficos o de captura menores que no afectan la validez"
+        detection: "Errores tipográficos o códigos postales incompletos sin impacto material"
         severity: "bajo"
+        evidence_hint: "Listar errores y explicar por qué no afectan la cobertura"
+        follow_up: "Recomendar corrección administrativa"
+      - pattern: datos_bancarios_parciales
+        detection: "Cuenta bancaria del proveedor omitida parcialmente pero comprobable por otros medios"
+        severity: "bajo"
+        evidence_hint: "Indicar datos faltantes y evidencia alternativa"
+        follow_up: "Solicitar complemento para expediente"
 
   validation_rules:
     fecha_factura:
@@ -56,37 +113,73 @@ methodology:
       pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
     numero_factura:
       type: pattern
-      pattern: "^[A-Z0-9-]{3,20}$"
+      pattern: "^[A-Z0-9-]{3,30}$"
     valor_factura:
       type: pattern
       pattern: "^[0-9]+(\\.[0-9]{2})?$"
+    valor_unitario:
+      type: pattern
+      pattern: "^[0-9]+(\\.[0-9]{4})?$"
     moneda:
       type: list
-      values: ["USD", "EUR", "MXN", "JPY", "CNY", "GBP"]
+      values: ["USD", "EUR", "MXN", "JPY", "CNY", "GBP", "CAD", "BRL"]
+    incoterm:
+      type: list
+      values: ["EXW", "FCA", "FOB", "CFR", "CIF", "CPT", "CIP", "DAP", "DPU", "DDP"]
     cantidad_facturada:
       type: range
       min: 1
-      max: 1000000
+    tipo_cambio_aplicado:
+      type: pattern
+      pattern: "^[0-9]+(\\.[0-9]{4})?$"
+    pedimento_aduanal:
+      type: pattern
+      pattern: "^[0-9]{2}\\s?[0-9]{2}\\s?[0-9]{4}\\s?[0-9]{1}\\s?[0-9]{6}$"
+    numero_orden_compra:
+      type: pattern
+      pattern: "^[A-Z0-9-]{4,25}$"
 
   cross_reference_documents:
     - carta_de_reclamacion_formal_a_la_aseguradora
     - denuncia_de_los_hechos
     - poliza_de_la_aseguradora
+    - cfdi_carta_porte
     - pedimentos_aduanales
     - comprobantes_de_pago
+    - manifiesto_de_carga
+    - contratos_de_compra
+    - estados_de_cuenta_bancarios
+
+  evidence_expectations:
+    - "Factura con datos completos del proveedor y comprador, incluyendo incoterm y condiciones de pago"
+    - "Comprobante bancario que confirme monto, fecha y divisa del pago al proveedor"
+    - "Pedimento aduanal y carta porte con cantidades y valores consistentes"
+    - "Tipos de cambio sustentados en DOF o confirmación bancaria"
+    - "Correspondencia entre números de serie o lotes descritos y la mercancía asegurada"
+
+  red_flags:
+    critical:
+      - clue: "Factura emitida después del siniestro o con fecha modificada"
+        why: "Sugiere intento de legitimar mercancía posterior al evento"
+      - clue: "Proveedor listado en alertas de fraude o sin capacidad logística comprobada"
+        why: "Incrementa probabilidad de documentos simulados"
+    medium:
+      - clue: "Incoterm no previsto en póliza o con responsabilidades contradictorias"
+        why: "Puede dejar al asegurado sin obligación sobre mercancía reclamada"
+      - clue: "Valores declarados sin soporte en comprobantes bancarios"
+        why: "Impide corroborar la pérdida económica real"
 
 response_template:
   output_format:
     documento_analizado: "facturas_comerciales_internacionales"
     analisis_completo: |
-      Análisis detallado de la factura internacional considerando:
-      - Legitimidad de la emisión (emisor, asegurado, autenticidad).
-      - Fecha de emisión y coherencia con el siniestro.
-      - Correspondencia entre cantidad reclamada y cantidad facturada.
-      - Revisión de pedimentos y comprobantes de pago.
-      - Hallazgos adicionales relevantes (excedente de mercancía que no invalida el reclamo).
-      [Generar 3-5 párrafos claros, concisos y con enfoque profesional]
-
+      Elaborar 3-5 párrafos técnicos abordando:
+      1) Integridad y autenticidad de la factura (emisor, número, incoterm, sellos, verificaciones externas).
+      2) Coherencia temporal y de valores frente al siniestro, pedimentos y comprobantes de pago.
+      3) Consistencia de cantidades, unidades y mercancías con carta de reclamación, póliza y documentos logísticos.
+      4) Evaluación de condiciones comerciales (incoterm, tipo de cambio, condiciones de pago) y su impacto en la cobertura.
+      5) Indicadores de fraude detectados, evidencia puntual y acciones de seguimiento propuestas.
+      Sustentar cada conclusión con citas de la factura, referencias cruzadas y cálculos cuando aplique.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
@@ -95,36 +188,63 @@ response_template:
     recommendations: []
 
     integridad_documental:
-      numero_factura_valido: true
-      fecha_valida: true
-      autenticidad_comprobada: true
-      errores_formato: []
-
-    coherencia_temporal:
-      fecha_previa_siniestro: true
+      numero_factura_valido: false
+      emisor_verificado: false
+      incoterm_presente: false
+      autenticidad_comprobada: false
+      alteraciones_detectadas: []
+      observaciones: ""
+    temporalidad_y_valores:
+      fecha_previa_siniestro: false
+      brecha_dias: 0
+      tipo_cambio_valido: false
+      moneda_consistente: false
       detalle_temporal: ""
-
-    consistencia_facturacion:
-      nombre_asegurado_correcto: true
-      cantidad_vs_reclamo: "coherente|incoherente"
-      excedente_mercancia: true
-      valor_vs_reclamo: "coherente|incoherente"
-
-    validacion_cruzada:
+    consistencia_comercial:
+      nombre_asegurado_correcto: false
+      direccion_entrega_coincide: false
+      cantidad_vs_reclamo: "pendiente"
+      valor_vs_reclamo: "pendiente"
+      incoterm_apropiado: false
+      observaciones: ""
+    soporte_aduanal_y_financiero:
       pedimento_aduanal: "pendiente"
+      pedimento_coherente: false
       comprobante_pago: "pendiente"
+      pago_confirmado: false
+      contratos_relacionados: []
+      observaciones: ""
+    mercancia_detalle:
+      descripcion: ""
+      fraccion_arancelaria: ""
+      unidades: []
+      lotes_series: []
+      coincidencia_con_carta_porte: false
+      coincidencia_con_poliza: false
+    validacion_cruzada:
       carta_reclamacion: "pendiente"
+      denuncia: "pendiente"
+      poliza: "pendiente"
+      inconsistencias_relevantes: []
 
     validation_tasks:
-      - tarea: "Verificar pedimento aduanal en sistema oficial"
-        fuente: "Sistema SAT / Aduanas"
+      - tarea: "Verificar autenticidad de la factura con el proveedor y validar que no existan versiones posteriores"
+        fuente: "Proveedor / plataformas de verificación"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Confirmar coincidencia de nombre de asegurado en factura"
-        fuente: "Factura comercial"
+      - tarea: "Confirmar que el pedimento asociado refleja las mismas fracciones, valores y cantidades"
+        fuente: "Sistema aduanal / agente aduanal"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Cruzar valor de la mercancía con carta de reclamación"
-        fuente: "Carta de reclamación"
+      - tarea: "Cruzar valor reclamado con comprobantes bancarios y tipo de cambio oficial"
+        fuente: "Estados de cuenta / DOF"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Revisar incoterm y responsabilidades contractuales contra la póliza"
+        fuente: "Contrato de compraventa / póliza"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Validar que cantidades y unidades coincidan con carta porte y manifiesto de carga"
+        fuente: "Documentos logísticos"
         prioridad: "media"
         estado: "pendiente"

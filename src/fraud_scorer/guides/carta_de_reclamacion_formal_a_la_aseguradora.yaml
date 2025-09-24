@@ -1,13 +1,13 @@
 metadata:
   type: carta_de_reclamacion_formal_a_la_aseguradora
-  version: "1.0"
+  version: "1.1"
   author: "Sistema Experto HDI"
-  last_updated: "2025-01-15"
-  description: "Guía especializada para el análisis de cartas de reclamación presentadas por el asegurado ante la aseguradora"
+  last_updated: "2025-02-15"
+  description: "Guía reforzada para auditar cartas formales de reclamación, validar soporte documental y detectar posibles escenarios de fraude"
 
 definition:
-  nature: "Documento formal de notificación de siniestro y reclamación de indemnización"
-  legal_importance: "Alta - Constituye el aviso oficial de reclamación"
+  nature: "Declaración formal mediante la cual el asegurado notifica un siniestro, cuantifica daños y solicita indemnización"
+  legal_importance: "Alta - Es la base documental para activar la cobertura y fijar monto reclamado"
   critical_elements:
     - fecha_carta
     - hora_siniestro
@@ -16,46 +16,73 @@ definition:
     - tipo_siniestro
     - descripcion_sucesos
     - monto_reclamado
+    - numero_poliza
+    - numero_siniestro
     - nombre_asegurado
     - aseguradora_destinataria
+    - datos_contacto
+    - anexos_referenciados
     - firma_asegurado
 
 methodology:
   analysis_approach: |
-    1. Verificar integridad formal del documento (firma, destinatario, sellos).
-    2. Validar coherencia temporal entre fecha de siniestro y fecha de carta.
-    3. Contrastar monto reclamado con tipo de siniestro y daños descritos.
-    4. Revisar consistencia de datos clave (asegurado, póliza, mercancía, montos).
-    5. Identificar lenguaje atípico, generalidades excesivas o falta de precisión.
-    6. Señalar información adicional que pueda ayudar a fortalecer la reclamación o detectar anomalías.
+    1. Revisar integridad formal: membrete, destinatario correcto, folios de referencia, firma autógrafa/digital y relación de anexos.
+    2. Verificar coherencia temporal entre ocurrencia, aviso previo y fecha de reclamación; documentar cualquier demora relevante.
+    3. Contrastar número de póliza, vigencia y cobertura contra la descripción del siniestro y los bienes reclamados.
+    4. Evaluar proporcionalidad del monto reclamado frente a daños descritos, deducibles, límites y franquicias aplicables.
+    5. Confirmar que se referencien y adjunten los soportes críticos (denuncia, CFDI, pedimentos, dictámenes, fotografías).
+    6. Analizar narrativa para identificar ambigüedades, contradicciones internas, lenguaje atípico o justificaciones insuficientes.
+    7. Registrar acciones de seguimiento recomendadas (contacto con asegurado, cotejo con autoridad, dictamen técnico).
 
   fraud_indicators:
     high_risk:
       - pattern: monto_excesivo
-        detection: "Monto reclamado supera cobertura de póliza o es desproporcionado respecto a daños descritos"
+        detection: "Monto reclamado supera la suma asegurada, ignora deducibles o resulta desproporcionado frente a los daños documentados"
         severity: "critico"
+        evidence_hint: "Comparar monto reclamado con suma asegurada y deducibles en póliza; citar cifras concretas"
+        follow_up: "Solicitar valuación independiente o cotizaciones adicionales; validar cobertura con área técnica"
       - pattern: documentos_no_mencionados
-        detection: "No se hace referencia a póliza, pedimento, facturas o soportes críticos"
+        detection: "La carta omite referencias a póliza, denuncia, facturas o pedimentos necesarios para acreditar la pérdida"
         severity: "alto"
-      - pattern: falta_destinatario
-        detection: "Carta no dirigida claramente a la aseguradora"
+        evidence_hint: "Enumerar soportes ausentes y señalar si el asegurado afirma haberlos presentado"
+        follow_up: "Requerir formalmente los anexos faltantes y suspender indemnización hasta su recepción"
+      - pattern: firma_inconsistente
+        detection: "Firma del asegurado difiere de expedientes previos o se identifica copia pegada/escaneada de baja calidad"
         severity: "alto"
+        evidence_hint: "Describir anomalías en la rúbrica (trazo, pixelación, recortes) y comparar con otras firmas disponibles"
+        follow_up: "Solicitar ratificación presencial o certificación notarial de la firma"
+      - pattern: contradiccion_temporal
+        detection: "Fechas/horas declaradas no son congruentes con reportes previos o colocan la reclamación antes del siniestro"
+        severity: "alto"
+        evidence_hint: "Detallar fechas implicadas y explicar la discrepancia (p. ej. carta fechada antes del siniestro)"
+        follow_up: "Cruzar contra denuncia, reporte del ajustador y bitácoras de aviso para descartar manipulación"
     medium_risk:
       - pattern: demora_en_reclamo
-        detection: "La carta se emite meses después del siniestro sin justificación"
+        detection: "La carta se presenta con retraso significativo (>15 días) sin argumentos sólidos"
         severity: "medio"
+        evidence_hint: "Calcular brecha entre fecha del siniestro y fecha de la carta; citar días exactos"
+        follow_up: "Solicitar explicación documentada y validar registros de contacto previos con el asegurado"
       - pattern: descripcion_vaga
-        detection: "Narrativa del siniestro imprecisa o excesivamente general"
+        detection: "Narrativa carece de modo, tiempo, lugar o testigos que permitan corroborar los hechos"
         severity: "medio"
+        evidence_hint: "Resumir elementos faltantes y contrasting con lo que exige la póliza"
+        follow_up: "Requerir ampliación escrita y cotejar con denuncia o inspección"
+      - pattern: soporte_inconsistente
+        detection: "La carta menciona anexos que no se encuentran o describe valores distintos a otros documentos"
+        severity: "medio"
+        evidence_hint: "Listar anexos declarados vs. detectados y señalar divergencias de montos"
+        follow_up: "Solicitar reenvío de soportes y validar con control de expediente"
     low_risk:
       - pattern: errores_formales_menores
-        detection: "Errores tipográficos o datos secundarios incompletos"
+        detection: "Errores ortográficos, formatos incompletos o datos secundarios omitidos sin impacto material"
         severity: "bajo"
+        evidence_hint: "Mencionar errores identificados y confirmar que no afectan cobertura"
+        follow_up: "Recomendar corrección en expediente para mantener trazabilidad"
 
   validation_rules:
     fecha_carta:
       type: pattern
-      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"   # YYYY-MM-DD
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
     fecha_siniestro:
       type: pattern
       pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
@@ -65,6 +92,12 @@ methodology:
     monto_reclamado:
       type: pattern
       pattern: "^[0-9]+(\\.[0-9]{2})?$"
+    numero_poliza:
+      type: pattern
+      pattern: "^[A-Z0-9-]{6,20}$"
+    numero_siniestro:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,20}$"
     nombre_asegurado:
       type: pattern
       pattern: "^.{3,}$"
@@ -73,28 +106,49 @@ methodology:
       pattern: "^.{3,}$"
     tipo_siniestro:
       type: list
-      values: ["robo", "accidente", "incendio", "perdida", "otro"]
+      values: ["robo", "accidente", "incendio", "perdida_total", "perdida_parcial", "otro"]
+    datos_contacto:
+      type: pattern
+      pattern: "^.{5,}$"
 
   cross_reference_documents:
     - poliza_de_la_aseguradora
     - denuncia_de_los_hechos
+    - cfdi_carta_porte
     - facturas_y_pedimentos
     - reportes_policiales
     - fotografias_y_evidencias
+    - dictamen_tecnico_o_ajuste
+
+  evidence_expectations:
+    - "Monto reclamado vs. suma asegurada y deducibles documentados en la póliza"
+    - "Listado de anexos coincidente con los soportes presentes en expediente digital"
+    - "Narrativa del siniestro alineada con la denuncia y reporte del ajustador"
+    - "Firma legible y coincidente con identificaciones válidas del asegurado"
+
+  red_flags:
+    critical:
+      - clue: "Carta fechada antes del siniestro o con alteraciones visibles en la fecha"
+        why: "Indicia manipulación del documento para legitimar un reclamo improcedente"
+      - clue: "Monto reclamado supera límite de cobertura sin documentación de daños"
+        why: "Sugiere intento de obtener pago indebido o siniestralidad inexistente"
+    medium:
+      - clue: "Demora superior a 30 días sin explicación y sin constancia de aviso previo"
+        why: "Puede ocultar fraude organizado o pérdida ocurrida fuera de vigencia"
+      - clue: "Incongruencias en anexos (se mencionan pero no obran en expediente)"
+        why: "Indica armado incompleto del caso o posible ocultamiento de información"
 
 response_template:
   output_format:
     documento_analizado: "carta_de_reclamacion_formal_a_la_aseguradora"
     analisis_completo: |
-      Análisis exhaustivo de la carta de reclamación, abordando:
-      - Integridad documental (firma, destinatario, datos obligatorios).
-      - Coherencia entre fecha de carta y fecha de siniestro.
-      - Consistencia de monto reclamado respecto a los daños y cobertura.
-      - Claridad y precisión de la narrativa de los hechos.
-      - Referencias a documentos de soporte (póliza, facturas, pedimentos).
-      - Señales de posibles inconsistencias o fraude.
-      [Generar 3-5 párrafos con hallazgos específicos y contexto]
-
+      Elaborar 3-5 párrafos profesionales que aborden:
+      1) Integridad documental (destinatario, firma, anexos, coincidencia con póliza).
+      2) Coherencia temporal y justificación de la brecha entre siniestro y reclamación.
+      3) Evaluación económica: proporcionalidad del monto, deducibles, soportes cuantitativos.
+      4) Indicadores de fraude detectados, evidencias citadas y acciones de seguimiento recomendadas.
+      5) Si procede, mitigantes o aclaraciones proporcionadas por el asegurado.
+      Respaldar conclusiones con referencias textuales y cuantitativas del documento y anexos.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
@@ -103,42 +157,54 @@ response_template:
     recommendations: []
 
     integridad_documental:
-      destinatario_correcto: true
-      firma_valida: true
+      destinatario_correcto: false
+      firma_valida: false
       documentos_mencionados: []
+      respaldo_adjuntos: []
       alteraciones_detectadas: []
-
+      observaciones: ""
     coherencia_temporal:
-      carta_posterior_al_siniestro: true
+      carta_posterior_al_siniestro: false
       demora_excesiva: false
+      brecha_dias: 0
       detalle_temporal: ""
-
     consistencia_reclamo:
-      monto_razonable: true
-      cobertura_aplicable: true
+      monto_razonable: false
+      cobertura_aplicable: false
+      deducible_considerado: false
       documentos_soporte: []
-
+      observaciones: ""
     partes_involucradas:
       asegurado: ""
       aseguradora_destinataria: ""
+      numero_poliza: ""
+      numero_siniestro: ""
+      datos_contacto: ""
       testigos_mencionados: []
-
     validacion_cruzada:
       concordancia_poliza: "pendiente"
       consistencia_con_denuncia: "pendiente"
       soportes_documentales: []
+      observaciones: ""
 
     validation_tasks:
-      - tarea: "Confirmar vigencia de la póliza"
+      - tarea: "Confirmar vigencia y cobertura contratada en la póliza indicada"
         fuente: "Sistema interno de pólizas"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Validar monto reclamado contra facturas/pedimentos"
+      - tarea: "Validar monto reclamado contra facturas, pedimentos y deducibles aplicables"
         fuente: "Documentación de respaldo"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Verificar fecha de aviso vs fecha de ocurrencia"
+      - tarea: "Corroborar fecha y hora del siniestro contra denuncia y reporte del ajustador"
         fuente: "Denuncia y reporte de siniestro"
         prioridad: "media"
         estado: "pendiente"
-        
+      - tarea: "Verificar autenticidad de la firma con expediente histórico del asegurado"
+        fuente: "Archivo de suscripción / identificaciones"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Confirmar que los anexos declarados fueron recibidos físicamente o en expediente digital"
+        fuente: "Control documental"
+        prioridad: "media"
+        estado: "pendiente"

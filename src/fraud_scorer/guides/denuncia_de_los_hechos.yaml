@@ -1,125 +1,232 @@
 metadata:
   type: denuncia_de_los_hechos
-  version: "1.0"
+  version: "1.1"
   author: "Sistema Experto HDI"
-  last_updated: "2025-01-14"
-  description: "Guía especializada para análisis de denuncias de hechos (noticia criminal)"
+  last_updated: "2025-02-15"
+  description: "Guía reforzada para auditar denuncias de hechos, validar coherencia jurídica y detectar inconsistencias indicativas de fraude"
 
 definition:
-  nature: "Noticia criminal formal presentada ante autoridad competente"
-  legal_importance: "Alta - Establece narrativa oficial del siniestro"
+  nature: "Denuncia formal presentada ante autoridad competente que documenta la narrativa oficial de los hechos"
+  legal_importance: "Alta - Define la versión oficial ante la autoridad y sustenta la reclamación del siniestro"
   critical_elements:
+    - fecha_denuncia
     - fecha_ocurrencia
     - hora_ocurrencia
     - lugar_hechos
+    - descripcion_hechos
     - nombres_involucrados
-    - narrativa_cronologica
+    - identificaciones_involucrados
+    - bienes_afectados
+    - monto_estimado_danos
     - medio_transporte
     - ruta
     - tipificacion_delito
     - autoridad_receptora
+    - funcionario_receptor
+    - numero_carpeta_investigacion
+    - testimonios_recabados
+    - anexos_presentados
 
 methodology:
   analysis_approach: |
-    1. Integridad y autenticidad documental (paginación, firmas, sellos)
-    2. Coherencia temporal y espacial (fechas/horas/lugares)
-    3. Consistencia de personas y testimonios
-    4. Tipificación y cobertura del modus operandi
-    5. Señales críticas y anomalías
+    1. Verificar integridad documental: paginación, sellos, firmas autógrafas/digitales y datos de identificación de la autoridad.
+    2. Validar coherencia temporal entre fecha/hora de ocurrencia, fecha de denuncia y tiempos declarados en otros documentos.
+    3. Examinar consistencia espacial: jurisdicción competente, ruta declarada y localización exacta de los hechos.
+    4. Analizar narrativa cronológica identificando contradicciones internas o entre declarantes/testigos.
+    5. Revisar correcta tipificación del delito y su correspondencia con la cobertura de la póliza.
+    6. Contrastar personas, bienes afectados y valores con carta de reclamación, CFDI, póliza y soportes anexos.
+    7. Evaluar exhaustividad de la investigación: número de carpeta, funcionarios asignados, diligencias en curso y anexos.
+    8. Detectar señales atípicas (modificaciones, demoras injustificadas, ausencia de pruebas, errores formales graves) y definir acciones de seguimiento.
 
   fraud_indicators:
     high_risk:
       - pattern: paginas_faltantes
-        detection: "Secuencia de páginas con omisiones (e.g., 1,2,3,5,6)"
+        detection: "Secuencia de páginas incompleta o incongruente (e.g., 1,2,3,5)"
         severity: "critico"
-      - pattern: incoherencia_jurisdiccional
-        detection: "Lugar de hechos no corresponde con jurisdicción de la denuncia"
-        severity: "alto"
-      - pattern: tipificacion_incorrecta
-        detection: "Tipificación no corresponde a la narrativa"
-        severity: "alto"
+        evidence_hint: "Documentar numeración y señalar páginas ausentes o duplicadas"
+        follow_up: "Solicitar copia certificada completa a la autoridad o constancia de integridad"
+      - pattern: autoridad_invalida
+        detection: "Autoridad receptora o funcionario no aparece en directorios oficiales o carece de competencia"
+        severity: "critico"
+        evidence_hint: "Comparar sellos/firma con padrones oficiales; anotar discrepancias"
+        follow_up: "Escalar a área jurídica para confirmación y requerir certificación de autoridad"
       - pattern: contradicciones_narrativas
-        detection: "Inconsistencias entre versiones de denunciantes/testigos"
+        detection: "Versiones de denunciantes/testigos difieren en hechos esenciales (tiempos, lugar, modus operandi)"
         severity: "alto"
+        evidence_hint: "Citar fragmentos contradictorios y referenciar nombres involucrados"
+        follow_up: "Programar entrevistas adicionales y cotejar contra otros documentos (carta de reclamación, CFDI)"
+      - pattern: tipificacion_incompatible
+        detection: "Delito tipificado no encuadra con la narrativa o con los bienes afectados"
+        severity: "alto"
+        evidence_hint: "Describir delito asentado y explicar por qué no corresponde a los hechos"
+        follow_up: "Solicitar aclaración a la autoridad o dictamen jurídico"
+      - pattern: demora_denuncia
+        detection: "Transcurren más de 72 horas entre el siniestro y la presentación de la denuncia sin justificación"
+        severity: "alto"
+        evidence_hint: "Calcular días/horas de diferencia entre fecha_ocurrencia y fecha_denuncia"
+        follow_up: "Requerir explicación formal y corroborar registros de aviso previo"
     medium_risk:
       - pattern: modificaciones_visibles
-        detection: "Cambios en tipografía, formato o estructura"
+        detection: "Tachones, ediciones digitales evidentes o tipografías mixtas"
         severity: "medio"
-      - pattern: modus_operandi_atipico
-        detection: "Patrón descrito no usual para la cobertura reportada"
+        evidence_hint: "Señalar páginas y descripción de la modificación observada"
+        follow_up: "Solicitar versión certificada o ratificación ante autoridad"
+      - pattern: testimonios_incompletos
+        detection: "Declaraciones relevantes sin datos de contacto o sin firmas"
         severity: "medio"
+        evidence_hint: "Listar testigos sin identificación completa o sin rúbrica"
+        follow_up: "Gestionar ubicación y comparecencia de testigos"
+      - pattern: anexos_no_identificados
+        detection: "Anexos mencionados en el texto pero no adjuntos"
+        severity: "medio"
+        evidence_hint: "Enumerar anexos faltantes y su relevancia"
+        follow_up: "Solicitar anexos y cotejar con expediente de siniestro"
     low_risk:
-      - pattern: datos_incompletos_menores
-        detection: "Faltan datos no críticos o errores menores"
+      - pattern: datos_formales_incompletos
+        detection: "Campos secundarios sin captura (p. ej., clima, referencias menores)"
         severity: "bajo"
+        evidence_hint: "Indicar campos incompletos y confirmar que no afectan el fondo"
+        follow_up: "Recomendar actualización administrativa"
+      - pattern: lenguaje_tecnico_irregular
+        detection: "Uso de abreviaturas o jerga no estándar pero comprensible"
+        severity: "bajo"
+        evidence_hint: "Citar ejemplos y aclarar que no comprometen comprensión"
+        follow_up: "Documentar glosario interno si se vuelve recurrente"
 
   validation_rules:
-    numeracion_paginas:
+    fecha_denuncia:
       type: pattern
-      pattern: "^((\\d+)(,\\s*\\d+)+)$"
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+    fecha_ocurrencia:
+      type: pattern
+      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+    hora_ocurrencia:
+      type: pattern
+      pattern: "^(?:[01]\\d|2[0-3]):[0-5]\\d$"
+    numero_carpeta_investigacion:
+      type: pattern
+      pattern: "^[A-Z0-9-]{6,25}$"
     tipificacion_delito:
       type: list
-      values: ["robo", "abuso_de_confianza", "asalto", "hurto", "daño", "otro"]
+      values: ["robo", "abuso_de_confianza", "asalto", "hurto", "daño", "extorsion", "fraude", "otro"]
+    autoridad_receptora:
+      type: pattern
+      pattern: "^.{5,}$"
+    funcionario_receptor:
+      type: pattern
+      pattern: "^.{5,}$"
+    monto_estimado_danos:
+      type: pattern
+      pattern: "^[0-9]+(\\.[0-9]{2})?$"
 
   cross_reference_documents:
     - carta_de_reclamacion_formal_a_la_aseguradora
     - poliza_de_la_aseguradora
-    - carpeta_de_investigacion
+    - cfdi_carta_porte
+    - facturas_y_pedimentos
     - reportes_policiales
-    - fotografias_y_evidencias
+    - carpeta_de_investigacion
+    - dictamen_tecnico_o_ajuste
+    - registros_de_gps_o_telemetria
+
+  evidence_expectations:
+    - "Sello y firma del funcionario receptor visibles y congruentes con directorios oficiales"
+    - "Fechas de denuncia y ocurrencia coherentes con aviso a la aseguradora y con reportes logísticos"
+    - "Relación clara de bienes afectados y valores estimados con soporte en anexos"
+    - "Testimonios o partes informativos que respalden la narrativa del siniestro"
+    - "Número de carpeta de investigación activo y diligencias en curso"
+
+  red_flags:
+    critical:
+      - clue: "Denuncia presentada en entidad distinta al lugar del siniestro sin convenio de colaboración"
+        why: "Indica posible simulación o manipulación de competencia territorial"
+      - clue: "Funcionarios o sellos inexistentes según directorio oficial"
+        why: "Sugiere falsificación documental para legitimar reclamación"
+    medium:
+      - clue: "Demora superior a 72 horas sin constancia de impedimento"
+        why: "Reduce credibilidad del siniestro y aumenta riesgo de montaje"
+      - clue: "Narrativa que omite bienes recuperados o acciones posteriores"
+        why: "Dificulta cuantificación real de daños y facilita reclamaciones infladas"
 
 response_template:
   output_format:
     documento_analizado: "denuncia_de_los_hechos"
     analisis_completo: |
-      Análisis exhaustivo del documento donde se describe en formato narrativo detallado:
-      - Integridad documental (paginación, firmas, sellos)
-      - Coherencia temporal y espacial de los hechos narrados
-      - Consistencia entre versiones de testigos y denunciantes
-      - Validación de la tipificación del delito vs narrativa
-      - Análisis del modus operandi y su correspondencia con la cobertura
-      - Identificación de señales críticas de posible fraude
-      - Validaciones pendientes con autoridades externas
-      [Este campo debe contener 3-5 párrafos con análisis profundo y contextualizado]
+      Elaborar 3-5 párrafos detallados que cubran:
+      1) Integridad formal de la denuncia (paginación, sellos, firmas, datos de autoridad).
+      2) Coherencia temporal y espacial entre los hechos y otros documentos del expediente.
+      3) Consistencia de la narrativa, personas involucradas y bienes afectados con la póliza y reclamación.
+      4) Evaluación de la tipificación del delito, cobertura aplicable y diligencias registradas.
+      5) Indicadores de fraude detectados, evidencia específica y acciones de seguimiento sugeridas.
+      Argumentar con citas textuales, fechas y referencias cruzadas a documentos soporte.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
     evidence: []
     recommendations: []
+
     integridad_documental:
-      paginas_completas: true
+      paginas_completas: false
+      sellos_legibles: false
+      firma_funcionario_presente: false
       alteraciones_detectadas: []
-      autenticidad_elementos: ""
-    coherencia_temporal:
-      concordancia_reclamacion: true
-      vigencia_poliza_valida: true
-      secuencia_logica: "coherente|incoherente|parcial"
-    coherencia_espacial:
-      jurisdiccion_coherente: true
-      lugar_hechos_valido: true
-    personas_involucradas:
-      denunciantes_identificados: []
-      testigos_disponibles: []
-      autoridad_investigada: { nombre: "", validacion_interna: "", observaciones: "" }
-    tipificacion_delito:
-      clasificacion_correcta: true
-      cobertura_aplicable: true
-      modus_operandi_cubierto: true
+      observaciones: ""
+    temporalidad_y_jurisdiccion:
+      fecha_denuncia_valida: false
+      brecha_dias: 0
+      justificante_demora: ""
+      jurisdiccion_coherente: false
+      detalle_temporal: ""
+    narrativa:
+      consistencia_cronologica: "pendiente"
+      contradicciones_detectadas: []
+      testigos_clave: []
+      evidencia_aportada: []
+    tipificacion:
+      delito_reportado: ""
+      clasificacion_correcta: false
+      cobertura_aplicable: false
+      modus_operandi: ""
+      observaciones: ""
+    personas_y_bienes:
+      involucrados_identificados: []
+      identificaciones_verificadas: []
+      bienes_afectados: []
+      monto_estimado_danos: 0.0
+      relacion_con_poliza: ""
+      observaciones: ""
+    autoridad:
+      autoridad_receptora: ""
+      funcionario_receptor: ""
+      validacion_directorio: "pendiente"
+      numero_carpeta_investigacion: ""
+      contactabilidad_confirmada: false
+      observaciones: ""
     validacion_cruzada:
-      concordancia_documentos: {}
-      consistencia_narrativa: "consistente|inconsistente|mixta"
-      investigaciones_realizadas: []
-    task_list_investigacion:
-      personas_entrevistar: []
-      verificaciones_pendientes: []
-      documentos_solicitar: []
+      concordancia_con_reclamacion: "pendiente"
+      concordancia_con_cfdi: "pendiente"
+      concordancia_con_poliza: "pendiente"
+      inconsistencias_relevantes: []
+
     validation_tasks:
-      - tarea: "Verificar legitimidad del funcionario receptor"
-        fuente: "Directorio oficial de la fiscalía correspondiente"
+      - tarea: "Confirmar identidad y competencia del funcionario receptor en directorio oficial"
+        fuente: "Directorio de fiscalías / Ministerio Público"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Validar competencia jurisdiccional"
-        fuente: "Tabulador de jurisdicciones del Poder Judicial"
+      - tarea: "Cotejar fechas y horas de la denuncia con reporte de siniestro y aviso a aseguradora"
+        fuente: "Sistema interno de siniestros"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar que la carpeta de investigación esté activa y obtener constancia de diligencias"
+        fuente: "Autoridad investigadora"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Requerir anexos mencionados (fotografías, actas, inventarios) y confrontarlos con bienes reclamados"
+        fuente: "Expediente del siniestro"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Entrevistar o localizar testigos clave para confirmar narrativa"
+        fuente: "Investigación de campo / ajustador"
         prioridad: "media"
         estado: "pendiente"

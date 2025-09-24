@@ -1,0 +1,156 @@
+metadata:
+  type: carta_aclatoria_comprobantes_peaje
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para analizar cartas aclaratorias de comprobantes de peaje y validar su coherencia con la documentación del siniestro"
+
+definition:
+  nature: "Documento emitido por el asegurado o representante para aclarar circunstancias relacionadas con comprobantes de peaje"
+  legal_importance: "Media - Brinda contexto y soporte a la trazabilidad del traslado ante la aseguradora"
+  critical_elements:
+    - fecha_carta
+    - asegurado
+    - transportista
+    - operador
+    - unidad
+    - ruta_manifestada
+    - casetas_involucradas
+    - motivo_aclaracion
+    - evidencia_peajes
+    - firmas
+
+methodology:
+  analysis_approach: |
+    1. Revisar integridad de la carta: fecha, destinatario, firmas y anexos (tickets, bitácoras, capturas).
+    2. Identificar el motivo de la aclaración (extravío, robo, ausencia de tickets) y confirmar que la explicación resuelva la inconsistencia.
+    3. Corroborar casetas y ruta declarada con ticket, Carta Porte, reporte GPS, denuncia y pedimento.
+    4. Verificar datos del transportista, operador y unidad contra Carta Porte y licencias.
+    5. Evaluar la legitimidad de los tickets o evidencia alternativa (facturas, estados de cuenta, bitácoras) y conectar con la narrativa del siniestro.
+    6. Detectar contradicciones (tiempos, ubicaciones diferentes) y recomendar acciones (solicitar más evidencia, entrevistas, cotejo con empresa de autopistas).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: casetas_no_coinciden
+        detection: "Casetas/ubicaciones no coinciden con ruta declarada"
+        severity: "alto"
+        evidence_hint: "Comparar con Carta Porte y GPS"
+        follow_up: "Solicitar aclaración y evidencia adicional"
+      - pattern: motivo_injustificado
+        detection: "Explicación insuficiente para la ausencia de tickets"
+        severity: "alto"
+        evidence_hint: "Resaltar falta de soporte"
+        follow_up: "Requerir documentación o entrevista"
+    medium_risk:
+      - pattern: evidencia_incompleta
+        detection: "Carta menciona tickets pero no los anexa"
+        severity: "medio"
+        evidence_hint: "Listar evidencias faltantes"
+        follow_up: "Solicitar anexos"
+      - pattern: datos_operador_inconsistentes
+        detection: "Operador/unidad difiere de Carta Porte"
+        severity: "medio"
+        evidence_hint: "Comparar datos"
+        follow_up: "Requerir confirmación"
+    low_risk:
+      - pattern: explicacion_general
+        detection: "Narrativa general sin detalles, pero sin contradicciones"
+        severity: "bajo"
+        evidence_hint: "Documentar necesidad de más detalle"
+        follow_up: "Recomendar completar"
+
+  validation_rules:
+    fecha_carta:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    ruta_manifestada:
+      type: pattern
+      pattern: "^.{3,}$"
+
+  cross_reference_documents:
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - reporte_gps
+    - pedimento_importacion
+    - carpeta_de_investigacion
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+
+  evidence_expectations:
+    - "Motivo de la aclaración descrito"
+    - "Lista de casetas y horarios"
+    - "Evidencia de pago o cruce (tickets, facturas, estados de cuenta)"
+    - "Coherencia con ruta declarada"
+    - "Datos del transportista y operador coinciden"
+
+  red_flags:
+    critical:
+      - clue: "Casetas inexistentes o ruta incoherente"
+        why: "Sugiere manipulación"
+      - clue: "Motivo sin soporte"
+        why: "Indica debilidad probatoria"
+    medium:
+      - clue: "Tickets mencionados no anexados"
+        why: "Requiere seguimiento"
+      - clue: "Inconsistencia de operadores"
+        why: "Riesgo de falsedad"
+
+response_template:
+  output_format:
+    documento_analizado: "carta_aclatoria_comprobantes_peaje"
+    analisis_completo: |
+      El asegurado presenta este documento en donde expone el porqué no presentó y/o no cuenta con los tickets de casetas. Información que se coteja con documentación del expediente (Carta Porte, GPS, pedimento, denuncias). El asegurado presenta este documento en donde amplia información relacionada con el tema de los peajes.
+      1) Motivo de la aclaración y documentos citados.
+      2) Casetas, horarios y ruta comparados con GPS y denuncias.
+      3) Datos del transportista, operador y unidad vs Carta Porte.
+      4) Evidencia de peajes (tickets, facturas, estados) y su legitimidad.
+      5) Observaciones y recomendaciones (solicitar más evidencia, entrevistas, confirmación con concesionaria).
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    aclaracion:
+      fecha_carta: ""
+      motivo: ""
+      casetas: []
+      horarios: []
+      ruta_manifestada: []
+      coincide_con_documentos: []
+      observaciones: ""
+
+    participantes:
+      asegurado: ""
+      transportista: ""
+      operador: ""
+      unidad: ""
+      coincide_con_carta_porte: false
+      observaciones: ""
+
+    evidencia_peajes:
+      tickets_adjuntos: []
+      facturas_peaje: []
+      estados_cuenta: []
+      evidencia_alternativa: []
+      legitimidad_confirmada: false
+      observaciones: ""
+
+    conclusion_aclaracion:
+      aclaracion_suficiente: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Cruzar casetas y horarios con GPS/denuncia"
+        fuente: "Reporte GPS / denuncia"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar veracidad de tickets o facturas"
+        fuente: "Concesionaria / facturas"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Confirmar operador y unidad con Carta Porte"
+        fuente: "Carta Porte / licencias"
+        prioridad: "media"
+        estado: "pendiente"

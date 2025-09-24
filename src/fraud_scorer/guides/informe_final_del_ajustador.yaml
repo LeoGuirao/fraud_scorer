@@ -1,0 +1,187 @@
+metadata:
+  type: informe_final_del_ajustador
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar informes finales de ajustador, validar aplicación de coberturas y detectar inconsistencias en recomendaciones de indemnización"
+
+definition:
+  nature: "Informe técnico-administrativo elaborado por el ajustador externo con la postura final sobre la reclamación"
+  legal_importance: "Alta - Fundamenta la recomendación de pago/no pago ante la aseguradora"
+  critical_elements:
+    - numero_siniestro
+    - fecha_informe
+    - ajustador_responsable
+    - descripcion_hechos
+    - cronologia_siniestro
+    - documentos_referenciados
+    - coberturas_aplicadas
+    - exclusiones_aplicadas
+    - deducibles_y_coaseguros
+    - monto_bruto_reclamado
+    - monto_neto_indemnizable
+    - reserva_recomendada
+    - recomendacion_final
+    - comentarios_sobre_cobertura
+
+methodology:
+  analysis_approach: |
+    1. Confirmar integridad del informe: membrete del ajustador, número de siniestro, fecha, firmas y anexos listados.
+    2. Revisar la descripción de hechos y cronología comparándolas con denuncias, cartas de reclamación, Carta Porte y pedimentos; asegurar coherencia de fechas/lugares.
+    3. Validar la aplicación de coberturas y exclusiones contra la póliza, sumas aseguradas, límites, deducibles y franquicias.
+    4. Verificar montos: comparar monto reclamado vs monto indemnizable, deducibles aplicados, reservas propuestas y cálculos de indemnización.
+    5. Evaluar documentos referenciados (facturas, pedimentos, CFDI, reportes) y confirmar que sustenten la recomendación.
+    6. Analizar la recomendación final (pago o rechazo) y detectar contradicciones con evidencia presentada por el asegurado.
+    7. Identificar omitidos relevantes (coberturas no analizadas, pruebas ignoradas) y sugerir validaciones adicionales.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: cobertura_mal_aplicada
+        detection: "Recomendación aplica coberturas o exclusiones que no corresponden a la póliza vigente"
+        severity: "alto"
+        evidence_hint: "Citar cláusula de póliza y análisis del ajustador"
+        follow_up: "Solicitar revisión técnica y dictamen jurídico"
+      - pattern: montos_inconsistentes
+        detection: "Monto neto indemnizable no cuadrado con deducibles/franquicias o excede suma asegurada"
+        severity: "alto"
+        evidence_hint: "Comparar cálculo del informe vs póliza y facturas"
+        follow_up: "Requerir recalculo y documentación de soporte"
+      - pattern: recomendacion_contradictoria
+        detection: "El informe recomienda pago pese a evidencia de exclusión o viceversa"
+        severity: "critico"
+        evidence_hint: "Resaltar evidencia ignorada (denuncia, Carta Porte, GPS)"
+        follow_up: "Elevar a comité de siniestros y solicitar análisis independiente"
+    medium_risk:
+      - pattern: cronologia_inexacta
+        detection: "Fechas de ocurrencia/aviso difieren de documentos soporte"
+        severity: "medio"
+        evidence_hint: "Listar fechas divergentes"
+        follow_up: "Solicitar aclaración al ajustador y cotejar bitácoras"
+      - pattern: falta_referencia_documental
+        detection: "Informe cita documentos que no obran en expediente o no se anexan"
+        severity: "medio"
+        evidence_hint: "Enumerar documentos faltantes"
+        follow_up: "Requerir anexos y verificar autenticidad"
+      - pattern: analisis_ruta_incompleto
+        detection: "No valida lugar/ruta del siniestro con Carta Porte, GPS o peajes"
+        severity: "medio"
+        evidence_hint: "Mencionar ausencia de cotejo logístico"
+        follow_up: "Solicitar validación adicional"
+    low_risk:
+      - pattern: resumen_incompleto
+        detection: "Resumen ejecutivo omite datos secundarios (contactos, tiempos de atención)"
+        severity: "bajo"
+        evidence_hint: "Listar datos faltantes"
+        follow_up: "Recomendar actualización para expediente"
+
+  validation_rules:
+    numero_siniestro:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,}$"
+    fecha_informe:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    monto_neto_indemnizable:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+    reserva_recomendada:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+
+  cross_reference_documents:
+    - poliza_de_la_aseguradora
+    - informe_preliminar_del_ajustador
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - pedimento_importacion
+    - facturas_comerciales_internacionales
+    - reportes_gps
+    - denuncias
+
+  evidence_expectations:
+    - "Citas específicas de póliza que soportan coberturas/exclusiones"
+    - "Cálculo detallado del monto neto indemnizable con deducibles y franquicias"
+    - "Cronología alineada con documentos soporte (denuncia, Carta Porte, GPS)"
+    - "Recomendación de pago/no pago con fundamentos documentales"
+    - "Lista de documentos revisados y estatus de cada uno"
+
+  red_flags:
+    critical:
+      - clue: "Informe recomienda pago sin revisar póliza o documentos críticos"
+        why: "Indica falta de soporte para la decisión y riesgo de pago improcedente"
+      - clue: "Diferencias significativas entre informe preliminar y final sin justificación"
+        why: "Puede ocultar manipulación o presión externa"
+    medium:
+      - clue: "Informe ignora observaciones del ajustador preliminar o investigaciones internas"
+        why: "Reduce calidad del análisis y deja vacíos en cobertura"
+      - clue: "No se ajustan reservas pese a cambios en monto reclamado"
+        why: "Afecta provisiones y control del siniestro"
+
+response_template:
+  output_format:
+    documento_analizado: "informe_final_del_ajustador"
+    analisis_completo: |
+      De acuerdo al informe del ajustador apreciamos la correcta/incorrecta aplicación de coberturas de acuerdo a lo que marca la póliza. Detallar los hallazgos.
+      1) Resumen de fechas clave, cronología y coincidencia con documentos soporte.
+      2) Evaluación de coberturas/exclusiones aplicadas vs póliza, incluyendo deducibles y reservas.
+      3) Validación de montos (bruto vs neto indemnizable) y respaldo documental.
+      4) Revisión de ruta/lugar de hechos contra Carta Porte, GPS, pedimentos y denuncias.
+      5) Recomendación final del ajustador y valoración crítica (pago/no pago) con observaciones.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_informe:
+      numero_siniestro: ""
+      fecha_informe: ""
+      ajustador_responsable: ""
+      documentos_referenciados: []
+      firmas_presentes: []
+      observaciones: ""
+
+    cobertura_y_cuantificacion:
+      coberturas_aplicadas: []
+      exclusiones_aplicadas: []
+      deducibles: 0.0
+      coaseguros: 0.0
+      monto_bruto_reclamado: 0.0
+      monto_neto_indemnizable: 0.0
+      reserva_recomendada: 0.0
+      cobertura_correcta: false
+      observaciones: ""
+
+    consistencia_logistica:
+      descripcion_hechos: ""
+      lugar_hechos: ""
+      ruta: []
+      concordancia_con_documentos: []
+      discrepancias_detectadas: []
+
+    recomendacion_final:
+      postura_ajustador: ""
+      argumentos: []
+      documentos_clave: []
+      coherencia_con_póliza: "pendiente"
+      observaciones: ""
+
+    validation_tasks:
+      - tarea: "Corroborar coberturas aplicadas vs póliza vigente"
+        fuente: "Poliza de la aseguradora"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Verificar cálculos de indemnización y deducibles"
+        fuente: "Informe final / Facturas"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar cronología con denuncia, Carta Porte y GPS"
+        fuente: "Denuncia, Carta Porte, informes GPS"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar que la recomendación final esté sustentada documentalmente"
+        fuente: "Expediente del siniestro"
+        prioridad: "media"
+        estado: "pendiente"

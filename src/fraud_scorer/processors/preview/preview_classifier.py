@@ -446,6 +446,14 @@ IMPORTANTE: El "document_type" debe ser EXACTAMENTE uno de los listados arriba.
             "- CFDI con 'Carta Porte' o secciones/etiquetas de complemento ('Complemento Carta Porte', 'Mercancías', 'Autotransporte', 'Ubicaciones', 'Figura Transporte', 'PermSCT') → 'cfdi_carta_porte' incluso si aparece 'Factura', 'UUID' y sello SAT.",
             "- Si NO hay campos fiscales (UUID, Sello Digital, SAT, CFDI) y hay tablas con códigos/cantidades y firmas/responsables de almacén/transportista/entrega/recibe → 'salida_de_almacen'.",
             "- Si el documento es un relato en primera persona ('yo', 'me', 'declaro', 'narro') con secciones 'Narración de Hechos'/'Declarante' y párrafos de texto continuo → 'narracion_de_hechos'. 'carpeta_de_investigacion' es el conjunto del expediente (folios, acuerdos, oficios), no el relato.",
+            "- Encabezados 'PEDIMENTO', 'Clave', 'Régimen Aduanero', tablas de contribuciones o 'Datos del importador/agente aduanal' → 'pedimento_importacion'; no confundir con facturas (CFDI/commercial invoice) ni con CFDI Carta Porte.",
+            "- Si se lee 'Protocolo de Acción y Reacción', bitácora de monitoreo satelital, horarios y permisos SSP → 'protocolo_de_accion_y_reaccion'; no confundir con reportes GPS o cartas porte.",
+            "- Sellos portuarios, 'Bill of Lading', datos de buque/origen/destino y tablas de bultos/pesos → 'conocimiento_de_embarque'; evita confundirlo con facturas o cartas porte terrestres.",
+            "- Si aparece un 'Contrato de Prestación de Servicios' con obligaciones de transporte, GPS y responsabilidades ante robos → 'contrato_prestacion_servicio_transportista'.",
+            "- Oficios con autorizaciones de despacho aduanero, número de pedimento y entrega al importador → 'oficio_de_desaduanado'; no confundir con pedimento o factura.",
+            "- Escritos titulados 'Oficio' que presentan denuncia y carecen de sellos oficiales → 'oficio_denuncia'; distinguir de 'denuncia_de_los_hechos' que debe tener folio/sello.",
+            "- Cartas justificando ausencia/extravío de tickets de caseta y detallando plazas/horas → 'carta_aclatoria_comprobantes_peaje'; no confundir con facturas o reportes GPS.",
+            "- Formatos de 'carta porte' sin UUID/SAT ni sellos digitales pero con datos de mercancía, operador y ruta → 'carta_porte_simple'; diferenciar del 'cfdi_carta_porte'.",
         ]
         return "\n".join(rules)
 
@@ -456,6 +464,14 @@ IMPORTANTE: El "document_type" debe ser EXACTAMENTE uno de los listados arriba.
         """
         lines = [
             "- Si existe 'Carta Porte' o secciones del complemento → prioriza 'cfdi_carta_porte' sobre 'factura_comercial_cfdi'.",
+            "- Tablas aduaneras con número de pedimento y contribuciones ⇒ prioriza 'pedimento_importacion' sobre 'facturas_comerciales_internacionales' y 'cfdi_carta_porte'.",
+            "- Si aparecen protocolos de seguridad con acciones/reacción y seguimiento de unidad ⇒ prioriza 'protocolo_de_accion_y_reaccion' sobre 'reporte_gps' o 'aviso_de_siniestro_transportista'.",
+            "- Documentos marítimos con datos de buque, agente aduanal y firmas de checador ⇒ prioriza 'conocimiento_de_embarque' frente a facturas o cartas porte.",
+            "- Contratos con cláusulas de seguridad y trazabilidad del viaje ⇒ prioriza 'contrato_prestacion_servicio_transportista' sobre cartas de reclamación o protocolos.",
+            "- Oficios aduanales con pedimento y autorización de despacho ⇒ prioriza 'oficio_de_desaduanado' sobre 'pedimento_importacion' o facturas.",
+            "- Si el escrito es un borrador de denuncia sin sellos oficiales ⇒ prioriza 'oficio_denuncia' sobre 'denuncia_de_los_hechos'.",
+            "- Cartas que justifican falta de tickets de peaje ⇒ prioriza 'carta_aclatoria_comprobantes_peaje' sobre 'reporte_gps' o 'carta_de_reclamacion'.",
+            "- Si la carta porte carece de sellos/UUID/SAT ⇒ prioriza 'carta_porte_simple' sobre 'cfdi_carta_porte'.",
             "- Si NO hay CFDI/UUID/SAT y hay firmas/responsables típicas de almacén → prioriza 'salida_de_almacen' sobre 'guias_y_facturas[_consolidadas]'.",
             "- Si el documento es un relato personal en primera persona → prioriza 'narracion_de_hechos' sobre 'carpeta_de_investigacion'.",
             "- 'guias_y_facturas_consolidadas' requiere explícitamente 'consolidado' o referencias claras a múltiples guías/clientes; si no, no asignar.",

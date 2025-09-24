@@ -1,0 +1,180 @@
+metadata:
+  type: reporte_gps
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para interpretar reportes GPS y validar trazabilidad de embarques en siniestros"
+
+definition:
+  nature: "Bitácora electrónica de monitoreo satelital que registra ubicación, horarios y eventos del transporte"
+  legal_importance: "Media - Evidencia operativa para corroborar narrativas y rutas del siniestro"
+  critical_elements:
+    - numero_siniestro
+    - empresa_monitoreo
+    - nombre_operador
+    - identificacion_unidad
+    - origen_declarado
+    - destino_declarado
+    - ruta_registrada
+    - eventos_clave
+    - horarios
+    - coordenadas
+    - tipo_carretera
+    - fecha_inicio
+    - fecha_fin
+    - validacion_empresa
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del reporte: membrete de la empresa GPS, folio, fechas y datos de la unidad/operador.
+    2. Confirmar que la empresa de monitoreo está legalmente constituida y cuenta con permisos vigentes (consultar registros).
+    3. Analizar ruta registrada: punto de origen, trayecto, tipo de carretera (cuota/federal) y destino final; compararla con Carta Porte, pedimento y plan de ruta.
+    4. Corroborar que el punto exacto del siniestro coincide con declaraciones (denuncia, carta de reclamación, informe de ajustador).
+    5. Revisar cronología (modo, tiempo, lugar): hora de salida, eventos (paradas, abordaje, robo, recuperación).
+    6. Detectar inconsistencias (detenciones prolongadas, desvíos no justificados, pérdida de señal) y corroborar con evidencia adicional (peajes, bitácoras, cartas aclaratorias).
+    7. Registrar indicadores de riesgo y recomendar acciones (solicitar logs completos, validar con SCT, entrevista con operador).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: ruta_no_coincide
+        detection: "Ruta GPS difiere del origen/destino declarados o del punto del siniestro"
+        severity: "alto"
+        evidence_hint: "Destacar coordenadas y tiempos discrepantes"
+        follow_up: "Solicitar explicación formal y validar con Carta Porte/denuncia"
+      - pattern: empresa_no_validada
+        detection: "Empresa de monitoreo no aparece en registros oficiales o carece de permisos"
+        severity: "alto"
+        evidence_hint: "Documentar búsqueda en registros"
+        follow_up: "Requerir constancias y considerar investigación"
+      - pattern: datos_manipulados
+        detection: "Registros presentan ediciones, pérdida de señal injustificada o datos duplicados"
+        severity: "critico"
+        evidence_hint: "Marcar intervalos faltantes o cambios bruscos"
+        follow_up: "Solicitar logs originales y validación técnica"
+    medium_risk:
+      - pattern: tiempos_incongruentes
+        detection: "Horarios de salida/arribo no coinciden con declaración del operador"
+        severity: "medio"
+        evidence_hint: "Comparar con denuncia y Carta Porte"
+        follow_up: "Requerir aclaración del operador"
+      - pattern: tipo_carretera_inaudito
+        detection: "Reporte GPS indica carretera diferente (cuota vs federal) sin soporte"
+        severity: "medio"
+        evidence_hint: "Marcar segmentos discrepantes"
+        follow_up: "Solicitar tickets de peaje y evidencia adicional"
+      - pattern: eventos_no_reportados
+        detection: "Reporte muestra paradas/sucesos no mencionados en declaraciones"
+        severity: "medio"
+        evidence_hint: "Listar eventos omitidos"
+        follow_up: "Investigar motivo y verificar con monitoreo"
+    low_risk:
+      - pattern: huecos_bateria
+        detection: "Pequeños lapsos sin señal atribuibles a batería o cobertura"
+        severity: "bajo"
+        evidence_hint: "Identificar duración y confirmar con proveedor"
+        follow_up: "Solicitar reporte complementario"
+
+  validation_rules:
+    fecha_inicio:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}T?(?:[0-1]\d|2[0-3]):[0-5]\d$"
+    fecha_fin:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}T?(?:[0-1]\d|2[0-3]):[0-5]\d$"
+    coordenadas:
+      type: pattern
+      pattern: "^-?\d{1,3}\.\d+,\s*-?\d{1,3}\.\d+$"
+
+  cross_reference_documents:
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - pedimento_importacion
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - denuncia_de_los_hechos
+    - carta_aclatoria_comprobantes_peaje
+    - informe_final_del_ajustador
+
+  evidence_expectations:
+    - "Registro continuo de coordenadas y horarios"
+    - "Identificación de empresa de monitoreo y permisos"
+    - "Correspondencia de ruta con Carta Porte"
+    - "Concordancia de punto de robo con denuncia"
+    - "Eventos destacados alineados con declaraciones"
+
+  red_flags:
+    critical:
+      - clue: "Ruta divergente sin justificación"
+        why: "Sugiere posible simulación o desvío no autorizado"
+      - clue: "Empresa GPS sin permisos"
+        why: "Riesgo de monitoreo apócrifo"
+    medium:
+      - clue: "Horarios no coinciden con bitácoras"
+        why: "Dificulta reconstrucción del siniestro"
+      - clue: "Segmentos sin señal cerca del siniestro"
+        why: "Posible manipulación"
+
+response_template:
+  output_format:
+    documento_analizado: "reporte_gps"
+    analisis_completo: |
+      Se realizó la interpretación lógica del historial GPS, se confirmó la correspondencia entre la declaración del operador con lo que se muestra en la bitácora. Se realiza la interpretación lógica del monitoreo satelital GPS, donde se confirma que no hay correspondencia con lo declarado con el operador en modo, tiempo y lugar.
+      1) Resumen de ruta: origen, trayecto (cuota/federal) y destino.
+      2) Punto(s) del siniestro vs denuncia y Carta Porte.
+      3) Cronología (salida, eventos, robo, recuperación) y su consistencia.
+      4) Validación de la empresa de monitoreo (permisos, constitución).
+      5) Observaciones finales y recomendaciones.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    ruta_resumen:
+      origen: ""
+      destino: ""
+      tipo_carretera: ""
+      trayecto: []
+      consistencia_con_carta_porte: "pendiente"
+
+    punto_siniestro:
+      coordenadas: ""
+      coincide_con_denuncia: false
+      comentarios: ""
+
+    cronologia:
+      hora_salida: ""
+      eventos:
+        - evento: "salida"
+          fecha_hora: ""
+          descripcion: ""
+      consistencia_con_operador: false
+      discrepancias: []
+
+    validacion_monitoreo:
+      empresa_monitoreo: ""
+      permisos_vigentes: false
+      fuente_validacion: ""
+      evidencia_adjunta: []
+
+    conclusion_correspondencia:
+      corresponde_declaracion: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Confirmar permisos y registro legal de la empresa GPS"
+        fuente: "SCT / registros mercantiles"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cruzar ruta con Carta Porte y pedimento"
+        fuente: "Carta Porte / pedimento"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Comparar cronología con denuncia y declaración del operador"
+        fuente: "Denuncia / entrevistas"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar evidencia de peajes y cartas aclaratorias"
+        fuente: "Carta aclaratoria peaje / tickets"
+        prioridad: "media"
+        estado: "pendiente"

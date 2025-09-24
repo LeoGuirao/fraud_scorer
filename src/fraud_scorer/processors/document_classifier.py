@@ -1,6 +1,6 @@
 """
 Clasificador de documentos para el sistema de organización
-Implementa clasificación híbrida: heurística primero, LLM si necesario
+Implementa clasificación híbrida: LLM primero, heurística como respaldo
 """
 
 from __future__ import annotations
@@ -56,6 +56,14 @@ class DocumentType(Enum):
     PEDIDO_POR_CORREO = "pedido_por_correo"
     REPORTE_COSTOS_RENDIMIENTOS = "reporte_de_costos_y_rendimientos"
     FACTURAS_COMERCIALES_INTERNACIONALES = "facturas_comerciales_internacionales"
+    PEDIMENTO_IMPORTACION = "pedimento_importacion"
+    PROTOCOLO_ACCION_REACCION = "protocolo_de_accion_y_reaccion"
+    CONOCIMIENTO_EMBARQUE = "conocimiento_de_embarque"
+    CONTRATO_PRESTACION_SERVICIO_TRANSPORTISTA = "contrato_prestacion_servicio_transportista"
+    OFICIO_DESADUANADO = "oficio_de_desaduanado"
+    OFICIO_DENUNCIA = "oficio_denuncia"
+    CARTA_ACLARATORIA_PEAJE = "carta_aclatoria_comprobantes_peaje"
+    CARTA_PORTE_SIMPLE = "carta_porte_simple"
     DECLARACION_UNIVERSAL_ACCIDENTE = "declaracion_universal_de_accidente"
     NARRACION_DE_HECHOS = "narracion_de_hechos"
     FICHA_TECNICA_VEHICULO = "ficha_tecnica_de_vehiculo"
@@ -241,20 +249,26 @@ class DocumentClassifier:
             
             DocumentType.CARPETA_INVESTIGACION.value: DocumentTypeDefinition(
                 type_name="carpeta_de_investigacion",
-                keywords=["carpeta de investigación", "carpeta_investigacion", "carpeta investigación", "fgr", "fiscalía", "ministerio público", "querella"],
-                must_have=[],
-                may_have=["investigación", "folio", "acuerdos", "denunciante", "ofendidos", "hechos", "acta"],
-                exclude=[],
-                description="Documento oficial de investigación judicial"
+                keywords=[
+                    "carpeta de investigación", "carpeta_investigacion", "carpeta investigación", "n.u.c", "nuc",
+                    "fiscalía", "ministerio público", "actas", "diligencias", "acuerdos"
+                ],
+                must_have=["carpeta", "investigacion"],
+                may_have=["averiguación", "nuc", "folio", "oficio", "peritajes", "policía"],
+                exclude=["oficio de denuncia", "narración de hechos", "formato de denuncia"],
+                description="Expediente formal del Ministerio Público (folios, acuerdos, diligencias, sellos) que integra la investigación penal del siniestro"
             ),
             
             DocumentType.ACREDITACION_PROPIEDAD.value: DocumentTypeDefinition(
                 type_name="acreditacion_de_propiedad_y_representacion",
-                keywords=["acreditación", "propiedad", "representación legal", "poder notarial"],
+                keywords=[
+                    "acreditación", "propiedad", "representación legal", "poder notarial", "acta constitutiva",
+                    "cesión", "mandato", "apoderado"
+                ],
                 must_have=["acreditación"],
-                may_have=["poderes", "identificaciones", "constancias", "facturas", "guías"],
-                exclude=[],
-                description="Documentos que acreditan propiedad y representación legal"
+                may_have=["poder", "notario", "factura", "constancia", "cedula", "representante legal"],
+                exclude=["denuncia", "carpeta", "narración"],
+                description="Paquete documental (poderes notariales, actas, facturas) que acredita propiedad de la mercancía y representación legal ante la aseguradora"
             ),
 
             # Denuncia de los hechos (noticia criminal)
@@ -267,8 +281,8 @@ class DocumentClassifier:
                 ],
                 must_have=["denuncia"],
                 may_have=["folio", "fecha", "hora", "lugar", "narrativa", "testimonios", "autoridad receptora"],
-                exclude=["póliza", "poliza", "factura", "cfdi", "informe preliminar", "informe final"],
-                description="Denuncia de los hechos presentada ante autoridad competente"
+                exclude=["oficio", "plantilla", "póliza", "factura", "cfdi", "informe preliminar", "informe final"],
+                description="Acta ministerial con sello y folio donde la autoridad recibe formalmente la denuncia de los hechos y abre la noticia criminal"
             ),
             
             DocumentType.SALIDA_DE_ALMACEN.value: DocumentTypeDefinition(
@@ -381,10 +395,10 @@ class DocumentClassifier:
                     "mercancias", "mercancías", "ubicaciones", "figura transporte", "permsct",
                     "remolques", "transpinternac"
                 ],
-                must_have=["carta porte"],
+                must_have=["carta porte", "cfdi"],
                 may_have=["origen", "destino", "material", "peso", "folio", "serie"],
-                exclude=["informe", "póliza"],
-                description="CFDI con complemento Carta Porte para acreditar traslado de mercancías"
+                exclude=["informe", "póliza", "carta porte simple"],
+                description="Comprobante fiscal digital (CFDI) con complemento Carta Porte timbrado por el SAT para acreditar formalmente el traslado de mercancías ante la autoridad, con UUID, sellos digitales y obligaciones fiscales"
             ),
             DocumentType.CONSTANCIA_IMSS_OPERADOR.value: DocumentTypeDefinition(
                 type_name="constancia_imss_del_operador",
@@ -426,6 +440,126 @@ class DocumentClassifier:
                 exclude=["cfdi", "sat", "carta porte"],
                 description="Facturas de proveedores extranjeros ligadas a import/export"
             ),
+            DocumentType.PEDIMENTO_IMPORTACION.value: DocumentTypeDefinition(
+                type_name="pedimento_importacion",
+                keywords=[
+                    "pedimento", "aduana", "clave pedimento", "régimen aduanero", "importador",
+                    "agente aduanal", "shcp", "aduanal", "valor aduana", "impuestos"
+                ],
+                must_have=["pedimento"],
+                may_have=[
+                    "régimen", "aduana sección", "clave", "contribuciones", "iva", "doda",
+                    "fracción arancelaria", "hoja de cálculo", "importe", "descarga"
+                ],
+                exclude=["cfdi", "factura", "complemento carta porte", "carta porte"],
+                description="Documento oficial emitido por la autoridad aduanera mexicana que ampara la entrada de mercancías al país. Contiene número de pedimento, régimen aduanero, datos del importador y agente aduanal, fracciones arancelarias, descripción y cantidad de mercancías, valores aduanales, impuestos y contribuciones pagadas. Se distingue porque es un comprobante aduanal obligatorio en operaciones de comercio exterior, no una factura comercial ni una carta porte."
+            ),
+            DocumentType.PROTOCOLO_ACCION_REACCION.value: DocumentTypeDefinition(
+                type_name="protocolo_de_accion_y_reaccion",
+                keywords=[
+                    "protocolo de acción", "protocolo de accion", "acción y reacción", "accion y reaccion",
+                    "monitoreo satelital", "empresa de seguridad", "bitácora", "seguimiento de unidad",
+                    "permiso ssp", "secretaría de seguridad pública", "operador", "evento de robo"
+                ],
+                must_have=["protocolo"],
+                may_have=[
+                    "seguimiento", "horarios", "monitoreo", "permiso", "ssp", "operador",
+                    "ruta", "unidad", "medidas", "reacción", "acciones ejecutadas"
+                ],
+                exclude=["cfdi", "factura", "pedimento", "carta porte"],
+                description="Documento emitido por la empresa de seguridad o monitoreo satelital donde se establecen las actuaciones y protocolos a seguir ante un evento de robo. Contiene horarios y seguimiento detallado de la unidad, nombre del operador, permisos vigentes ante la Secretaría de Seguridad Pública y todas las medidas ejecutadas por la empresa que brindó el servicio. La información debe ser consistente con lo manifestado por el asegurado en la documentación del siniestro."
+            ),
+            DocumentType.CONOCIMIENTO_EMBARQUE.value: DocumentTypeDefinition(
+                type_name="conocimiento_de_embarque",
+                keywords=[
+                    "conocimiento de embarque", "bill of lading", "bl", "puerto", "buque",
+                    "embarque", "agente aduanal", "transportista", "checador", "bultos",
+                    "peso bruto", "peso neto", "dimensiones", "manifiesto", "muelle"
+                ],
+                must_have=["embarque"],
+                may_have=[
+                    "buque", "origen", "destino", "peso", "bultos", "firma", "chequeo",
+                    "agente", "operador", "vehículo", "vehiculo", "contenedor"
+                ],
+                exclude=["factura", "cfdi", "carta porte", "pedimento"],
+                description="Documento portuario que certifica la recepción y embarque de mercancías en un buque. Incluye datos del agente aduanal, transportista, operador y vehículo, así como la identificación del buque, origen y destino. Detalla la descripción de la carga (dimensiones, piezas, peso neto y bruto) y total de bultos, con firmas de verificación de checador, agente y transportista. Se distingue porque es un comprobante de embarque marítimo/portuario, no una factura, carta porte o guía de transporte terrestre."
+            ),
+            DocumentType.CONTRATO_PRESTACION_SERVICIO_TRANSPORTISTA.value: DocumentTypeDefinition(
+                type_name="contrato_prestacion_servicio_transportista",
+                keywords=[
+                    "contrato", "prestación de servicios", "prestacion de servicios", "transportista",
+                    "traslado de mercancías", "traslado de mercancias", "monitoreo satelital", "gps",
+                    "obligaciones", "seguridad", "responsabilidad", "trazabilidad", "cláusulas", "clausulas",
+                    "cobertura", "asegurado"
+                ],
+                must_have=["contrato"],
+                may_have=[
+                    "transporte", "mercancías", "mercancias", "viaje", "obligaciones", "seguro",
+                    "monitoreo", "gps", "responsabilidad", "daños", "perdidas", "robos", "convenio"
+                ],
+                exclude=["factura", "pedido", "carta porte", "cfdi"],
+                description="Documento legal que avala la relación comercial entre el asegurado y el transportista elegido para el traslado de mercancías. Establece condiciones, cláusulas, acuerdos y convenios sobre la trazabilidad del viaje, obligaciones de seguridad y cobertura del seguro, uso de monitoreo satelital GPS y responsabilidad del transportista ante daños, pérdidas o robos."
+            ),
+            DocumentType.OFICIO_DESADUANADO.value: DocumentTypeDefinition(
+                type_name="oficio_de_desaduanado",
+                keywords=[
+                    "oficio", "desaduanado", "despacho aduanero", "aduana", "autorización",
+                    "legal ingreso", "autoridad aduanera", "entrega", "importador", "exportador",
+                    "pedimento", "país de origen", "pais de origen"
+                ],
+                must_have=["oficio"],
+                may_have=[
+                    "pedimento", "fecha", "agente aduanal", "mercancía", "mercancia", "cantidad",
+                    "origen", "destino", "autorización", "despacho"
+                ],
+                exclude=["factura", "carta porte", "cfdi", "conocimiento de embarque"],
+                description="Documento oficial emitido por la autoridad aduanera mediante el cual se acredita el legal ingreso de las mercancías al país y su entrega al importador correspondiente. Incluye número y fecha del pedimento, datos del agente aduanal, descripción y cantidad de la mercancía, país de origen, importador y exportador, así como autorización expresa para el despacho aduanero."
+            ),
+            DocumentType.OFICIO_DENUNCIA.value: DocumentTypeDefinition(
+                type_name="oficio_denuncia",
+                keywords=[
+                    "oficio", "denuncia", "representante legal", "autoridad", "modo", "tiempo",
+                    "lugar", "involucrados", "narrativa jurídica", "presento denuncia", "escrito",
+                    "plantilla", "previa", "siniestro", "asegurado", "señor agente", "c.c." 
+                ],
+                must_have=["oficio", "denuncia"],
+                may_have=[
+                    "representante", "legal", "asegurado", "narrativa", "hechos", "autoridad competente",
+                    "investigación", "investigacion", "ministerio público", "mp", "acuse", "sello"
+                ],
+                exclude=["carpeta de investigación", "acta circunstanciada"],
+                description="Escrito previo preparado por el asegurado o su representante para presentar la denuncia ante la autoridad antes de obtener folio oficial; resume tiempo, modo y lugar para iniciar la carpeta de investigación"
+            ),
+            DocumentType.CARTA_ACLARATORIA_PEAJE.value: DocumentTypeDefinition(
+                type_name="carta_aclatoria_comprobantes_peaje",
+                keywords=[
+                    "carta", "aclaratoria", "comprobantes de peaje", "tickets de caseta", "peaje",
+                    "extravío", "robo", "ausencia", "plazas de cobro", "fechas", "horas",
+                    "ruta", "unidad", "traslado", "mercancías", "justificar"
+                ],
+                must_have=["carta", "peaje"],
+                may_have=[
+                    "comprobantes", "caseta", "boletos", "plaza", "cobro", "fecha", "hora",
+                    "ruta", "unidad", "siniestro", "aseguradora"
+                ],
+                exclude=["factura", "carta porte", "cfdi", "pedimento"],
+                description="Documento emitido por el asegurado o su representante para aclarar una situación relacionada con los comprobantes de peaje utilizados durante el traslado de mercancías. Puede exponer el extravío, robo o ausencia de tickets de caseta y detallar las plazas de cobro, fechas y horas correspondientes. Su objetivo es justificar ante la aseguradora la falta de comprobantes físicos y brindar trazabilidad sobre la ruta seguida por la unidad."
+            ),
+            DocumentType.CARTA_PORTE_SIMPLE.value: DocumentTypeDefinition(
+                type_name="carta_porte_simple",
+                keywords=[
+                    "carta porte", "simple", "remitente", "destinatario", "mercancía", "peso",
+                    "volumen", "placas", "vehículo", "características", "operador", "permiso sct",
+                    "ruta", "origen", "destino", "formato administrativo"
+                ],
+                must_have=["carta", "porte"],
+                may_have=[
+                    "remitente", "destinatario", "mercancía", "peso", "volumen", "placas",
+                    "características", "operador", "permiso", "ruta", "sct", "contrato"
+                ],
+                exclude=["uuid", "sat", "sello digital", "complemento", "timbrado"],
+                description="Documento interno emitido por empresas transportistas para amparar el traslado de mercancías sin timbrado fiscal; funciona como un formato administrativo o contractual y contiene datos del remitente y destinatario, descripción de la mercancía, peso y volumen, identificación del vehículo (placas, características), datos del operador, permisos SCT y ruta de origen y destino; se distingue de cfdi_carta_porte porque la carta porte simple carece de timbrado SAT, UUID y sellos digitales, siendo únicamente evidencia logística y operativa dentro de la empresa, mientras que el cfdi_carta_porte es un comprobante fiscal digital con complemento timbrado por el SAT que acredita formalmente el traslado ante la autoridad con validez fiscal y obligaciones tributarias."
+            ),
             DocumentType.DECLARACION_UNIVERSAL_ACCIDENTE.value: DocumentTypeDefinition(
                 type_name="declaracion_universal_de_accidente",
                 keywords=["declaración universal de accidente", "dua", "aseguradora", "croquis", "firma", "ajustador", "conductor"],
@@ -436,11 +570,11 @@ class DocumentClassifier:
             ),
             DocumentType.NARRACION_DE_HECHOS.value: DocumentTypeDefinition(
                 type_name="narracion_de_hechos",
-                keywords=["narración de hechos", "narracion de hechos", "relato", "declarante", "declaración", "hechos", "siniestro"],
-                must_have=[],
-                may_have=["ruta", "circunstancias", "modo", "fecha"],
-                exclude=["informe", "póliza", "cfdi"],
-                description="Narración testimonial en voz del afectado/testigo sobre el evento"
+                keywords=["narración de hechos", "narracion de hechos", "relato", "declarante", "declaración", "de puño y letra", "yo declaro"],
+                must_have=["narracion"],
+                may_have=["relato", "circunstancias", "fecha", "modo", "lugar"],
+                exclude=["carpeta de investigación", "oficio", "denuncia final"],
+                description="Relato en primera persona (afectado/testigo) previo a la autoridad, sin sellos ni folios oficiales"
             ),
             DocumentType.FICHA_TECNICA_VEHICULO.value: DocumentTypeDefinition(
                 type_name="ficha_tecnica_de_vehiculo",
@@ -469,35 +603,50 @@ class DocumentClassifier:
         use_llm_fallback: bool = True
     ) -> Tuple[str, float, List[str]]:
         """
-        Clasifica un documento
-        
+        Clasifica un documento intentando primero con LLM (si está disponible)
+        y utilizando heurísticas como respaldo.
+
         Returns:
             - document_type: Tipo de documento identificado
             - confidence: Nivel de confianza (0.0 - 1.0)
             - reasons: Lista de razones para la clasificación
         """
-        # Unificar con el engine: LLM-first (sin visión); fallback a heurística en error
-        if self._engine is not None and use_llm_fallback:
-            try:
-                # Gobernar 'use_vision' desde settings (pipeline)
-                try:
-                    from fraud_scorer.settings import CLASSIFICATION_ENGINE
-                    use_vis = bool(CLASSIFICATION_ENGINE.get("use_vision", False))
-                except Exception:
-                    use_vis = False
 
-                doc_type, confidence, reasons = await self._engine.classify(
-                    sample_text=sample_text[:1500],
-                    filename=filename,
-                    document_path=None,     # El pipeline no pasa rutas aquí; visión usa OCR solo si se inyecta ruta más adelante
-                    use_llm=True,
-                    use_vision=use_vis,
-                )
-            except Exception as e:
-                logger.warning(f"Engine LLM falló, usando heurística: {e}")
-                doc_type, confidence, reasons = self._heuristic_classify(sample_text, filename)
-        else:
-            # Cuando no se desea LLM (use_llm_fallback=False) o engine no disponible
+        doc_type: str = DocumentType.OTRO.value
+        confidence: float = 0.0
+        reasons: List[str] = []
+        classified_with_llm = False
+
+        # 1) Intento con motor LLM si está habilitado
+        if use_llm_fallback:
+            if self._engine is not None:
+                try:
+                    # Visión opcional controlada por settings (off por defecto en pipeline)
+                    try:
+                        from fraud_scorer.settings import CLASSIFICATION_ENGINE
+                        use_vis = bool(CLASSIFICATION_ENGINE.get("use_vision", False))
+                    except Exception:
+                        use_vis = False
+
+                    doc_type, confidence, reasons = await self._engine.classify(
+                        sample_text=sample_text[:1500],
+                        filename=filename,
+                        document_path=None,
+                        use_llm=True,
+                        use_vision=use_vis,
+                    )
+                    classified_with_llm = True
+                except Exception as e:
+                    logger.warning(f"Engine LLM falló, se intentará heurística: {e}")
+            else:
+                try:
+                    doc_type, confidence, reasons = await self._llm_classify(sample_text[:1500], filename)
+                    classified_with_llm = True
+                except Exception as e:
+                    logger.warning(f"LLM directo falló, se usará heurística: {e}")
+
+        # 2) Fallback heurístico (o camino directo si LLM no está habilitado)
+        if not classified_with_llm:
             doc_type, confidence, reasons = self._heuristic_classify(sample_text, filename)
 
         # Enriquecimiento: destinatario si aplica
@@ -745,15 +894,23 @@ Responde SOLO con JSON válido:
             DocumentType.IDENTIFICACION_OFICIAL.value: 19,
             DocumentType.COMPROBANTE_DOMICILIO.value: 20,
             DocumentType.CFDI_CARTA_PORTE.value: 21,
-            DocumentType.FACTURA_COMERCIAL_CFDI.value: 22,
-            DocumentType.FACTURAS_COMERCIALES_INTERNACIONALES.value: 23,
-            DocumentType.PEDIDO_POR_CORREO.value: 24,
-            DocumentType.CONSTANCIA_IMSS_OPERADOR.value: 25,
-            DocumentType.DECLARACION_UNIVERSAL_ACCIDENTE.value: 26,
-            DocumentType.REPORTE_COSTOS_RENDIMIENTOS.value: 27,
-            DocumentType.FICHA_TECNICA_VEHICULO.value: 28,
-            DocumentType.DETERMINACION_DE_PERDIDA.value: 29,
-            DocumentType.NARRACION_DE_HECHOS.value: 30,
+            DocumentType.PEDIMENTO_IMPORTACION.value: 22,
+            DocumentType.CONOCIMIENTO_EMBARQUE.value: 23,
+            DocumentType.CONTRATO_PRESTACION_SERVICIO_TRANSPORTISTA.value: 24,
+            DocumentType.OFICIO_DESADUANADO.value: 25,
+            DocumentType.OFICIO_DENUNCIA.value: 26,
+            DocumentType.CARTA_ACLARATORIA_PEAJE.value: 27,
+            DocumentType.CARTA_PORTE_SIMPLE.value: 28,
+            DocumentType.PROTOCOLO_ACCION_REACCION.value: 29,
+            DocumentType.FACTURA_COMERCIAL_CFDI.value: 30,
+            DocumentType.FACTURAS_COMERCIALES_INTERNACIONALES.value: 31,
+            DocumentType.PEDIDO_POR_CORREO.value: 32,
+            DocumentType.CONSTANCIA_IMSS_OPERADOR.value: 33,
+            DocumentType.DECLARACION_UNIVERSAL_ACCIDENTE.value: 34,
+            DocumentType.REPORTE_COSTOS_RENDIMIENTOS.value: 35,
+            DocumentType.FICHA_TECNICA_VEHICULO.value: 36,
+            DocumentType.DETERMINACION_DE_PERDIDA.value: 37,
+            DocumentType.NARRACION_DE_HECHOS.value: 38,
             DocumentType.OTRO.value: 99
         }
         

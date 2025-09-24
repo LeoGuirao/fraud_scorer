@@ -1,0 +1,184 @@
+metadata:
+  type: oficio_de_desaduanado
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar oficios de desaduanado y validar el ingreso legal de mercancías"
+
+definition:
+  nature: "Documento emitido por autoridad aduanera que acredita el legal ingreso de mercancías y su entrega al importador"
+  legal_importance: "Alta - Sustenta cumplimiento de comercio exterior y legalidad de la mercancía asegurada"
+  critical_elements:
+    - numero_oficio
+    - fecha_emision
+    - hora_emision
+    - numero_pedimento
+    - agente_aduanal
+    - importador
+    - exportador
+    - pais_origen
+    - descripcion_mercancia
+    - especificaciones_mercancia
+    - cantidad
+    - peso
+    - valor_aduana
+    - condiciones_ingreso
+    - sellos_firmas
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del oficio: folio, fecha/hora, sellos originales y firma de la autoridad.
+    2. Confirmar que la fecha y hora sean previas al siniestro y coherentes con cronología del embarque.
+    3. Validar número de pedimento y cruzarlo con el pedimento de importación (valores, mercancía, agente aduanal).
+    4. Corroborar que el importador coincida con el asegurado o exista documentación de cesión; validar exportador y realizar verificación rápida (si aplica).
+    5. Revisar mercancía (descripción, peso, valor) y contrastarla con factura comercial internacional, CFDI Carta Porte y documentación logística.
+    6. Confirmar país de origen y condiciones de ingreso; asegurarse de que coincidan con lo declarado en pedimento y cartas de reclamación.
+    7. Identificar alteraciones y registrar hallazgos o recomendaciones (solicitar copia certificada, documentación adicional).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: fecha_posterior_siniestro
+        detection: "Oficio fechado después del siniestro"
+        severity: "critico"
+        evidence_hint: "Comparar fechas"
+        follow_up: "Solicitar aclaración a la autoridad"
+      - pattern: importador_no_coincide
+        detection: "Importador distinto al asegurado"
+        severity: "alto"
+        evidence_hint: "Comparar con póliza y pedimento"
+        follow_up: "Requerir contrato de cesión"
+      - pattern: pedimento_no_corresponde
+        detection: "Número de pedimento no coincide con documentación"
+        severity: "alto"
+        evidence_hint: "Resaltar discrepancias"
+        follow_up: "Solicitar pedimento correcto"
+    medium_risk:
+      - pattern: exportador_no_verificado
+        detection: "Exportador sin confirmación pública"
+        severity: "medio"
+        evidence_hint: "Registrar búsqueda"
+        follow_up: "Solicitar documentación adicional"
+      - pattern: datos_mercancia_incompletos
+        detection: "No incluye especificaciones de mercancía"
+        severity: "medio"
+        evidence_hint: "Enumerar campos faltantes"
+        follow_up: "Solicitar oficio complementario"
+      - pattern: condiciones_ingreso_vagas
+        detection: "Condiciones de ingreso no detalladas"
+        severity: "medio"
+        evidence_hint: "Citar secciones"
+        follow_up: "Recomendar aclaración"
+    low_risk:
+      - pattern: sellos_digitalizados
+        detection: "Sello escaneado pero legible"
+        severity: "bajo"
+        evidence_hint: "Describir evidencia"
+        follow_up: "Sugerir certificación"
+
+  validation_rules:
+    numero_oficio:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,20}$"
+    fecha_emision:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    hora_emision:
+      type: pattern
+      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d$"
+    numero_pedimento:
+      type: pattern
+      pattern: "^[0-9]{2}-[0-9]{2}-[0-9]{4}-[0-9]{3}-[0-9]{6}$"
+
+  cross_reference_documents:
+    - pedimento_importacion
+    - facturas_comerciales_internacionales
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+    - carpeta_de_investigacion
+
+  evidence_expectations:
+    - "Fechas y horas previas al siniestro"
+    - "Importador coincide con asegurado"
+    - "Pedimento corroborado"
+    - "Mercancía y valor alineados con facturas/pedimento"
+    - "País de origen y exportador verificados"
+
+  red_flags:
+    critical:
+      - clue: "Oficio fechado posterior al siniestro"
+        why: "Sugiere documentación armada"
+      - clue: "Importador distinto sin justificación"
+        why: "Impide acreditar propiedad"
+    medium:
+      - clue: "Número de pedimento no coincide"
+        why: "Genera dudas sobre ingreso"
+      - clue: "Exportador no verificable"
+        why: "Riesgo de falsificación"
+
+response_template:
+  output_format:
+    documento_analizado: "oficio_de_desaduanado"
+    analisis_completo: |
+      Se confirmó la información que se cuenta en la diversa documentación presentada en la declaración. Se confirma el origen y el importador y el exportador, y sus condiciones de ingreso al país. Se reporta:
+      1) Fecha/hora y autoridad emisora vs siniestro.
+      2) Pedimento, mercancía y valor cruzados con factura y Carta Porte.
+      3) Importador y exportador (verificación web si aplica) y país de origen.
+      4) Observaciones de condiciones de ingreso y sellos.
+      5) Recomendaciones o aclaraciones adicionales.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    legal_ingreso:
+      numero_oficio: ""
+      fecha_emision: ""
+      hora_emision: ""
+      autoridad_aduanera: ""
+      sellos_firmas_validos: false
+      observaciones: ""
+
+    pedimento:
+      numero_pedimento: ""
+      coincide_con_pedimento: false
+      detalles: ""
+
+    actores_comerciales:
+      importador: ""
+      exportador: ""
+      pais_origen: ""
+      importador_coincide_asegurado: false
+      exportador_verificado: false
+      observaciones: ""
+
+    mercancia:
+      descripcion: ""
+      especificaciones: []
+      cantidad: 0.0
+      peso: 0.0
+      valor_aduana: 0.0
+      coincide_factura: false
+      coincide_carta_porte: false
+      observaciones: ""
+
+    conclusion_ingreso:
+      ingreso_confirmado: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Cotejar pedimento y valores"
+        fuente: "Pedimento de importación"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Validar exportador/importador en registros públicos"
+        fuente: "Portales oficiales / web"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Confirmar mercancía vs factura e invoice"
+        fuente: "Facturas / invoice"
+        prioridad: "media"
+        estado: "pendiente"

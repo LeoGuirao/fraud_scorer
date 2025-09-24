@@ -1,0 +1,183 @@
+metadata:
+  type: contrato_prestacion_servicio_transportista
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar contratos de prestación de servicios de transporte y validar responsabilidades"
+
+definition:
+  nature: "Contrato comercial entre asegurado y transportista que regula el traslado de mercancías"
+  legal_importance: "Alta - Acredita relación contractual y obligaciones del transportista para subrogación"
+  critical_elements:
+    - numero_contrato
+    - fecha_firma
+    - asegurado
+    - transportista
+    - representante_asegurado
+    - representante_transportista
+    - objeto_contrato
+    - clausulas_responsabilidad
+    - clausulas_seguridad
+    - clausulas_trazabilidad
+    - vigencia_contrato
+    - obligaciones_transportista
+    - obligaciones_asegurado
+    - clausulas_incumplimiento
+    - anexos
+    - firmas
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad del contrato: folio, fecha de firma, partes involucradas, representantes y firmas autógrafas.
+    2. Confirmar vigencia (inicio/vencimiento) y que la fecha de firma sea previa al siniestro.
+    3. Revisar cláusulas de responsabilidad, seguridad, trazabilidad y cobertura; validar que coincidan con condiciones de la póliza.
+    4. Validar que los involucrados (transportista, subcontratistas) estén constituidos legalmente y cuenten con permisos necesarios.
+    5. Cotejar obligaciones y cláusulas con evidencia de cumplimiento (Carta Porte, GPS, informes de seguridad).
+    6. Revisar anexos (listas de unidades, operadores, seguros del transportista) y confirmar coincidencia con documentos logísticos.
+    7. Identificar incumplimientos contractuales relevantes y recomendar acciones (notificación legal, ajuste de responsabilidades).
+
+  fraud_indicators:
+    high_risk:
+      - pattern: contrato_posterior
+        detection: "Fecha del contrato posterior al siniestro"
+        severity: "critico"
+        evidence_hint: "Comparar fecha de firma con siniestro"
+        follow_up: "Solicitar aclaración y documentación previa"
+      - pattern: clausulas_incumplidas
+        detection: "Cláusulas de seguridad/trazabilidad no cumplidas según documentos"
+        severity: "alto"
+        evidence_hint: "Citar cláusulas y evidencia"
+        follow_up: "Recomendar acciones legales/subrogatorias"
+      - pattern: transportista_no_validado
+        detection: "Transportista carece de constitución legal o permisos"
+        severity: "alto"
+        evidence_hint: "Documentar búsquedas oficiales"
+        follow_up: "Solicitar acreditación legal"
+    medium_risk:
+      - pattern: firmas_no_coinciden
+        detection: "Firmas difieren respecto a cartas/contratos"
+        severity: "medio"
+        evidence_hint: "Comparar con cartas y licencias"
+        follow_up: "Requerir ratificación"
+      - pattern: vigencia_caducada
+        detection: "Contrato vencido al momento del siniestro"
+        severity: "medio"
+        evidence_hint: "Comparar fechas"
+        follow_up: "Solicitar renovación"
+      - pattern: obligaciones_vagas
+        detection: "Cláusulas ambiguas que no especifican responsabilidades"
+        severity: "medio"
+        evidence_hint: "Citar cláusula"
+        follow_up: "Recomendar addendum"
+    low_risk:
+      - pattern: anexos_faltantes_menores
+        detection: "Anexos secundarios (contactos, horarios) ausentes"
+        severity: "bajo"
+        evidence_hint: "Enumerar anexos"
+        follow_up: "Recomendar actualización"
+
+  validation_rules:
+    numero_contrato:
+      type: pattern
+      pattern: "^[A-Z0-9-]{5,20}$"
+    fecha_firma:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    vigencia_contrato:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}\s+a\s+(19|20)\d{2}-\d{2}-\d{2}$"
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - carta_de_reclamacion_formal_al_transportista
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - pedimento_importacion
+    - licencia_del_operador
+    - informe_final_del_ajustador
+    - reporte_gps
+    - poliza_de_la_aseguradora
+
+  evidence_expectations:
+    - "Fechas previas al siniestro"
+    - "Firmas y representantes coinciden"
+    - "Cláusulas de responsabilidad y seguridad documentadas"
+    - "Anexos con unidades y operadores"
+    - "Transportista legalmente constituido"
+
+  red_flags:
+    critical:
+      - clue: "Contrato fechado posterior al siniestro"
+        why: "Indicador de encubrimiento"
+      - clue: "Transportista no constituido"
+        why: "Riesgo de incumplimiento"
+    medium:
+      - clue: "Cláusulas sin cumplimiento documentado"
+        why: "Debilita subrogación"
+      - clue: "Firmas inconsistentes"
+        why: "Sugiere manipulación"
+
+response_template:
+  output_format:
+    documento_analizado: "contrato_prestacion_servicio_transportista"
+    analisis_completo: |
+      Se confirma la relación comercial del asegurado con el transportista y cumple con el requisito establecido con el contrato de seguro. Se confirma que los datos contenidos corresponden con la carpeta de investigación y los CFDI, cartas de porte. Se detalla:
+      1) Firmas, representantes y vigencia previa al siniestro.
+      2) Responsabilidades y cláusulas clave vs cumplimiento (seguridad, trazabilidad, seguros).
+      3) Coincidencia de transportista, operador, unidades con Carta Porte y documentos logísticos.
+      4) Validación de anexos (unidades, seguros) y constitución legal del transportista.
+      5) Observaciones de incumplimientos y recomendaciones legales o contractuales.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    integridad_contrato:
+      numero_contrato: ""
+      fecha_firma: ""
+      vigencia_contrato: ""
+      firmas_coinciden: false
+      representantes:
+        asegurado: ""
+        transportista: ""
+      anexos_presentes: []
+      observaciones: ""
+
+    responsabilidades:
+      clausulas_responsabilidad: []
+      clausulas_seguridad: []
+      clausulas_trazabilidad: []
+      obligaciones_transportista: []
+      obligaciones_asegurado: []
+      cumplidas: []
+      incumplimientos: []
+
+    consistencia_expediente:
+      coincide_con_carta_porte: false
+      coincide_con_pedimento: false
+      coincide_con_carpeta_investigacion: false
+      observaciones: ""
+
+    conclusion_relacion:
+      relacion_confirmada: false
+      justificacion: ""
+
+    validation_tasks:
+      - tarea: "Validar constitución legal y permisos del transportista"
+        fuente: "Registro público / SAT / SCT"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cotejar cláusulas de seguridad con póliza"
+        fuente: "Póliza de la aseguradora"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar vigencia y firmas con documentos logísticos"
+        fuente: "Carta Porte / informe ajustador"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Revisar anexos de unidades y operadores"
+        fuente: "Contrato / anexos"
+        prioridad: "media"
+        estado: "pendiente"

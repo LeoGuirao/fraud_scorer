@@ -27,6 +27,11 @@ class FraudReportGenerator(AIReportGenerator):
             'icono': 'ri-article-line',
             'orden': 3,
         },
+        'oficio_denuncia': {
+            'titulo': 'Oficio de Denuncia',
+            'icono': 'ri-file-text-line',
+            'orden': 3,
+        },
         'poliza_de_la_aseguradora': {
             'titulo': 'Póliza de Seguro',
             'icono': 'ri-shield-check-line',
@@ -37,15 +42,50 @@ class FraudReportGenerator(AIReportGenerator):
             'icono': 'ri-truck-line',
             'orden': 5,
         },
+        'pedimento_importacion': {
+            'titulo': 'Pedimento de Importación',
+            'icono': 'ri-file-paper-2-line',
+            'orden': 6,
+        },
+        'conocimiento_de_embarque': {
+            'titulo': 'Conocimiento de Embarque',
+            'icono': 'ri-ship-line',
+            'orden': 7,
+        },
+        'contrato_prestacion_servicio_transportista': {
+            'titulo': 'Contrato Servicio Transportista',
+            'icono': 'ri-briefcase-4-line',
+            'orden': 8,
+        },
+        'oficio_de_desaduanado': {
+            'titulo': 'Oficio de Desaduanado',
+            'icono': 'ri-file-check-line',
+            'orden': 9,
+        },
+        'carta_aclatoria_comprobantes_peaje': {
+            'titulo': 'Carta Aclaratoria Peaje',
+            'icono': 'ri-roadster-line',
+            'orden': 10,
+        },
+        'carta_porte_simple': {
+            'titulo': 'Carta Porte Simple',
+            'icono': 'ri-truck-line',
+            'orden': 11,
+        },
+        'protocolo_de_accion_y_reaccion': {
+            'titulo': 'Protocolo de Acción y Reacción',
+            'icono': 'ri-shield-keyhole-line',
+            'orden': 12,
+        },
         'facturas_comerciales_internacionales': {
             'titulo': 'Factura Comercial Internacional',
             'icono': 'ri-bill-line',
-            'orden': 6,
+            'orden': 13,
         },
         'guias_y_facturas': {
             'titulo': 'Facturas/Guías',
             'icono': 'ri-bill-line',
-            'orden': 7,
+            'orden': 14,
         },
     }
 

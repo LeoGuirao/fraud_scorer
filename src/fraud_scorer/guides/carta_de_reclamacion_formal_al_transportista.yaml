@@ -1,0 +1,189 @@
+metadata:
+  type: carta_de_reclamacion_formal_al_transportista
+  version: "1.0"
+  author: "Sistema Experto HDI"
+  last_updated: "2025-02-15"
+  description: "Guía especializada para auditar cartas de reclamación dirigidas al transportista, validar responsabilidades y preparar subrogación"
+
+definition:
+  nature: "Documento formal mediante el cual el asegurado reclama al transportista un embarque sustraído"
+  legal_importance: "Alta - Fundamenta acciones legales y subrogatorias contra el transportista"
+  critical_elements:
+    - fecha_carta
+    - numero_siniestro
+    - nombre_asegurado
+    - nombre_transportista
+    - operador_identificado
+    - descripcion_hechos
+    - fecha_hora_siniestro
+    - lugar_siniestro
+    - ruta_programada
+    - medios_conduccion
+    - placas_y_series
+    - monto_reclamado
+    - seguro_transportista
+    - documentos_soporte
+    - firma_representante
+
+methodology:
+  analysis_approach: |
+    1. Verificar integridad formal de la carta: fecha, folio, destinatario (transportista), representante firmante y anexos listados.
+    2. Corroborar datos del siniestro (fecha/hora, lugar, ruta) con denuncia, Carta Porte, informe del ajustador y reporte GPS.
+    3. Validar nombre del transportista, su constitución legal y existencia de seguro propio; registrar póliza y cobertura.
+    4. Confirmar identificación del operador (nombre, licencias) y que coincida con lo declarado en Carta Porte y licencias.
+    5. Revisar medios de conducción, placas, series y su concordancia con Carta Porte, pedimento e informe de ajustador.
+    6. Evaluar monto reclamado, mercancía y soporte documental (facturas, pedimentos) para sustentar subrogación.
+    7. Detectar omisiones (contratación directa/subcontratación, seguro del transportista) y recomendar acciones legales.
+
+  fraud_indicators:
+    high_risk:
+      - pattern: transportista_incorrecto
+        detection: "Nombre o razón social del transportista no coincide con Carta Porte o contrato"
+        severity: "alto"
+        evidence_hint: "Comparar con Carta Porte y contrato"
+        follow_up: "Solicitar aclaración, validar constitución legal"
+      - pattern: datos_medios_inexactos
+        detection: "Placas/series declaradas difieren de documentación logística"
+        severity: "alto"
+        evidence_hint: "Citar placas en carta vs Carta Porte"
+        follow_up: "Requerir rectificación y evidencias adicionales"
+      - pattern: seguro_inexistente
+        detection: "Carta omite o declara inexistente el seguro del transportista"
+        severity: "critico"
+        evidence_hint: "Indicar ausencia de póliza"
+        follow_up: "Solicitar póliza y evaluar acción legal"
+    medium_risk:
+      - pattern: contratacion_ambiguo
+        detection: "No especifica si transportista fue contratado directamente o subcontratado"
+        severity: "medio"
+        evidence_hint: "Señalar ausencia de cláusulas"
+        follow_up: "Requerir contratos o carta de instrucción"
+      - pattern: cronologia_incompleta
+        detection: "Fechas/horas no coinciden con reporte GPS o denuncia"
+        severity: "medio"
+        evidence_hint: "Listar diferencias"
+        follow_up: "Solicitar aclaración"
+      - pattern: monto_no_soportado
+        detection: "Monto reclamado sin soporte de facturas/pedimentos"
+        severity: "medio"
+        evidence_hint: "Comparar con facturas"
+        follow_up: "Requerir documentación de respaldo"
+    low_risk:
+      - pattern: datos_secundarios_incompletos
+        detection: "Campos secundarios (correo, teléfonos) faltantes"
+        severity: "bajo"
+        evidence_hint: "Enumerar campos"
+        follow_up: "Recomendar completar"
+
+  validation_rules:
+    fecha_carta:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+    fecha_hora_siniestro:
+      type: pattern
+      pattern: "^(19|20)\d{2}-\d{2}-\d{2}T?(?:[01]\d|2[0-3]):[0-5]\d$"
+    monto_reclamado:
+      type: pattern
+      pattern: "^[0-9]+(\.[0-9]{2})?$"
+    nombre_transportista:
+      type: pattern
+      pattern: "^.{3,}$"
+
+  cross_reference_documents:
+    - carta_de_reclamacion_formal_a_la_aseguradora
+    - cfdi_carta_porte
+    - carta_porte_simple
+    - pedimento_importacion
+    - denuncia_de_los_hechos
+    - informe_final_del_ajustador
+    - licencia_del_operador
+    - seguro_transportista
+
+  evidence_expectations:
+    - "Fechas y lugares alineados con denuncia y GPS"
+    - "Transportista y operador coinciden con Carta Porte"
+    - "Medios de conducción y placas coinciden con documentación logística"
+    - "Seguro del transportista identificado"
+    - "Monto reclamado soportado con facturas/pedimentos"
+
+  red_flags:
+    critical:
+      - clue: "Transportista distinto al documentado"
+        why: "Imposibilita subrogación"
+      - clue: "Seguro del transportista omitido pese a obligación"
+        why: "Riesgo de pérdida de recuperación"
+    medium:
+      - clue: "Ruta o lugar sin soporte documental"
+        why: "Genera dudas sobre responsabilidad"
+      - clue: "Operador no coincide"
+        why: "Indica posible error o intento de desviar responsabilidad"
+
+response_template:
+  output_format:
+    documento_analizado: "carta_de_reclamacion_formal_al_transportista"
+    analisis_completo: |
+      De acuerdo con la carta reclamación se confirma el transportista que realizó el traslado de la mercancía así como los datos contenidos en ella. Se analizan:
+      1) Identificación del transportista, operador y evidencia de contratación/subcontratación.
+      2) Fechas, horas y lugares del siniestro vs denuncia y GPS.
+      3) Medios de conducción, placas y series vs Carta Porte y pedimento.
+      4) Seguro del transportista y cobertura disponible.
+      5) Monto reclamado y soporte documental (facturas/pedimentos).
+      6) Recomendaciones para la acción subrogatoria.
+    risk_level: "bajo|medio|alto|critico"
+    fraud_score: 0.0
+    confidence: 0.0
+    indicators: []
+    evidence: []
+    recommendations: []
+
+    transportista:
+      nombre: ""
+      constituido_legalmente: false
+      rfc: ""
+      contratacion_directa: false
+      subcontratacion: false
+      seguro_existente: false
+      poliza_transportista: ""
+      observaciones: ""
+
+    operador:
+      nombre: ""
+      licencia_coincide: false
+      observaciones: ""
+
+    siniestro:
+      fecha_hora: ""
+      lugar: ""
+      ruta_programada: []
+      coincide_con_denuncia: false
+      coincide_con_gps: false
+      comentarios: ""
+
+    medios_conduccion:
+      placas: ""
+      series: []
+      coincide_carta_porte: false
+      observaciones: ""
+
+    cuantificacion:
+      monto_reclamado: 0.0
+      soportes_documentales: []
+      observaciones: ""
+
+    validation_tasks:
+      - tarea: "Verificar constitución legal y permisos del transportista"
+        fuente: "Registro público / SCT"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Confirmar póliza de seguro del transportista"
+        fuente: "Transportista / aseguradora"
+        prioridad: "alta"
+        estado: "pendiente"
+      - tarea: "Cotejar operador y medios con Carta Porte y licencias"
+        fuente: "Carta Porte / Licencia del operador"
+        prioridad: "media"
+        estado: "pendiente"
+      - tarea: "Cruzar ruta y lugar con GPS y denuncia"
+        fuente: "Reporte GPS / Denuncia"
+        prioridad: "media"
+        estado: "pendiente"

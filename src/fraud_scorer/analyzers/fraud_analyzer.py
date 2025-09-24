@@ -100,6 +100,22 @@ class FraudAnalyzer:
         parallel_limit: int = 3,
         context: Optional[Dict[str, Any]] = None,
     ) -> List[FraudAnalysisResult]:
+        docs_with_guides: List[Dict[str, Any]] = []
+        for doc in documents:
+            guide = self.guides.get_guide(doc.get("type", ""))
+            if guide:
+                docs_with_guides.append(doc)
+            else:
+                logger.info(
+                    "Omitiendo análisis de fraude para %s (tipo=%s) porque no existe guía",
+                    doc.get("name", "documento"),
+                    doc.get("type", "desconocido"),
+                )
+
+        if not docs_with_guides:
+            logger.info("No hay documentos con guías de fraude disponibles en este lote")
+            return []
+
         sem = asyncio.Semaphore(parallel_limit)
 
         async def _run(doc: Dict[str, Any]):
@@ -114,11 +130,11 @@ class FraudAnalyzer:
                     context=context,
                 )
 
-        results = await asyncio.gather(*[_run(d) for d in documents], return_exceptions=True)
+        results = await asyncio.gather(*[_run(d) for d in docs_with_guides], return_exceptions=True)
         out: List[FraudAnalysisResult] = []
         for i, r in enumerate(results):
             if isinstance(r, Exception):
-                d = documents[i]
+                d = docs_with_guides[i]
                 logger.error(f"Error analizando {d['name']}: {r}")
                 out.append(self._create_error_analysis(d['id'], d['name'], d['type'], case_id, str(r)))
             else:
