@@ -1,8 +1,7 @@
 # src/fraud_scorer/api/endpoints/replay.py
 
-from fastapi import APIRouter, Request, HTTPException, Body
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+from fastapi import APIRouter, HTTPException, Body
+from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
 import logging
@@ -12,8 +11,6 @@ from ...services.replay_service import ReplayService
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-# Asegúrate de que el directorio de templates es correcto
-templates = Jinja2Templates(directory="src/fraud_scorer/api/templates")
 replay_service = ReplayService()
 
 # --- Modelos Pydantic para validar las peticiones de la API ---
@@ -31,31 +28,40 @@ class CacheClearPayload(BaseModel):
 
 # --- Endpoints para servir las páginas HTML (Vistas) ---
 
-@router.get("/", response_class=HTMLResponse)
-async def get_replay_dashboard(request: Request):
-    return templates.TemplateResponse("replay_dashboard.html", {"request": request})
+@router.get("/", include_in_schema=False)
+async def get_replay_dashboard():
+    """Redirige al dashboard unificado."""
+    return RedirectResponse(url="/", status_code=302)
 
-@router.get("/cases", response_class=HTMLResponse)
-async def get_cases_page(request: Request):
-    return templates.TemplateResponse("replay_cases.html", {"request": request})
 
-@router.get("/specific", response_class=HTMLResponse)
-async def get_specific_page(request: Request):
-    """Página para replay de caso específico por ID"""
-    return templates.TemplateResponse("replay_specific.html", {"request": request})
+@router.get("/cases", include_in_schema=False)
+async def get_cases_page():
+    """Redirige al dashboard unificado (vista casos)."""
+    return RedirectResponse(url="/", status_code=302)
 
-@router.get("/config/{case_id}", response_class=HTMLResponse)
-async def get_config_page(request: Request, case_id: str):
-    # Aquí puedes pasar información del caso a la plantilla si es necesario
-    return templates.TemplateResponse("replay_config.html", {"request": request, "case_id": case_id})
 
-@router.get("/cache", response_class=HTMLResponse)
-async def get_cache_page(request: Request):
-    return templates.TemplateResponse("replay_cache.html", {"request": request})
+@router.get("/specific", include_in_schema=False)
+async def get_specific_page():
+    """Redirige al dashboard unificado (vista detalle)."""
+    return RedirectResponse(url="/", status_code=302)
 
-@router.get("/detailed-stats", response_class=HTMLResponse)
-async def get_stats_page(request: Request):
-    return templates.TemplateResponse("replay_stats.html", {"request": request})
+
+@router.get("/config/{case_id}", include_in_schema=False)
+async def get_config_page(case_id: str):
+    """Redirige al dashboard unificado (configuración legacy)."""
+    return RedirectResponse(url="/", status_code=302)
+
+
+@router.get("/cache", include_in_schema=False)
+async def get_cache_page():
+    """Redirige al dashboard unificado (cache)."""
+    return RedirectResponse(url="/", status_code=302)
+
+
+@router.get("/detailed-stats", include_in_schema=False)
+async def get_stats_page():
+    """Redirige al dashboard unificado (estadísticas)."""
+    return RedirectResponse(url="/", status_code=302)
 
 
 # --- Endpoints de API para la lógica (devuelven JSON) ---

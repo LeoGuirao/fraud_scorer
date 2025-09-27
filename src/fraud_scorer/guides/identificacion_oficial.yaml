@@ -79,13 +79,13 @@ methodology:
       pattern: "^.{3,}$"
     fecha_emision:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     fecha_vigencia:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     curp:
       type: pattern
-      pattern: "^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$"
+      pattern: '^[A-Z]{4}\d{6}[HM][A-Z]{5}\d{2}$'
 
   cross_reference_documents:
     - carta_de_reclamacion_formal_a_la_aseguradora

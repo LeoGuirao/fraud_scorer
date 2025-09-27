@@ -1,14 +1,19 @@
 # src/fraud_scorer/services/replay_service.py
 
 import logging
-import shutil
+import math
 import os
-from pathlib import Path
-from typing import Dict, Any, List, Optional
+import re
+import shutil
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional
+
 import json
+import unicodedata
 
 from ..storage.ocr_cache import OCRCacheManager
+from ..storage.post_process_verifier import verify_case_artifacts
 from ..storage.db import get_conn
 from ..pipelines.data_flow import build_docs_for_template_from_db
 from ..processors.ai.ai_field_extractor import AIFieldExtractor
@@ -24,6 +29,164 @@ class ReplayService:
     """
     def __init__(self):
         self.cache_manager = OCRCacheManager()
+
+    @staticmethod
+    def _parse_numeric_token(token: str) -> Optional[float]:
+        token = token.strip()
+        if not token:
+            return None
+
+        # Normalize thousand and decimal separators.
+        if "," in token and "." in token:
+            if token.rfind(",") > token.rfind("."):
+                token = token.replace(".", "")
+                token = token.replace(",", ".")
+            else:
+                token = token.replace(",", "")
+        elif "," in token:
+            token = token.replace(",", ".")
+        else:
+            token = token.replace(",", "")
+
+        token = token.replace(" ", "")
+
+        try:
+            return float(token)
+        except ValueError:
+            return None
+
+    @classmethod
+    def _coerce_amount(cls, value: Any) -> Optional[float]:
+        if value is None:
+            return None
+
+        if isinstance(value, (int, float)):
+            try:
+                numeric = float(value)
+            except (TypeError, ValueError):
+                return None
+            return numeric if math.isfinite(numeric) else None
+
+        if isinstance(value, str):
+            cleaned = value.strip()
+            if not cleaned:
+                return None
+
+            cleaned = re.sub(r"[\$€£]|MXN|USD|EUR|MX\$", "", cleaned, flags=re.IGNORECASE)
+            matches = re.findall(r"-?\d[\d.,]*", cleaned)
+            for token in matches:
+                parsed = cls._parse_numeric_token(token)
+                if parsed is not None:
+                    return parsed
+
+        return None
+
+    def _extract_claim_amount(self, case_data: Dict[str, Any]) -> Optional[float]:
+        consolidated_fields = (
+            (case_data.get("consolidated_data") or {}).get("consolidated_fields")
+            or {}
+        )
+        amount = self._coerce_amount(consolidated_fields.get("monto_reclamacion"))
+        if amount is not None:
+            return amount
+
+        extraction_results = case_data.get("extraction_results") or []
+        candidates: List[float] = []
+        for entry in extraction_results:
+            fields = entry.get("extracted_fields") or {}
+            candidate = self._coerce_amount(fields.get("monto_reclamacion"))
+            if candidate is not None:
+                candidates.append(candidate)
+
+        return max(candidates) if candidates else None
+
+    def _detect_tentative_fraud(self, case_data: Dict[str, Any]) -> bool:
+        fraud_entries = case_data.get("fraud_analyses") or []
+        for entry in fraud_entries:
+            score = entry.get("fraud_score")
+            score_value = self._coerce_amount(score)
+            if score_value is not None and score_value >= 0.5:
+                return True
+
+            risk_level = entry.get("risk_level")
+            if isinstance(risk_level, str) and risk_level.strip().lower() in {
+                "alto",
+                "high",
+                "elevado",
+            }:
+                return True
+
+        return False
+
+    def _collect_name_variations(self, name: str) -> set[str]:
+        """Genera variantes sanitizadas de un nombre para matching flexible."""
+        variations: set[str] = set()
+        if not name:
+            return variations
+
+        candidates = {name, name.strip()}
+        candidates.add(name.replace(' ', '_'))
+        candidates.add(name.replace(' ', ''))
+
+        try:
+            candidates.add(self.cache_manager._sanitize_filename(name))
+        except Exception:
+            pass
+
+        normalized = unicodedata.normalize('NFKD', name)
+        ascii_variant = ''.join(c for c in normalized if not unicodedata.combining(c))
+        if ascii_variant:
+            candidates.add(ascii_variant)
+            candidates.add(ascii_variant.replace(' ', '_'))
+            candidates.add(ascii_variant.replace(' ', ''))
+
+        for candidate in candidates:
+            if candidate:
+                variations.add(candidate)
+                variations.add(candidate.lower())
+
+        return variations
+
+    def _remove_report_family(self, report_file: Path) -> int:
+        """Elimina los artefactos (json/html/pdf) asociados a un reporte."""
+        removed = 0
+        parent = report_file.parent
+        stem = report_file.stem
+        variants = {stem}
+        variants.add(stem.replace('_RESULTADOS', ''))
+        variants.add(stem.replace('_INFORME', ''))
+        # Agregar más variantes comunes
+        variants.add(stem.replace('_REPORTE', ''))
+        variants.add(stem.replace('_FINAL', ''))
+
+        for variant in {v for v in variants if v}:
+            for ext in ('.json', '.html', '.pdf'):
+                candidate = parent / f"{variant}{ext}"
+                if candidate.exists():
+                    try:
+                        candidate.unlink()
+                        removed += 1
+                    except Exception:
+                        pass
+        return removed
+
+    def _remove_reports_by_case_id(self, case_id: str) -> int:
+        """Busca reportes por contenido de case_id y elimina la familia completa."""
+        if not case_id:
+            return 0
+
+        total_removed = 0
+        reports_dir = Path("data/reports")
+        if reports_dir.exists():
+            for json_file in reports_dir.glob("*.json"):
+                try:
+                    content = json_file.read_text(encoding='utf-8', errors='ignore')
+                except Exception:
+                    continue
+                if case_id not in content:
+                    continue
+                total_removed += self._remove_report_family(json_file)
+        return total_removed
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Obtiene estadísticas del caché (FS) y métricas DB complementarias.
@@ -68,17 +231,60 @@ class ReplayService:
         result = []
         
         for case in cases:
-            # Verificar si el caso fue procesado (tiene fecha de procesamiento)
-            is_processed = bool(case.get("processed_at", ""))
-            
-            result.append({
-                "case_id": case["case_id"],
-                "title": case.get("case_title", case["case_id"]),
-                "created_at": case.get("processed_at", ""),
-                "document_count": case.get("total_documents", 0),
-                "is_processed": is_processed,
-                "processed_at": case.get("processed_at", "N/A")
-            })
+            case_id = case.get("case_id")
+            if not case_id:
+                continue
+
+            case_index = self.cache_manager.get_case_index(case_id, auto_reconstruct=True) or {}
+            consolidated_fields = (
+                (case_index.get("consolidated_data") or {}).get("consolidated_fields")
+                or {}
+            )
+
+            insured_name = (
+                consolidated_fields.get("nombre_asegurado")
+                or case.get("insured_name")
+                or ""
+            )
+            claim_number = (
+                consolidated_fields.get("numero_siniestro")
+                or case.get("claim_number")
+                or case_id
+            )
+
+            document_count = case_index.get("total_documents")
+            if document_count is None:
+                document_count = case.get("total_documents")
+            if document_count is None:
+                documents = case_index.get("documents") or []
+                document_count = len(documents)
+            document_count = document_count or 0
+
+            processed_at = (
+                case_index.get("processed_at")
+                or case.get("processed_at")
+                or ""
+            )
+
+            claim_amount = self._extract_claim_amount(case_index)
+            tentative_fraud = self._detect_tentative_fraud(case_index)
+
+            entry = {
+                "case_id": case_id,
+                "title": case.get("case_title", case_id),
+                "case_title": case.get("case_title", case_id),
+                "claim_number": claim_number,
+                "insured_name": insured_name,
+                "document_count": document_count,
+                "processed_at": processed_at,
+                "created_at": processed_at,
+                "is_processed": bool(processed_at),
+                "claim_amount": claim_amount,
+                "tentative_fraud": tentative_fraud,
+                "fraud_score": None,
+            }
+
+            result.append(entry)
         
         return result
 
@@ -345,6 +551,9 @@ class ReplayService:
             "output_path": str(output_path)
         }
 
+        verification_payload = verify_case_artifacts(case_id)
+        results["post_process_verification"] = verification_payload
+
         # Guardar JSON de resultados
         json_path = output_path / f"replay_{case_id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         with open(json_path, 'w', encoding='utf-8') as f:
@@ -417,16 +626,7 @@ class ReplayService:
                             file.unlink()
                     logger.info("    ✓ Reportes limpiados")
 
-                # 5. Limpiar reportes temporales
-                temp_reports_dir = Path("data/temp_reports")
-                if temp_reports_dir.exists():
-                    logger.info("  → Limpiando reportes temporales...")
-                    for file in temp_reports_dir.iterdir():
-                        if file.is_file():
-                            file.unlink()
-                    logger.info("    ✓ Reportes temporales limpiados")
-
-                # 6. Limpiar uploads
+                # 5. Limpiar uploads
                 uploads_dir = Path("data/uploads")
                 if uploads_dir.exists():
                     logger.info("  → Limpiando uploads...")
@@ -436,34 +636,6 @@ class ReplayService:
                         elif item.is_dir():
                             shutil.rmtree(item)
                     logger.info("    ✓ Uploads limpiados")
-
-                # 7. Limpiar feedback_archive
-                feedback_dir = Path("data/feedback_archive")
-                if feedback_dir.exists():
-                    logger.info("  → Limpiando feedback_archive...")
-                    for item in feedback_dir.iterdir():
-                        try:
-                            if item.is_file():
-                                item.unlink()
-                            elif item.is_dir():
-                                shutil.rmtree(item)
-                        except Exception:
-                            pass
-                    logger.info("    ✓ Feedback_archive limpiado")
-
-                # 8. Limpiar raw
-                raw_dir = Path("data/raw")
-                if raw_dir.exists():
-                    logger.info("  → Limpiando raw...")
-                    for item in raw_dir.iterdir():
-                        try:
-                            if item.is_file():
-                                item.unlink()
-                            elif item.is_dir():
-                                shutil.rmtree(item)
-                        except Exception:
-                            pass
-                    logger.info("    ✓ Raw limpiado")
 
                 logger.info("🎆 LIMPIEZA TOTAL COMPLETADA - Sistema reiniciado")
                 return {
@@ -486,6 +658,8 @@ class ReplayService:
                 # 1. Cargar información del caso antes de eliminarlo
                 case_index = self.cache_manager.get_case_index(case_id)
                 base_path = None
+                insured_name = ''
+                claim_number = ''
 
                 # Obtener base_path de la BD
                 with get_conn() as conn:
@@ -496,6 +670,10 @@ class ReplayService:
                     if case_row:
                         base_path = case_row['base_path']
 
+                if case_index:
+                    insured_name = case_index.get('insured_name', '') or ''
+                    claim_number = case_index.get('claim_number', '') or ''
+
                 # 2. Eliminar de la base de datos (cascada elimina todo)
                 with get_conn() as conn:
                     conn.execute("DELETE FROM cases WHERE case_id = ?", (case_id,))
@@ -503,13 +681,23 @@ class ReplayService:
                     logger.info(f"  ✓ Eliminado de BD")
 
                 # 3. Limpiar carpeta base del caso (temp o reorganizada)
+                base_folder_name = ''
                 if base_path:
                     base_folder = Path(base_path)
+                    base_folder_name = base_folder.name
                     if base_folder.exists():
                         if "temp" in str(base_folder):
                             # Es una carpeta temporal, eliminar completamente
                             shutil.rmtree(base_folder)
                             logger.info(f"  ✓ Carpeta temporal eliminada: {base_folder.name}")
+
+                # Intentar inferir datos desde la carpeta si no estaban en el índice
+                if base_folder_name and ' - ' in base_folder_name:
+                    folder_insured, folder_claim = base_folder_name.split(' - ', 1)
+                    if folder_insured and not insured_name:
+                        insured_name = folder_insured.replace('_', ' ')
+                    if folder_claim and not claim_number:
+                        claim_number = folder_claim
 
                 # 4. Limpiar archivos de cache OCR (shards)
                 if case_index and "cache_files" in case_index:
@@ -524,11 +712,9 @@ class ReplayService:
 
                 # 5. Limpiar carpeta reorganizada
                 try:
-                    insured = (case_index or {}).get('insured_name') or ""
-                    claim = (case_index or {}).get('claim_number') or ""
-                    if insured or claim:
-                        s_insured = self.cache_manager._sanitize_filename(insured)
-                        s_claim = self.cache_manager._sanitize_filename(claim or case_id)
+                    if insured_name or claim_number:
+                        s_insured = self.cache_manager._sanitize_filename(insured_name or "")
+                        s_claim = self.cache_manager._sanitize_filename(claim_number or case_id)
                         case_folder = self.cache_manager.cache_dir / f"{s_insured} - {s_claim}"
                         if case_folder.exists():
                             shutil.rmtree(case_folder)
@@ -542,43 +728,35 @@ class ReplayService:
                     index_path.unlink()
                     logger.info(f"  ✓ Índice eliminado")
 
+                for backup_path in self.cache_manager.index_dir.glob(f"{case_id}.json.backup_*"):
+                    try:
+                        backup_path.unlink()
+                        logger.info(f"  ✓ Backup eliminado: {backup_path.name}")
+                    except Exception:
+                        pass
+
                 # 7. Limpiar reportes del caso
                 # Buscar reportes con el nombre del asegurado/reclamo si existe
                 reports_to_delete = []
 
-                # Patrones básicos con case_id
-                reports_patterns = [
+                # Patrones básicos con case_id y variaciones del nombre
+                reports_patterns = {
                     f"*{case_id}*",
                     f"INF-{case_id}*",
                     f"replay_{case_id}*"
-                ]
+                }
 
-                # Si tenemos información del caso, buscar por nombre/reclamo
-                if case_index:
-                    insured_name = case_index.get('insured_name', '')
-                    claim_number = case_index.get('claim_number', '')
+                for variant in self._collect_name_variations(insured_name):
+                    reports_patterns.add(f"*{variant}*")
 
-                    if insured_name:
-                        # Limpiar nombre para búsqueda
-                        clean_insured = insured_name.replace(' ', '_')
-                        reports_patterns.append(f"*{clean_insured}*")
-
-                    if claim_number:
-                        reports_patterns.append(f"*{claim_number}*")
-
-                    # Patrón específico GRUPO_ACEROS
-                    if "GRUPO" in insured_name:
-                        reports_patterns.append("GRUPO_ACEROS*")
+                if claim_number:
+                    reports_patterns.add(f"*{claim_number}*")
 
                 # Buscar y eliminar reportes
                 for pattern in reports_patterns:
-                    # En data/reports
-                    if Path("data/reports").exists():
-                        for report in Path("data/reports").glob(pattern):
-                            reports_to_delete.append(report)
-                    # En data/temp_reports
-                    if Path("data/temp_reports").exists():
-                        for report in Path("data/temp_reports").glob(pattern):
+                    reports_dir = Path("data/reports")
+                    if reports_dir.exists():
+                        for report in reports_dir.glob(pattern):
                             reports_to_delete.append(report)
 
                 # Eliminar reportes únicos
@@ -595,20 +773,20 @@ class ReplayService:
                 if deleted_reports:
                     logger.info(f"  ✓ {len(deleted_reports)} reportes eliminados")
 
+                fallback_removed = self._remove_reports_by_case_id(case_id)
+                if fallback_removed:
+                    logger.info(f"  ✓ Reportes eliminados por búsqueda directa: {fallback_removed}")
+
                 # 8. Limpiar archivos de pipeline_cache
                 pipeline_cache_dir = Path("data/temp/pipeline_cache")
                 if pipeline_cache_dir.exists():
-                    pipeline_patterns = [
+                    pipeline_patterns = {
                         f"{case_id}*",
                         f"*{case_id}.status.jsonl"
-                    ]
+                    }
 
-                    # Si tenemos información del caso, buscar también por nombre/reclamo
-                    if case_index:
-                        if insured_name and "GRUPO" in insured_name:
-                            pipeline_patterns.append("GRUPO_ACEROS*")
-                        if claim_number:
-                            pipeline_patterns.append(f"*{claim_number}*")
+                    if claim_number:
+                        pipeline_patterns.add(f"*{claim_number}*")
 
                     deleted_pipeline = []
                     for pattern in pipeline_patterns:
@@ -647,12 +825,18 @@ class ReplayService:
                     cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
                     if cache_path.exists():
                         cache_path.unlink()
-            
+
             # Limpiar índice del caso
             index_path = self.cache_manager.index_dir / f"{case_id}.json"
             if index_path.exists():
                 index_path.unlink()
-            
+
+            for backup_path in self.cache_manager.index_dir.glob(f"{case_id}.json.backup_*"):
+                try:
+                    backup_path.unlink()
+                except Exception:
+                    pass
+
             # Limpiar carpeta reorganizada si existe (Nombre - Reclamo)
             try:
                 insured = (case_index or {}).get('insured_name') or ""
@@ -665,20 +849,20 @@ class ReplayService:
                         shutil.rmtree(case_folder)
             except Exception:
                 pass
-            
+
             # Limpiar archivos de status/progress
             base = os.getenv("FS_DATA_DIR", "data")
             status_file = Path(base) / "temp" / "pipeline_cache" / f"{case_id}.status.jsonl"
             if status_file.exists():
                 status_file.unlink()
-            
+
             # Resetear métricas del caso (pero no las globales)
             from ..storage.db import reset_cache_stats
             reset_cache_stats(case_id)
-            
+
             logger.info(f"✅ Caso {case_id} purgado exitosamente")
             return True
-            
+
         except Exception as e:
             logger.error(f"Error purgando caso {case_id}: {e}")
             return False

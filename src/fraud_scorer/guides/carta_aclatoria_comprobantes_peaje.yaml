@@ -62,7 +62,7 @@ methodology:
   validation_rules:
     fecha_carta:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     ruta_manifestada:
       type: pattern
       pattern: "^.{3,}$"

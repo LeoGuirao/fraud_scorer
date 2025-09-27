@@ -12,13 +12,15 @@ import tempfile
 import shutil
 import logging
 import json
+from collections import defaultdict
+from functools import lru_cache
 from pathlib import Path
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 from datetime import datetime
 import uuid
 
 from fastapi import FastAPI, UploadFile, File, Request, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -44,6 +46,14 @@ from fraud_scorer.storage.cases import create_case
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.parsers.document_parser import DocumentParser
 from fraud_scorer.api.endpoints.replay import router as replay_router
+from fraud_scorer.api.auth_simple import (
+    authenticate as simple_authenticate,
+    mark_authenticated,
+    clear_authentication,
+    is_authenticated,
+    current_user,
+    last_login,
+)
 
 # Inicializar FastAPI
 app = FastAPI(
@@ -85,6 +95,38 @@ if FRAUD_SCORER_STATIC.exists():
 # Configurar templates globales de fraud_scorer para feedback
 fraud_scorer_templates = Jinja2Templates(directory=str(FRAUD_SCORER_TEMPLATES)) if FRAUD_SCORER_TEMPLATES.exists() else None
 
+PUBLIC_PATHS = {
+    "/login",
+    "/api/login",
+    "/favicon.ico",
+}
+PUBLIC_PREFIXES = (
+    "/static",
+    "/fs-static",
+)
+
+
+def _is_public_path(path: str) -> bool:
+    """Return True when the path is allowed without authentication."""
+    if path in PUBLIC_PATHS:
+        return True
+    return any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
+
+@app.middleware("http")
+async def simple_auth_guard(request: Request, call_next):
+    if _is_public_path(request.url.path):
+        return await call_next(request)
+    if not is_authenticated():
+        if request.method.upper() in {"GET", "HEAD"}:
+            return RedirectResponse(url="/login", status_code=302)
+        return JSONResponse(
+            {"detail": "Credenciales requeridas. Inicie sesión desde /login."},
+            status_code=401,
+        )
+    return await call_next(request)
+
+
 # Middleware para manejar errores
 @app.middleware("http")
 async def error_guard(request: Request, call_next):
@@ -117,6 +159,45 @@ async def log_routes():
 processing_status = {}
 # Mapa interno para tareas en ejecución (no se expone en respuestas)
 active_jobs: dict[str, dict] = {}
+
+
+def _build_case_summary(case_id: str, case_index: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Create a normalized payload with case metadata for UI consumption."""
+    case_data: Dict[str, Any] = case_index or {}
+    consolidated_fields = (
+        (case_data.get("consolidated_data") or {}).get("consolidated_fields")
+        or {}
+    )
+
+    insured_name = (
+        consolidated_fields.get("nombre_asegurado")
+        or case_data.get("insured_name")
+        or ""
+    )
+    claim_number = (
+        consolidated_fields.get("numero_siniestro")
+        or case_data.get("claim_number")
+        or ""
+    )
+
+    total_documents = case_data.get("total_documents")
+    if total_documents is None:
+        documents = case_data.get("documents") or []
+        total_documents = len(documents)
+
+    return {
+        "case_id": case_id,
+        "case_info": case_data,
+        "insured_name": insured_name,
+        "claim_number": claim_number,
+        "has_ocr": bool(case_data.get("documents")),
+        "has_classifications": bool(case_data.get("classified_types")),
+        "has_extraction": bool(case_data.get("extraction_results")),
+        "has_consolidation": bool(case_data.get("consolidated_data")),
+        "has_fraud_analysis": bool(case_data.get("fraud_analyses")),
+        "total_documents": total_documents,
+        "processed_at": case_data.get("processed_at"),
+    }
 
 class FraudScorerProcessor:
     """Clase principal para procesar documentos"""
@@ -369,13 +450,63 @@ def create_mock_consolidated_extraction(corrected_data: dict, case_id: str):
     
     return mock_consolidated
 
+@app.get("/login", response_class=HTMLResponse)
+async def get_login_page(request: Request):
+    if is_authenticated():
+        return RedirectResponse("/", status_code=302)
+    return templates.TemplateResponse("login.html", {"request": request})
+
+
+@app.post("/api/login")
+async def login(request: Request):
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse(
+            {"detail": "Formato de datos inválido."},
+            status_code=400,
+        )
+
+    username = (data.get("username") or "").strip()
+    password = data.get("password") or ""
+
+    if not simple_authenticate(username, password):
+        return JSONResponse(
+            {"detail": "Credenciales incorrectas. Intente nuevamente."},
+            status_code=401,
+        )
+
+    mark_authenticated(username)
+    return JSONResponse(
+        {
+            "success": True,
+            "message": "Inicio de sesión exitoso. Redirigiendo...",
+            "redirect": "/",
+        }
+    )
+
+
+@app.post("/api/logout")
+async def logout():
+    if is_authenticated():
+        clear_authentication()
+    return JSONResponse({"success": True, "message": "Sesión finalizada."})
+
+
 @app.get("/", response_class=HTMLResponse)
 async def get_main_portal(request: Request):
     """
     Sirve la nueva página principal (el portal) que permite al usuario
     elegir entre 'Upload' y 'Replay'.
     """
-    return templates.TemplateResponse("index.html", {"request": request})
+    last_login_at = last_login()
+    context = {
+        "request": request,
+        "user": current_user(),
+        "last_login_iso": last_login_at.isoformat() if last_login_at else None,
+        "last_login_display": last_login_at.strftime("%d/%m/%Y %H:%M:%S") if last_login_at else None,
+    }
+    return templates.TemplateResponse("dashboard.html", context)
 
 @app.get("/upload", response_class=HTMLResponse)
 async def get_upload_page(request: Request):
@@ -383,7 +514,7 @@ async def get_upload_page(request: Request):
     Sirve la página original de carga de documentos.
     Esta es la nueva ruta para la funcionalidad de 'run_report'.
     """
-    return templates.TemplateResponse("upload.html", {"request": request})
+    return templates.TemplateResponse("upload.html", {"request": request, "user": current_user()})
 
 @app.post("/upload")
 async def upload_files(
@@ -612,14 +743,30 @@ async def get_classifications(case_id: str):
     # Buscar clasificaciones manuales previas
     manual_classifications = cm.get_manual_classifications(case_id)
     ai_classifications = case.get("ai_classifications", {})
+    ai_prediction_details = case.get("ai_prediction_details", {})
+    ai_predictions_history = case.get("ai_predictions_history", [])
 
-    # Si hay clasificaciones manuales previas, aplicarlas
-    if manual_classifications:
-        for doc in classifications:
-            filename = doc.get("filename")
-            if filename and filename in manual_classifications:
-                doc["document_type"] = manual_classifications[filename]
-                doc["has_manual_classification"] = True
+    # Enriquecer cada documento con la información manual y de IA
+    for doc in classifications:
+        filename = doc.get("filename")
+        if not filename:
+            continue
+
+        detail = ai_prediction_details.get(filename, {}) if isinstance(ai_prediction_details, dict) else {}
+
+        if "ai_document_type" not in doc and isinstance(ai_classifications, dict):
+            baseline_type = ai_classifications.get(filename)
+            if baseline_type:
+                doc["ai_document_type"] = baseline_type
+
+        if detail:
+            doc.setdefault("ai_document_type", detail.get("document_type"))
+            doc.setdefault("ai_confidence", detail.get("confidence"))
+            doc.setdefault("ai_reasons", detail.get("reasons"))
+
+        if manual_classifications and filename in manual_classifications:
+            doc["document_type"] = manual_classifications[filename]
+            doc["has_manual_classification"] = True
 
     # Construir catálogo de tipos agrupados por categoría
     doc_types = _get_grouped_document_types()
@@ -631,8 +778,11 @@ async def get_classifications(case_id: str):
         "has_previous_classifications": bool(manual_classifications),
         "manual_classifications": manual_classifications,
         "ai_classifications": ai_classifications,
+        "ai_prediction_details": ai_prediction_details,
+        "ai_predictions_history": ai_predictions_history,
     }
 
+@lru_cache(maxsize=1)
 def _get_grouped_document_types():
     """Retorna los tipos de documento agrupados por categorías"""
     return {
@@ -657,6 +807,8 @@ def _get_grouped_document_types():
                      "label": "Salida De Almacén"},
                     {"value": DocumentType.CFDI_CARTA_PORTE.value,
                      "label": "Cfdi Carta Porte"},
+                    {"value": DocumentType.CARTA_PORTE_SIMPLE.value,
+                     "label": "Carta Porte Simple"},
                 ]
             },
             {
@@ -692,6 +844,8 @@ def _get_grouped_document_types():
                      "label": "Acreditación De Propiedad Y Representación"},
                     {"value": DocumentType.DENUNCIA_DE_LOS_HECHOS.value,
                      "label": "Denuncia De Los Hechos"},
+                    {"value": DocumentType.OFICIO_DENUNCIA.value,
+                     "label": "Oficio De Denuncia"},
                 ]
             },
             {
@@ -740,6 +894,33 @@ def _get_grouped_document_types():
                 ]
             },
             {
+                "label": "Comercio Exterior Y Aduanas",
+                "options": [
+                    {"value": DocumentType.PEDIMENTO_IMPORTACION.value,
+                     "label": "Pedimento De Importación"},
+                    {"value": DocumentType.OFICIO_DESADUANADO.value,
+                     "label": "Oficio De Desaduanado"},
+                    {"value": DocumentType.CONOCIMIENTO_EMBARQUE.value,
+                     "label": "Conocimiento De Embarque"},
+                ]
+            },
+            {
+                "label": "Contratos Y Protocolos Operativos",
+                "options": [
+                    {"value": DocumentType.CONTRATO_PRESTACION_SERVICIO_TRANSPORTISTA.value,
+                     "label": "Contrato De Prestación De Servicio Al Transportista"},
+                    {"value": DocumentType.PROTOCOLO_ACCION_REACCION.value,
+                     "label": "Protocolo De Acción Y Reacción"},
+                ]
+            },
+            {
+                "label": "Soporte Operativo",
+                "options": [
+                    {"value": DocumentType.CARTA_ACLARATORIA_PEAJE.value,
+                     "label": "Carta Aclaratoria De Peaje"},
+                ]
+            },
+            {
                 "label": "Otros",
                 "options": [
                     {"value": DocumentType.OTRO.value,
@@ -748,6 +929,62 @@ def _get_grouped_document_types():
             }
         ]
     }
+
+
+def _audit_document_type_groups():
+    grouped = _get_grouped_document_types()
+    enum_values = {dt.value for dt in DocumentType}
+    category_by_type = {}
+    duplicates: defaultdict[str, List[str]] = defaultdict(list)
+
+    for category in grouped.get("categories", []):
+        cat_label = category.get("label") or ""
+        for option in category.get("options", []):
+            value = option.get("value")
+            if not value:
+                continue
+            if value in category_by_type:
+                duplicates[value].append(cat_label)
+            else:
+                category_by_type[value] = cat_label
+
+    grouped_values = set(category_by_type.keys())
+    missing = sorted(enum_values - grouped_values)
+    unknown = sorted(grouped_values - enum_values)
+
+    duplicate_result = {
+        value: sorted({category_by_type[value], *labels})
+        for value, labels in duplicates.items()
+    }
+
+    return {
+        "missing_document_types": missing,
+        "unknown_group_entries": unknown,
+        "duplicate_assignments": duplicate_result,
+        "total_document_types": len(enum_values),
+        "categorized_document_types": len(grouped_values),
+    }
+
+
+_DOCUMENT_TYPE_AUDIT_SNAPSHOT = _audit_document_type_groups()
+
+if _DOCUMENT_TYPE_AUDIT_SNAPSHOT["missing_document_types"]:
+    logger.warning(
+        "DocumentType sin categoría asignada: %s",
+        ", ".join(_DOCUMENT_TYPE_AUDIT_SNAPSHOT["missing_document_types"]),
+    )
+
+if _DOCUMENT_TYPE_AUDIT_SNAPSHOT["unknown_group_entries"]:
+    logger.warning(
+        "Valores en categorías sin DocumentType asociado: %s",
+        ", ".join(_DOCUMENT_TYPE_AUDIT_SNAPSHOT["unknown_group_entries"]),
+    )
+
+if _DOCUMENT_TYPE_AUDIT_SNAPSHOT["duplicate_assignments"]:
+    logger.warning(
+        "DocumentType con múltiples categorías: %s",
+        _DOCUMENT_TYPE_AUDIT_SNAPSHOT["duplicate_assignments"],
+    )
 
 from fastapi import Body
 
@@ -803,10 +1040,20 @@ async def update_classifications(case_id: str, payload: dict = Body(...)):
     final_manual = dict(manual_existing)
 
     ai_baseline = dict(case.get("ai_classifications") or {})
-    baseline_was_empty = not bool(ai_baseline)
-    if baseline_was_empty and ai_originals:
+    if not isinstance(ai_originals, dict):
+        ai_originals = {}
+
+    if ai_originals:
         ai_baseline = dict(ai_originals)
+        logger.info(
+            "Actualizando baseline de IA para caso %s: %d clasificaciones",
+            case_id,
+            len(ai_baseline),
+        )
         case["ai_classifications"] = dict(ai_baseline)
+        details_payload = (payload or {}).get("ai_prediction_details")
+        if isinstance(details_payload, dict):
+            case["ai_prediction_details"] = dict(details_payload)
 
     for filename, new_type in updates.items():
         if new_type not in valid_values:
@@ -847,13 +1094,25 @@ async def update_classifications(case_id: str, payload: dict = Body(...)):
         cm.save_manual_classifications(
             case_id,
             final_manual,
-            ai_classifications=ai_baseline if baseline_was_empty and ai_baseline else None,
+            ai_classifications=ai_baseline if ai_baseline else None,
             replace=True,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"No se pudo guardar: {e}")
 
     return {"success": True}
+
+
+@app.get("/api/system/document-type-audit")
+async def get_document_type_audit():
+    snapshot = _audit_document_type_groups()
+    grouped = _get_grouped_document_types()
+    return {
+        "audit": snapshot,
+        "document_types": sorted(dt.value for dt in DocumentType),
+        "categories": grouped["categories"],
+    }
+
 
 @app.post("/api/case/{case_id}/continue-processing")
 async def continue_processing(case_id: str):
@@ -924,16 +1183,9 @@ async def check_existing_case(case_id: str = None, payload: dict = Body(...)):
                     candidate_id = row["case_id"]
                     cm = OCRCacheManager()
                     case_index = cm.get_case_index(candidate_id, auto_reconstruct=True)
-                    return {
-                        "existing_case": True,
-                        "case_id": candidate_id,
-                        "case_info": case_index or {},
-                        "has_ocr": bool((case_index or {}).get('documents')),
-                        "has_classifications": bool((case_index or {}).get('classified_types')),
-                        "has_extraction": bool((case_index or {}).get('extraction_results')),
-                        "has_consolidation": bool((case_index or {}).get('consolidated_data')),
-                        "has_fraud_analysis": bool((case_index or {}).get('fraud_analyses')),
-                    }
+                    summary = _build_case_summary(candidate_id, case_index)
+                    summary["existing_case"] = True
+                    return summary
         except Exception as e:
             logger.warning(f"check-existing por hash falló: {e}")
 
@@ -976,18 +1228,25 @@ async def check_existing_case(case_id: str = None, payload: dict = Body(...)):
         if not doc_names.intersection(filenames):
             continue
 
-        return {
-            "existing_case": True,
-            "case_id": candidate_id,
-            "case_info": case_index,
-            "has_ocr": bool(case_index.get('documents')),
-            "has_classifications": bool(case_index.get('classified_types')),
-            "has_extraction": bool(case_index.get('extraction_results')),
-            "has_consolidation": bool(case_index.get('consolidated_data')),
-            "has_fraud_analysis": bool(case_index.get('fraud_analyses')),
-        }
+        summary = _build_case_summary(candidate_id, case_index)
+        summary["existing_case"] = True
+        return summary
 
     return {"existing_case": False}
+
+
+@app.get("/api/case/{case_id}/summary")
+async def get_case_summary(case_id: str):
+    """Return consolidated metadata for a stored case."""
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+    summary = _build_case_summary(case_id, case_index)
+    return {"success": True, "data": summary}
+
 
 @app.post("/api/case/{case_id}/reprocess")
 async def reprocess_case(
@@ -1101,6 +1360,9 @@ async def reprocess_case_background(process_id: str, case_id: str, options: dict
         # Configurar opciones de reprocesamiento
         system.reprocess_options = options or {}
 
+        # Asegurar que el checkpoint de clasificación esté habilitado
+        os.environ["ENABLE_CLASSIFICATION_REVIEW"] = "true"
+
         # Obtener carpeta del caso
         cm = OCRCacheManager()
         case_index = cm.get_case_index(case_id)
@@ -1109,8 +1371,19 @@ async def reprocess_case_background(process_id: str, case_id: str, options: dict
         processing_status[process_id]["message"] = "Ejecutando fases seleccionadas..."
         processing_status[process_id]["progress"] = 30
 
+        base = os.getenv("FS_DATA_DIR", "data")
+        pipeline_cache_dir = Path(base) / "temp" / "pipeline_cache"
+        pipeline_cache_dir.mkdir(parents=True, exist_ok=True)
+
+        # Limpiar marcadores obsoletos únicamente para este caso
+        for suffix in ("awaiting_review", "resume"):
+            marker = pipeline_cache_dir / f"{case_id}.{suffix}"
+            try:
+                marker.unlink(missing_ok=True)  # type: ignore[arg-type]
+            except Exception:
+                pass
+
         # Ejecutar reprocesamiento
-        from pathlib import Path
         task = asyncio.create_task(system.process_case(
             folder_path=case_folder,
             output_path=REPORTS_DIR,
@@ -1121,6 +1394,24 @@ async def reprocess_case_background(process_id: str, case_id: str, options: dict
         ))
 
         active_jobs[process_id] = {"task": task, "system": system}
+
+        awaiting_reported = False
+
+        # Monitorear marcador de checkpoint igual que en el flujo principal
+        while not task.done():
+            if not awaiting_reported:
+                marker = pipeline_cache_dir / f"{case_id}.awaiting_review"
+                if marker.exists():
+                    current_status = processing_status.get(process_id, {})
+                    processing_status[process_id] = {
+                        **current_status,
+                        "status": "awaiting_review",
+                        "message": "Esperando revisión de clasificación",
+                        "progress": max(35, current_status.get("progress", 30)),
+                        "case_id": case_id,
+                    }
+                    awaiting_reported = True
+            await asyncio.sleep(0.5)
 
         # Esperar resultado
         result = await task

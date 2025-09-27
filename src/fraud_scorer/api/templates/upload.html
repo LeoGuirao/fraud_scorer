@@ -1092,8 +1092,8 @@
             <p>Sistema Inteligente de Análisis de Siniestros</p>
         </div>
 
-        <!-- Upload Section -->
-        <div class="content-section" id="uploadSection">
+        <!-- Upload Section (legacy entry hidden; flujo vive en dashboard) -->
+        <div class="content-section" id="uploadSection" style="display: none;">
             <div class="upload-area" id="uploadArea">
                 <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv">
                 <div class="upload-icon">
@@ -1119,6 +1119,16 @@
                     Analizar Documentos
                 </button>
             </div>
+        </div>
+
+        <div class="content-section" id="legacyEntryNotice" style="display: none; text-align: center;">
+            <h2 style="font-size: 18px; margin-bottom: 8px; color: var(--primary-navy);">
+                <i class="ri-information-line"></i>
+                Flujo de carga disponible en el dashboard
+            </h2>
+            <p style="color: var(--slate-600); font-size: 14px;">
+                Utiliza el dashboard principal para subir nuevos documentos. Esta pantalla ahora solo muestra reprocesos y el estado de ejecución de casos existentes.
+            </p>
         </div>
 
         <!-- Processing Section -->
@@ -1440,10 +1450,57 @@
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
         
-        let existingCaseId = null;
-        let reprocessOptions = {};
+let existingCaseId = null;
+let reprocessOptions = {};
 
-        function toggleReprocessOption(card, option) {
+document.addEventListener('DOMContentLoaded', initializeUploadPage);
+
+function initializeUploadPage() {
+    const params = new URLSearchParams(window.location.search || '');
+    const processId = params.get('process_id');
+    const mode = params.get('mode');
+    const caseId = params.get('case_id');
+
+    const uploadSection = document.getElementById('uploadSection');
+    if (uploadSection) {
+        uploadSection.style.display = 'none';
+    }
+
+    if (processId) {
+        document.getElementById('processingSection').style.display = 'block';
+        monitorProgress(processId);
+        return;
+    }
+
+    if (mode === 'reprocess' && caseId) {
+        loadCaseSummary(caseId);
+        return;
+    }
+
+    const notice = document.getElementById('legacyEntryNotice');
+    if (notice) {
+        notice.style.display = 'block';
+    }
+}
+
+async function loadCaseSummary(caseId) {
+    try {
+        const response = await fetch(`/api/case/${encodeURIComponent(caseId)}/summary`);
+        if (!response.ok) {
+            throw new Error('Respuesta no válida del servidor');
+        }
+        const payload = await response.json();
+        const summary = payload.data || payload;
+        existingCaseId = summary.case_id || caseId;
+        showReprocessOptions(summary);
+    } catch (error) {
+        console.error('Error cargando resumen del caso:', error);
+        alert('No se pudo cargar la información del caso. Regresaremos al dashboard.');
+        window.location.href = '/';
+    }
+}
+
+function toggleReprocessOption(card, option) {
             const checkbox = card.querySelector('.reprocess-checkbox');
             checkbox.checked = !checkbox.checked;
             card.classList.toggle('selected', checkbox.checked);
@@ -1504,6 +1561,11 @@
         function showReprocessOptions(caseData) {
             document.getElementById('uploadSection').style.display = 'none';
             document.getElementById('reprocessSection').style.display = 'block';
+
+            const notice = document.getElementById('legacyEntryNotice');
+            if (notice) {
+                notice.style.display = 'none';
+            }
 
             reprocessOptions = {};
             document.querySelectorAll('.reprocess-checkbox').forEach(cb => {
@@ -1775,22 +1837,24 @@
                 }
 
                 originalClassifications = {};
-                aiClassifications = {};
+                aiClassifications = classificationData.ai_classifications ? { ...classificationData.ai_classifications } : {};
                 hasPreviousClassifications = classificationData.has_previous_classifications || false;
 
                 classifications.forEach(doc => {
                     if (doc && doc.filename) {
                         originalClassifications[doc.filename] = doc.document_type || 'sin_clasificar';
-                        // Guardar clasificaciones originales de AI si no hay previas
-                        if (!hasPreviousClassifications) {
+                        const aiType = doc.ai_document_type || aiClassifications[doc.filename];
+                        if (aiType) {
+                            aiClassifications[doc.filename] = aiType;
+                        } else if (!hasPreviousClassifications) {
                             aiClassifications[doc.filename] = doc.document_type || 'sin_clasificar';
                         }
                     }
                 });
 
-                // Si hay clasificaciones previas, usar las de AI guardadas
+                // Mezclar información adicional de AI (mapa y detalles)
                 if (classificationData.ai_classifications) {
-                    aiClassifications = classificationData.ai_classifications;
+                    Object.assign(aiClassifications, classificationData.ai_classifications);
                 }
 
                 populateDocumentsList(classifications, classificationData.document_types || {});
@@ -1836,7 +1900,9 @@
                 const docItem = document.createElement('div');
                 docItem.className = 'document-review-item';
                 
-                const confidence = doc.confidence || 0;
+                const confidence =
+                    (typeof doc.confidence === 'number' ? doc.confidence : null) ??
+                    (typeof doc.ai_confidence === 'number' ? doc.ai_confidence : 0);
                 let confidenceClass = 'confidence-low';
                 let confidenceText = 'Baja';
                 if (confidence >= 0.8) {
@@ -1900,7 +1966,12 @@
         // Función para actualizar estadísticas
         function updateReviewStats(classifications) {
             const total = classifications.length;
-            const highConfidence = classifications.filter(doc => (doc.confidence || 0) >= 0.8).length;
+            const highConfidence = classifications.filter(doc => {
+                const value =
+                    (typeof doc.confidence === 'number' ? doc.confidence : null) ??
+                    (typeof doc.ai_confidence === 'number' ? doc.ai_confidence : 0);
+                return value >= 0.8;
+            }).length;
             const lowConfidence = total - highConfidence;
             
             document.getElementById('totalDocs').textContent = total;
@@ -2076,30 +2147,37 @@
         }
         
         function resetForm() {
-            document.getElementById('uploadSection').style.display = 'block';
-            document.getElementById('processingSection').style.display = 'none';
-            document.getElementById('reviewSection').style.display = 'none';
-            document.getElementById('reprocessSection').style.display = 'none';
-            document.getElementById('resultSection').style.display = 'none';
-            document.getElementById('cancelStatus').style.display = 'none';
+            const sections = ['uploadSection', 'processingSection', 'reviewSection', 'reprocessSection', 'resultSection'];
+            sections.forEach((sectionId) => {
+                const section = document.getElementById(sectionId);
+                if (section) {
+                    section.style.display = 'none';
+                }
+            });
+
+            const cancelStatus = document.getElementById('cancelStatus');
+            if (cancelStatus) {
+                cancelStatus.style.display = 'none';
+            }
+
+            const notice = document.getElementById('legacyEntryNotice');
+            if (notice) {
+                notice.style.display = 'block';
+            }
 
             existingCaseId = null;
             reprocessOptions = {};
-            
-            const cancelBtn = document.getElementById('cancelBtn');
-            if (cancelBtn) {
-                cancelBtn.disabled = false;
-                cancelBtn.innerHTML = '<i class="ri-stop-circle-line"></i> Cancelar Proceso';
-                cancelBtn.style.display = 'block';
-            }
-            
             currentProcessId = null;
             currentCaseId = null;
             originalClassifications = {};
             startTime = null;
             progressHistory = [];
-            
+
             clearFiles();
+
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 1200);
         }
     </script>
 </body>

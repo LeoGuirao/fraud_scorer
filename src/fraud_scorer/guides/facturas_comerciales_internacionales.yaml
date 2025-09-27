@@ -110,16 +110,16 @@ methodology:
   validation_rules:
     fecha_factura:
       type: pattern
-      pattern: "^(19|20)\\d{2}-\\d{2}-\\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     numero_factura:
       type: pattern
       pattern: "^[A-Z0-9-]{3,30}$"
     valor_factura:
       type: pattern
-      pattern: "^[0-9]+(\\.[0-9]{2})?$"
+      pattern: '^[0-9]+(\.[0-9]{2})?$'
     valor_unitario:
       type: pattern
-      pattern: "^[0-9]+(\\.[0-9]{4})?$"
+      pattern: '^[0-9]+(\.[0-9]{4})?$'
     moneda:
       type: list
       values: ["USD", "EUR", "MXN", "JPY", "CNY", "GBP", "CAD", "BRL"]
@@ -131,10 +131,10 @@ methodology:
       min: 1
     tipo_cambio_aplicado:
       type: pattern
-      pattern: "^[0-9]+(\\.[0-9]{4})?$"
+      pattern: '^[0-9]+(\.[0-9]{4})?$'
     pedimento_aduanal:
       type: pattern
-      pattern: "^[0-9]{2}\\s?[0-9]{2}\\s?[0-9]{4}\\s?[0-9]{1}\\s?[0-9]{6}$"
+      pattern: '^[0-9]{2}\s?[0-9]{2}\s?[0-9]{4}\s?[0-9]{1}\s?[0-9]{6}$'
     numero_orden_compra:
       type: pattern
       pattern: "^[A-Z0-9-]{4,25}$"

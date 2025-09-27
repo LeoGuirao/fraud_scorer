@@ -1296,10 +1296,13 @@ class OCRCacheManager:
                 case_data['last_manual_update'] = time.strftime('%Y-%m-%d %H:%M:%S')
 
             # Guardar también las clasificaciones originales de AI si se proporcionan
-            if ai_classifications:
-                if 'ai_classifications' not in case_data:
-                    case_data['ai_classifications'] = {}
-                case_data['ai_classifications'].update(ai_classifications)
+            if ai_classifications is not None:
+                if replace:
+                    case_data['ai_classifications'] = dict(ai_classifications)
+                else:
+                    if 'ai_classifications' not in case_data:
+                        case_data['ai_classifications'] = {}
+                    case_data['ai_classifications'].update(ai_classifications)
 
             # Guardar índice actualizado
             self.save_case_index(case_id, case_data)

@@ -85,7 +85,7 @@ def check_environment():
     # 4. Verificar Estructura de Directorios de la v2
     print(f"\n{Fore.CYAN}📁 Verificando Estructura de Directorios Clave...{Style.RESET_ALL}\n")
     dirs = [
-        "data/raw", "data/reports", "data/temp",
+        "data/uploads", "data/reports", "data/temp",
         "src/fraud_scorer/api", "src/fraud_scorer/parsers",
         "src/fraud_scorer/processors/ai", "src/fraud_scorer/storage",
         "src/fraud_scorer/templates",

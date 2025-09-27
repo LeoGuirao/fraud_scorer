@@ -217,10 +217,7 @@ def clean_all():
             ("data/ocr_cache", True),   # Recrear
             ("data/temp", False),       # No eliminar la carpeta en sí
             ("data/reports", False),
-            ("data/temp_reports", False),
             ("data/uploads", False),
-            ("data/feedback_archive", False),
-            ("data/raw", False),
         ]
 
         for dir_path, recreate in dirs_to_clean:

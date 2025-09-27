@@ -93,19 +93,19 @@ methodology:
       pattern: "^[0-9]{2}-[0-9]{2}-[0-9]{4}-[0-9]{3}-[0-9]{6}$"
     fecha_pago:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     fecha_entrada:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     peso_bruto:
       type: range
       min: 0.01
     valor_aduana:
       type: pattern
-      pattern: "^[0-9]+(\.[0-9]{2})?$"
+      pattern: '^[0-9]+(\.[0-9]{2})?$'
     impuestos_pagados:
       type: pattern
-      pattern: "^[0-9]+(\.[0-9]{2})?$"
+      pattern: '^[0-9]+(\.[0-9]{2})?$'
     pais_origen:
       type: pattern
       pattern: "^[A-Z]{2}$"

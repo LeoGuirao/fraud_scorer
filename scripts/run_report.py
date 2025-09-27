@@ -33,6 +33,7 @@ logger = logging.getLogger("fraud_scorer.run_report")
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.parsers.document_parser import DocumentParser
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
+from fraud_scorer.storage.post_process_verifier import verify_case_artifacts
 from fraud_scorer.storage.db import sha256_of_file, get_conn
 from fraud_scorer.storage.cases import create_case
 
@@ -1094,6 +1095,9 @@ class FraudAnalysisSystemV2:
 
         run_classification = wants("reprocess_classification")
 
+        ai_predictions_map: Dict[str, str] = {}
+        ai_prediction_details: Dict[str, Dict[str, Any]] = {}
+
         if run_classification:
             classifier = DocumentClassifier()
 
@@ -1155,20 +1159,33 @@ class FraudAnalysisSystemV2:
                             doc_data["document_type"] = "otro"
                         doc_data["classification_confidence"] = None
                         doc_data["classification_reasons"] = []
+                    finally:
+                        doc_data["_ai_document_type"] = doc_data.get("document_type")
+                        doc_data["_ai_confidence"] = doc_data.get("classification_confidence")
+                        doc_data["_ai_reasons"] = doc_data.get("classification_reasons") or []
 
             await _asyncio.gather(*[_classify_doc(d) for d in ocr_results])
         else:
             logger.info("♻️ Reprocesamiento: conservando clasificaciones previas.")
+            baseline_map = {}
+            raw_ai = case_data.get("ai_classifications")
+            if isinstance(raw_ai, dict):
+                baseline_map = dict(raw_ai)
             for doc in ocr_results:
                 fname = doc.get("filename")
-                previous = manual_overrides.get(fname) or previous_types.get(fname)
-                if previous:
-                    doc["document_type"] = previous
-                elif not doc.get("document_type"):
-                    doc["document_type"] = previous_types.get(fname, "otro")
+                baseline_type = baseline_map.get(fname) or previous_types.get(fname)
+
+                doc["_ai_document_type"] = baseline_type or previous_types.get(fname) or doc.get("document_type")
+                doc["_ai_confidence"] = previous_confidence.get(fname)
+                doc["_ai_reasons"] = previous_reasons.get(fname, [])
 
                 doc["classification_confidence"] = previous_confidence.get(fname)
                 doc["classification_reasons"] = previous_reasons.get(fname, [])
+
+                if baseline_type:
+                    doc["document_type"] = baseline_type
+                elif not doc.get("document_type"):
+                    doc["document_type"] = previous_types.get(fname, "otro")
 
         if manual_overrides:
             for doc in ocr_results:
@@ -1176,6 +1193,18 @@ class FraudAnalysisSystemV2:
                 override = manual_overrides.get(fname)
                 if override:
                     doc["document_type"] = override
+
+        for doc in ocr_results:
+            fname = doc.get("filename")
+            if not fname:
+                continue
+            ai_type = doc.get("_ai_document_type") or doc.get("document_type")
+            ai_predictions_map[fname] = ai_type
+            ai_prediction_details[fname] = {
+                "document_type": ai_type,
+                "confidence": doc.get("_ai_confidence"),
+                "reasons": doc.get("_ai_reasons") or [],
+            }
 
         if self.cache_manager:
             try:
@@ -1185,9 +1214,28 @@ class FraudAnalysisSystemV2:
                         "document_type": d.get("document_type"),
                         "confidence": d.get("classification_confidence"),
                         "reasons": d.get("classification_reasons"),
+                        "ai_document_type": d.get("_ai_document_type"),
+                        "ai_confidence": d.get("_ai_confidence"),
+                        "ai_reasons": d.get("_ai_reasons"),
                     }
                     for d in ocr_results
                 ]
+                case_data["ai_classifications"] = dict(ai_predictions_map)
+                case_data["ai_prediction_details"] = dict(ai_prediction_details)
+
+                history_entry = {
+                    "timestamp": datetime.now().isoformat(),
+                    "mode": "reprocess" if self.reprocess_mode else "initial",
+                    "options": dict(self.reprocess_options or {}) if self.reprocess_mode else None,
+                    "predictions": ai_prediction_details,
+                }
+
+                history = case_data.get("ai_predictions_history")
+                if not isinstance(history, list):
+                    history = []
+                history.insert(0, history_entry)
+                case_data["ai_predictions_history"] = history[:10]
+
                 self.cache_manager.save_case_index(case_id, case_data)
             except Exception as e:
                 logger.warning(f"No se pudo persistir mapping de tipos: {e}")
@@ -1496,6 +1544,15 @@ class FraudAnalysisSystemV2:
         # ============================================
         previous_fraud_raw = case_data.get("fraud_analyses") or []
         previous_fraud = self._hydrate_fraud_results(previous_fraud_raw)
+        excluded_fraud_types = {"poliza_de_la_aseguradora", "reporte_gps"}
+        if previous_fraud:
+            filtered_prev = [f for f in previous_fraud if f.document_type not in excluded_fraud_types]
+            if len(filtered_prev) != len(previous_fraud):
+                logger.info(
+                    "♻️ Se removieron %d análisis previamente almacenados por pertenecer a tipos excluidos",
+                    len(previous_fraud) - len(filtered_prev),
+                )
+            previous_fraud = filtered_prev
         run_fraud = self.enable_fraud and (wants("reprocess_fraud") or not previous_fraud)
         fraud_analyses: List[Any] = []
         if self.enable_fraud and run_fraud:
@@ -1510,20 +1567,53 @@ class FraudAnalysisSystemV2:
                 guide_manager = FraudGuideManager()
                 # Mapear OCR por filename
                 ocr_map = {d.get("filename"): (d.get("ocr_result") or {}) for d in ocr_results}
-                docs_for_analysis = []
+                extractions_by_name = {ex.source_document: ex for ex in extractions}
+                docs_for_analysis: List[Dict[str, Any]] = []
                 eligible_count = 0
                 skipped_no_guide = 0
-                for ext in extractions:
+                skipped_excluded = 0
+                skipped_name_collision = 0
+                for doc_data in ocr_results:
                     try:
-                        name = ext.source_document
+                        name = doc_data.get("filename")
+                        if not name:
+                            continue
+
                         ocr_dict = ocr_map.get(name, {})
-                        doc_type = ext.document_type or "otro"
-                        # Incluir SOLO documentos con guía disponible
+                        doc_type = (doc_data.get("document_type") or "").strip() or "otro"
+
                         guide = guide_manager.get_guide(doc_type)
                         if not guide:
                             skipped_no_guide += 1
                             continue
+
+                        canonical_type = guide.document_type or doc_type
+                        if canonical_type in excluded_fraud_types:
+                            skipped_excluded += 1
+                            logger.info(
+                                "⏭️ Documento excluido del análisis de fraude: %s (tipo=%s)",
+                                name,
+                                canonical_type,
+                            )
+                            continue
+                        if canonical_type and canonical_type != doc_type:
+                            doc_type = canonical_type
+                            doc_data["document_type"] = canonical_type
+
                         eligible_count += 1
+
+                        extraction_obj = extractions_by_name.get(name)
+                        if not extraction_obj:
+                            extraction_obj = DocumentExtraction(
+                                source_document=name,
+                                document_type=doc_type,
+                                extracted_fields={},
+                                extraction_metadata={},
+                            )
+                        elif extraction_obj.document_type != doc_type:
+                            extraction_obj = extraction_obj.copy(update={"document_type": doc_type})
+                        extractions_by_name[name] = extraction_obj
+
                         doc_id = doc_ids_by_name.get(name)
 
                         # Si no se encuentra por nombre, buscar por hash o en otros casos
@@ -1561,11 +1651,23 @@ class FraudAnalysisSystemV2:
                                         "SELECT id, case_id, created_at FROM documents WHERE filename = ? ORDER BY created_at DESC LIMIT 1",
                                         (name,)
                                     ).fetchone()
-                                    if row:
+                                if row:
+                                    if row['case_id'] == case_id:
                                         doc_id = row['id']
-                                        logger.warning(
-                                            f"ATENCIÓN: document_id encontrado por nombre global para {name}: id={doc_id} (case_id={row['case_id']}). Puede haber colisión de nombres entre casos."
+                                        logger.info(
+                                            "Document_id encontrado por nombre en el mismo caso para %s: %s",
+                                            name,
+                                            doc_id,
                                         )
+                                    else:
+                                        skipped_name_collision += 1
+                                        logger.error(
+                                            "❌ Nombre de documento %s coincide con caso %s. Se omite para evitar colisión (document_id=%s)",
+                                            name,
+                                            row['case_id'],
+                                            row['id'],
+                                        )
+                                        continue
 
                         if not doc_id:
                             logger.warning(
@@ -1579,13 +1681,17 @@ class FraudAnalysisSystemV2:
                             "name": name,
                             "type": doc_type,
                             "ocr": ocr_dict,
-                            "extraction": ext,
+                            "extraction": extraction_obj,
                         })
                     except Exception:
                         continue
 
                 if skipped_no_guide:
                     logger.info(f"ℹ️ Documentos omitidos por no tener guía: {skipped_no_guide}")
+                if skipped_excluded:
+                    logger.info(f"ℹ️ Documentos omitidos por regla de exclusión: {skipped_excluded}")
+                if skipped_name_collision:
+                    logger.warning(f"⚠️ Documentos omitidos por colisión de nombre en otros casos: {skipped_name_collision}")
 
                 if docs_for_analysis:
                     fraud_analyses = await analyzer.analyze_batch(
@@ -1799,6 +1905,9 @@ class FraudAnalysisSystemV2:
             "report_path": str(html_path),  # Ruta del reporte HTML
             "pdf_path": str(pdf_path),      # Ruta del PDF
         }
+
+        verification_payload = verify_case_artifacts(case_id)
+        results["post_process_verification"] = verification_payload
 
         # Guardamos el reporte completo de resultados (que incluye métricas, etc.) con nombre mejorado
         results_filename = f"{s_insured}_{s_claim}_RESULTADOS.json"

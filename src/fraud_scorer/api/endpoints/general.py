@@ -7,7 +7,7 @@ from pathlib import Path
 router = APIRouter(tags=["General"])
 
 # NOTA: UPLOAD_DIR se define aquí o se importa de un archivo de configuración central.
-UPLOAD_DIR = Path("data/raw")
+UPLOAD_DIR = Path("data/uploads")
 
 @router.get("/")
 async def root():

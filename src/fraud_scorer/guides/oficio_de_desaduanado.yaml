@@ -81,10 +81,10 @@ methodology:
       pattern: "^[A-Z0-9-]{5,20}$"
     fecha_emision:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     hora_emision:
       type: pattern
-      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d$"
+      pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$'
     numero_pedimento:
       type: pattern
       pattern: "^[0-9]{2}-[0-9]{2}-[0-9]{4}-[0-9]{3}-[0-9]{6}$"

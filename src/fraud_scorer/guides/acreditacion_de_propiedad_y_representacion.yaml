@@ -1,0 +1,148 @@
+metadata:
+  type: acreditacion_de_propiedad_y_representacion
+  version: '1.0'
+  author: Equipo de Fraude HDI
+  last_updated: '2025-09-25'
+  description: Evalúa la solidez de la acreditación de propiedad y representación
+    legal del asegurado.
+definition:
+  nature: Paquete documental que acredita la propiedad del asegurado sobre la mercancía
+    y faculta a su representante legal para gestionar la reclamación.
+  legal_importance: alta
+  critical_elements:
+  - Acta constitutiva o reformas con inscripción en el RPC
+  - Poder notarial vigente o carta poder con facultades para reclamaciones
+  - Identificación oficial del representante y del otorgante
+  - Facturas o contratos que acrediten la adquisición de la mercancía
+  - Comprobantes fiscales (CFDI) validados en SAT
+methodology:
+  analysis_approach: '1. Verificar que los documentos estén completos, legibles y
+    con sellos/firmas originales.
+
+    2. Confirmar que nombres, RFC y domicilios coinciden con la póliza y otros documentos
+    del expediente.
+
+    3. Revisar que el poder notarial cubra actos de reclamación ante aseguradoras
+    y esté vigente al momento del siniestro.
+
+    4. Corroborar que la mercancía reclamada esté respaldada por facturas o contratos
+    a nombre del asegurado.
+
+    5. Detectar discrepancias cronológicas (poder posterior al siniestro, facturas
+    recientes, etc.) y documentarlas.'
+  fraud_indicators:
+    high_risk:
+    - pattern: poder_expirado_o_limitado
+      detection: El poder notarial/carta poder no está vigente o no incluye facultades
+        para reclamar seguros.
+      severity: critico
+      evidence_hint: Citar fecha de emisión, vigencia y cláusula donde se restringen
+        facultades; adjuntar imagen del sello notarial.
+      follow_up: Solicitar poder vigente inscrito en RPC o ratificación ante notario.
+    - pattern: facturas_a_terceros
+      detection: Las facturas o contratos de compraventa están a nombre de un tercero
+        sin cesión documentada.
+      severity: alto
+      evidence_hint: Enumerar folios y RFC discrepantes; validar timbrado CFDI en
+        SAT.
+      follow_up: Requerir cesión de derechos/endoso anterior al siniestro o comprobante
+        de transferencia de dominio.
+    - pattern: representante_no_identificado
+      detection: La identificación del representante no corresponde con el poder o
+        carece de vigencia.
+      severity: alto
+      evidence_hint: Comparar nombre, CURP y vigencia de la identificación con los
+        datos del poder.
+      follow_up: Solicitar identificación oficial vigente y ratificación de firmas.
+    medium_risk:
+    - pattern: contrato_sin_anexos
+      detection: Contrato de compraventa sin anexos que detallen mercancía, cantidades
+        o condiciones de entrega.
+      severity: medio
+      evidence_hint: Señalar cláusulas que referencian anexos ausentes y requerir
+        inventario firmado.
+      follow_up: Solicitar anexos o notas de entrega firmadas por ambas partes.
+    - pattern: mismatch_rfc_domicilio
+      detection: RFC o domicilio en el poder no coincide con la póliza o con los CFDI
+        presentados.
+      severity: medio
+      evidence_hint: Listar las discrepancias indicando documento y dato incongruente.
+      follow_up: Validar RFC/domicilio en SAT y pedir actualización de póliza o addendum.
+    low_risk:
+    - pattern: faltan_sellos_de_recibido
+      detection: Documentos carecen de sello de recibido pero conservan firmas legibles
+        y coherentes.
+      severity: bajo
+      evidence_hint: Enumerar documentos sin sello resaltando que las firmas coinciden
+        con otros expedientes.
+      follow_up: Recomendar cotejo físico del expediente o respaldo electrónico.
+  validation_rules:
+    fecha_poder:
+      type: pattern
+      pattern: ^(19|20)\d{2}-\d{2}-\d{2}$
+    rfc_representante:
+      type: pattern
+      pattern: ^[A-Z&]{3,4}[0-9]{6}[A-Z0-9]{3}$
+    numero_escritura:
+      type: pattern
+      pattern: ^[0-9]{1,6}$
+    folio_factura:
+      type: pattern
+      pattern: ^[A-Z0-9-]{5,25}$
+    autoridad_notarial:
+      type: list
+      values:
+      - Notario Público
+      - Fedatario Público
+      - Corredor Público
+      - Cónsul Mexicano
+  cross_reference_documents:
+  - poliza_de_la_aseguradora
+  - facturas_comerciales_internacionales
+  - cfdi_carta_porte
+  - contrato_prestacion_servicio_transportista
+  - denuncia_de_los_hechos
+  evidence_expectations:
+  - Acta constitutiva y reformas inscritas antes del siniestro
+  - Poder notarial con sello, firma y vigencia explícita sobre reclamaciones
+  - CFDI o contratos que acrediten propiedad de la mercancía reclamadas
+  - Identificaciones oficiales vigentes del representante y otorgante
+  red_flags:
+    critical:
+    - clue: Poder otorgado después del siniestro
+      why: Sugiere intento de legitimar la representación ex post para cobrar la indemnización.
+    - clue: Facturas emitidas a un tercero sin cesión
+      why: El asegurado no demuestra propiedad legítima de la carga.
+    medium:
+    - clue: Contrato firmado por persona distinta al representante acreditado
+      why: Requiere aclarar delegaciones de firma y adjuntar ratificación o addendum.
+response_template:
+  output_format:
+    documento_analizado: acreditacion_de_propiedad_y_representacion
+    analisis_completo: 'Describir propósito del paquete documental y documentos revisados.
+
+      Evaluar vigencias, facultades y coherencia de nombres/RFC con la póliza y otros
+      anexos.
+
+      Detallar inconsistencias detectadas (p. ej. cesiones ausentes, poderes vencidos,
+      facturas a terceros).
+
+      Concluir sobre la validez de la acreditación y pasos recomendados para mitigar
+      riesgos.
+
+      '
+    risk_level: medio
+    fraud_score: 0.5
+    confidence: 0.5
+    indicators: []
+    evidence: []
+    recommendations: []
+    validation_tasks:
+    - tarea: Validar vigencia del poder en el Registro Público de Comercio
+      fuente: RPC / fedatario
+      prioridad: alta
+      estado: pendiente
+    - tarea: Confirmar folios fiscales en SAT
+      fuente: SAT - Verificación CFDI
+      prioridad: media
+      estado: pendiente

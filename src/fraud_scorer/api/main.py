@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 import logging
 
 # 1. Importar los routers desde la carpeta de endpoints
-from .endpoints import general, documents, reports, replay
+from .endpoints import general, reports, replay
 
 # Configurar logging
 logging.basicConfig(level=logging.INFO)
@@ -32,7 +32,6 @@ app.add_middleware(
 # 4. Incluir los routers en la aplicación principal (¡Este es el paso clave!)
 logger.info("Incluyendo routers de la API...")
 app.include_router(general.router)
-app.include_router(documents.router)
 app.include_router(reports.router)
 app.include_router(replay.router, prefix="/replay", tags=["Replay System"])
 logger.info("Routers incluidos exitosamente.")

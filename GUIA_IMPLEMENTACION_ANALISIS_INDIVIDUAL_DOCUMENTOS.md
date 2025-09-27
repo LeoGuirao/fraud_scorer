@@ -18,30 +18,20 @@ Esta guía documenta la implementación vigente del motor de fraude que opera **
 
 ## ✅ Pendiente por Implementar
 
-- Guías adicionales (YAML) por tipo documental prioritario:
-  - `carta_de_reclamacion_formal_a_la_aseguradora`
-  - `carta_de_reclamacion_al_transportista`
+- Guías adicionales (YAML) por tipo documental prioritario (pendientes):
   - `respuesta_transportista`
-  - `carpeta_de_investigacion`
   - `validacion_ministerio_publico`
   - `estudio_tecnico_ruta`
-  - `licencia_del_operador`
   - `tarjeta_de_circulacion_vehiculo`
   - `consulta_repuve`
   - `consulta_sct`
-  - `cfdi_carta_porte`
-  - `pedimento_aduanal`
-  - `facturas`
-  - `seguimiento_gps`
   - `consultas_web_involucrados`
-  - `carta_notificacion_extravio_tickets_peaje`
   - `ficha_de_siniestro`
   - `candados_de_seguridad`
   - `plan_de_accion`
   - `documentos_de_tarja`
   - `plan_de_ruta`
   - `declaracion_de_hechos`
-  - `informe_tecnico_ajustador`
   - `manual_de_usuario_equipo`
   - `presupuesto_reparacion`
 - Validación cruzada entre documentos (sin riesgo global):
@@ -50,10 +40,12 @@ Esta guía documenta la implementación vigente del motor de fraude que opera **
 - Testing: unitarios e integración (parser de respuesta, normalización score↔riesgo, persistencia DB, CLI `--fraud`).
 - Observabilidad: métricas Prometheus (conteos/latencias/distribución de score) y logs estructurados con sanitización de PII.
 - Seguridad y costos: redacción de PII en logs, routing fino de modelos por tipo/longitud, límites de tokens y caché parametrizable.
+- **[Alta prioridad]** Implementar capa de memoización y uso efectivo de `FRAUD_CONFIDENCE_THRESHOLD`. Problema: el código no materializa la caché ni el descarte por confianza documentados, lo que fuerza re-analizar documentos idénticos y aceptar respuestas de baja confianza. Solución planeada: guardar los resultados por clave `document_id/document_type/guide_version/model` con TTL configurable, reutilizarlos cuando existan y bloquear persistencia/cacheo de respuestas debajo del umbral de confianza configurado.
 - Documentación operativa: README de fraude, ejemplos de guías y mejores prácticas de calibración con analistas.
 - Integración con motores posteriores: exponer contractos claros para Observaciones y Conclusiones (inputs = lista de `FraudAnalysisResult`).
 - Ajuste de pesos por indicador: calibrar `FraudScoringEngine` (ver visión) para cada guía documental con respaldo estadístico.
 - Extender `FraudAnalysisResult` con campos `validation_tasks` y `cross_document_flags` para coordinar verificaciones manuales (pendiente de diseño y migración del esquema).
+- **[Alta prioridad]** Añadir soporte completo para `validation_tasks` y `cross_document_flags` en modelos, persistencia y reporte (evitar pérdida de tareas generadas por LLM).
 
 ---
 
@@ -64,12 +56,21 @@ Se implementó el núcleo completo para análisis por documento, integración en
 - Modelos: `src/fraud_scorer/models/fraud_analysis.py` (RiskLevel, FraudIndicator, FraudAnalysisResult, FraudMetrics) con validador score↔riesgo.
 - Gestor de guías: `src/fraud_scorer/analyzers/fraud_guide_manager.py` (carga YAML/JSON + alias de tipos comunes).
 - Prompts: `src/fraud_scorer/prompts/fraud_prompts.py` (defensa anti-injection, límites de alcance, validation_tasks).
-- Motor: `src/fraud_scorer/analyzers/fraud_analyzer.py` (análisis por documento, normalización de riesgo, persistencia `fraud_analyses`).
+- Motor: `src/fraud_scorer/analyzers/fraud_analyzer.py` (análisis por documento, normalización de riesgo alineando `risk_level` con el `fraud_score`, persistencia en `fraud_analyses`; intenta primero `FRAUD_ANALYSIS_MODEL`, ante fallo usa `FRAUD_ANALYSIS_MODEL_FALLBACK` y registra en `analysis_model` cuál respondió).
+- Fase 3.5 ajustada (`scripts/run_report.py`): recorre todos los documentos clasificados (no solo los que tienen extracción guiada), normaliza el tipo al canónico de la guía y ejecuta el análisis de fraude para cada documento con guía disponible, generando extracciones vacías cuando sea necesario. Se excluyen explícitamente las pólizas (`poliza_de_la_aseguradora`) del análisis individual para que solo participen en validaciones cruzadas.
+
+### Cambios recientes (enero 2025)
+
+- `_call_ai_with_retry` ahora devuelve `(respuesta_json, model_name)` y `analyze_document` persiste en `FraudAnalysisResult.analysis_model` el modelo realmente usado, ya sea el principal (`FRAUD_ANALYSIS_MODEL`) o el fallback (`FRAUD_ANALYSIS_MODEL_FALLBACK`). Implementado en `src/fraud_scorer/analyzers/fraud_analyzer.py` (líneas 150-258).
+- Se añadió lógica en `_parse_analysis_response` para recibir el nombre del modelo efectivo y guardarlo junto al resultado, manteniendo coherencia con la evidencia del ajuste de riesgo.
+- La fase 3.5 de fraude (`scripts/run_report.py` líneas 1510-1578) ahora itera sobre `ocr_results` en vez de `extractions`, verifica si existe guía (`FraudGuideManager.get_guide`), normaliza el `document_type` al canónico de la guía, crea un `DocumentExtraction` vacío cuando no hay extracción previa y sincroniza la tabla `extractions_by_name` para asegurar que todos los documentos con guía se analicen.
+- Se agregó una regla de exclusión en fase 3.5 para omitir documentos tipo `poliza_de_la_aseguradora`; se registran en log como omitidos y se filtran análisis previos para evitar que aparezcan en el reporte individual. Las pólizas siguen disponibles para validaciones cruzadas y otras referencias.
+- Se actualizó la guía para documentar las listas reales de guías activas, resaltar los pendientes de alta prioridad (`validation_tasks`/`cross_document_flags` y memoización con `FRAUD_CONFIDENCE_THRESHOLD`) y describir el flujo correcto de fase 3.5 basado en JSON OCR.
 - DB: `src/fraud_scorer/storage/db.py` extendido con tabla `fraud_analyses` e índices.
 - API: `src/fraud_scorer/api/endpoints/reports.py` con flag `?fraud=true`.
 - CLI: `scripts/run_report.py` con `--fraud` y fase 3.5 (análisis por documento).
 - Reporte: `src/fraud_scorer/templates/fraud_report_generator.py` y `report_template.html` (sección por documento integrada; sin riesgo global, expone el bloque utilizado por Observaciones/Conclusiones).
-- Guía YAML operativa: `src/fraud_scorer/guides/denuncia_de_los_hechos.yaml`.
+- Guías YAML operativas (canónicas): `carta_de_reclamacion_formal_a_la_aseguradora`, `carta_de_reclamacion_formal_al_transportista`, `carta_aclatoria_comprobantes_peaje`, `carta_porte_simple`, `carpeta_de_investigacion`, `cfdi_carta_porte`, `conocimiento_de_embarque`, `contrato_prestacion_servicio_transportista`, `denuncia_de_los_hechos`, `facturas_comerciales_internacionales`, `identificacion_oficial`, `informe_final_del_ajustador`, `licencia_del_operador`, `oficio_de_desaduanado`, `oficio_denuncia`, `pedimento_importacion`, `protocolo_de_accion_y_reaccion`, `reporte_gps`.
 
 Snippet de uso (CLI con fraude):
 ```
@@ -96,6 +97,7 @@ Compatibilidad v2 (extracto):
 Entorno (extracto):
 - Dependencias recomendadas: `pyyaml` (carga de guías YAML), `jsonschema` (validación de salida del LLM, opcional).
 - Variables `.env` usadas por el analizador: `FRAUD_ANALYSIS_MODEL`, `FRAUD_ANALYSIS_MODEL_FALLBACK`, `FRAUD_CONFIDENCE_THRESHOLD`, `FRAUD_CACHE_TTL`.
+  - El análisis guarda en cada `FraudAnalysisResult.analysis_model` el nombre del modelo que respondió (principal o fallback) para trazabilidad.
 
 ---
 
@@ -124,7 +126,7 @@ response_template:
     recommendations: []
 ```
 
-Guía ya implementada (extracto): `src/fraud_scorer/guides/denuncia_de_los_hechos.yaml`
+Guía implementada de referencia (extracto): `src/fraud_scorer/guides/denuncia_de_los_hechos.yaml`
 ```yaml
 metadata:
   type: denuncia_de_los_hechos

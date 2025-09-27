@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - Sistema Inteligente Análisis de Fraude</title>
+
+    <!-- Fuentes -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet"/>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            height: 100%;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f2f2f2;
+            color: #ffffff;
+            font-size: 14px;
+            line-height: 1.5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0;
+        }
+
+        .dashboard-container {
+            display: flex;
+            height: calc(100vh - 32px);
+            width: calc(100vw - 48px);
+            max-width: 1500px;
+            border-radius: 35px;
+            overflow: hidden;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            background-color: #000000;
+        }
+
+        .sidebar {
+            width: 286px;
+            background-color: #353535;
+            padding: 24px 20px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #000000;
+            position: relative;
+        }
+
+        .profile-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .profile-picture {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background-position: center;
+            background-size: cover;
+            background-repeat: no-repeat;
+            margin: 0 auto 15px;
+            border: 3px solid #ffffff;
+        }
+
+        .profile-name {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .divider {
+            width: 100%;
+            height: 1px;
+            background-color: #ffffff;
+            margin: 20px 0;
+        }
+
+        .metrics-section {
+            flex: 1;
+        }
+
+        .metrics-title {
+            font-size: 22px;
+            font-weight: 700;
+            color: #ffffff;
+            text-align: center;
+            margin-bottom: 28px;
+            letter-spacing: 2px;
+        }
+
+        .metric-card {
+            background-color: #D9D9D9;
+            border-radius: 0px;
+            margin-bottom: 15px;
+            overflow: hidden;
+        }
+
+        .metric-header {
+            background-color: #7D7D7D;
+            padding: 8px 15px;
+        }
+
+        .metric-label {
+            font-size: 12px;
+            font-weight: 700;
+            color: #ffffff;
+            text-align: center;
+        }
+
+        .metric-value {
+            padding: 8px 15px;
+            text-align: center;
+        }
+
+        .metric-number {
+            font-size: 14px;
+            font-weight: 700;
+            color: #000000;
+        }
+
+        .blacknox-logo {
+            margin-top: auto;
+            text-align: center;
+            padding: 20px 0;
+        }
+
+        .blacknox-logo-img {
+            width: 120px;
+            height: auto;
+            filter: brightness(0) invert(1);
+        }
+
+        .main-content {
+            flex: 1;
+            background-color: #5f5f5f;
+            padding: 32px 48px;
+            border: 1px solid #000000;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            gap: 32px;
+            overflow: hidden;
+        }
+
+        .main-header {
+            margin-bottom: 12px;
+            padding-bottom: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+        }
+
+        .header-top {
+            position: relative;
+            text-align: center;
+        }
+
+        .main-title {
+            font-size: 32px;
+            font-weight: 700;
+            color: #ffffff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 0;
+            line-height: 1.1;
+        }
+
+        .last-login-main {
+            position: absolute;
+            top: -20px;
+            right: 0;
+            font-size: 12px;
+            color: #ffffff;
+            opacity: 0.75;
+            text-transform: none;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #ffffff;
+            margin-bottom: 15px;
+        }
+
+        .analysis-section {
+            background-color: rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            border-radius: 0;
+            padding: 24px 32px 32px;
+        }
+
+        .upload-module {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .upload-area {
+            position: relative;
+            border: 2px dashed rgba(255, 255, 255, 0.4);
+            border-radius: 0;
+            padding: 48px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .upload-area:hover,
+        .upload-area.dragover {
+            border-color: #ffffff;
+            background: rgba(0, 0, 0, 0.35);
+        }
+
+        .upload-area input {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .upload-icon {
+            font-size: 72px;
+            color: #ffffff;
+            margin-bottom: 12px;
+        }
+
+        .upload-text {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .upload-subtext,
+        .upload-hint {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .upload-hint {
+            text-align: center;
+        }
+
+        .file-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            max-height: 220px;
+            overflow-y: auto;
+        }
+
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 10px 14px;
+        }
+
+        .file-info {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .file-name {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ffffff;
+            word-break: break-all;
+        }
+
+        .file-meta {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+        }
+
+        .file-action {
+            background: transparent;
+            border: none;
+            color: #ffffff;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            transition: transform 0.2s ease;
+        }
+
+        .file-action:hover {
+            transform: scale(1.1);
+        }
+
+        .button-row {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+
+        .action-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            transition: transform 0.2s ease, opacity 0.2s ease;
+        }
+
+        .action-button i {
+            font-size: 16px;
+        }
+
+        .action-button.primary {
+            background-color: #2F88FF;
+            color: #ffffff;
+        }
+
+        .action-button.secondary {
+            background-color: rgba(255, 255, 255, 0.15);
+            color: #ffffff;
+        }
+
+        .action-button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .action-button:not(:disabled):hover {
+            transform: translateY(-1px);
+        }
+
+        .action-button.loading {
+            cursor: wait;
+        }
+
+        .spinner-inline {
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-top-color: #ffffff;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        .cases-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .cases-table-container {
+            background-color: #A9A9A9;
+            border-radius: 0;
+            overflow: hidden;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .table-header {
+            background-color: #D9D9D9;
+            padding: 12px 20px;
+            display: grid;
+            grid-template-columns: 1.4fr 1.8fr 0.8fr 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+        }
+
+        .table-header-cell {
+            font-size: 12px;
+            font-weight: 700;
+            color: #000000;
+            text-align: left;
+        }
+
+        .table-body {
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .table-row {
+            background-color: #C3C2C2;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+            padding: 10px 20px;
+            display: grid;
+            grid-template-columns: 1.4fr 1.8fr 0.8fr 1fr 1fr 1fr 1fr;
+            gap: 15px;
+            align-items: center;
+            transition: background-color 0.2s ease;
+            min-height: 48px;
+        }
+
+        .table-row:hover {
+            background-color: #D0D0D0;
+        }
+
+        .table-cell {
+            font-size: 11px;
+            font-weight: 700;
+            color: #000000;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .cell-subtitle {
+            font-weight: 500;
+            font-size: 10px;
+            color: rgba(0, 0, 0, 0.6);
+        }
+
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+
+        .action-btn {
+            width: 26px;
+            height: 26px;
+            border: none;
+            border-radius: 0px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+            font-size: 13px;
+        }
+
+        .action-btn.delete-btn {
+            background-color: #2F88FF;
+            color: #ffffff;
+        }
+
+        .action-btn.edit-btn {
+            background-color: transparent;
+            color: #000000;
+        }
+
+        .action-btn:hover {
+            transform: scale(1.1);
+        }
+
+        .no-cases {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(0, 0, 0, 0.6);
+            font-style: italic;
+        }
+
+        @media (max-width: 1200px) {
+            body {
+                padding: 16px;
+            }
+
+            .dashboard-container {
+                flex-direction: column;
+                height: auto;
+                width: 100%;
+                max-width: none;
+            }
+
+            .sidebar {
+                width: 100%;
+                border-radius: 20px 20px 0 0;
+            }
+
+            .main-content {
+                border-radius: 0 0 20px 20px;
+            }
+
+            .table-header,
+            .table-row {
+                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+                gap: 10px;
+                text-align: center;
+            }
+
+            .last-login-main {
+                position: static;
+                margin-top: 8px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .main-title {
+                font-size: 24px;
+            }
+
+            .upload-area {
+                padding: 28px 20px;
+            }
+
+            .upload-icon {
+                font-size: 54px;
+            }
+
+            .upload-text {
+                font-size: 16px;
+            }
+
+            .button-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .table-header,
+            .table-row {
+                padding: 12px;
+            }
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body data-last-login-iso="{{ last_login_iso or '' }}" data-last-login-display="{{ last_login_display or '' }}" data-user-name="{{ user or '' }}">
+    <div class="dashboard-container">
+        <aside class="sidebar">
+            <div class="profile-section">
+                <div class="profile-picture" style="background-image: url('/static/user_profile_picture.webp');"></div>
+                <div class="profile-name" id="sidebarUserName">{{ user or 'Usuario' }}</div>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="metrics-section">
+                <h2 class="metrics-title">MÉTRICAS</h2>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">TOTAL DE CASOS</div>
+                    </div>
+                    <div class="metric-value">
+                        <div class="metric-number" id="totalCases">--</div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">DINERO AHORRADO A HDI</div>
+                    </div>
+                    <div class="metric-value">
+                        <div class="metric-number" id="moneySaved">--</div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">SCORE DE FRAUDE GLOBAL</div>
+                    </div>
+                    <div class="metric-value">
+                        <div class="metric-number" id="globalFraudScore">N/A</div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">TAMAÑO DEL CACHÉ</div>
+                    </div>
+                    <div class="metric-value">
+                        <div class="metric-number" id="cacheSize">--</div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">ARCHIVOS CACHEADOS</div>
+                    </div>
+                    <div class="metric-value">
+                        <div class="metric-number" id="cachedFiles">--</div>
+                    </div>
+                </div>
+
+                <div class="metric-card">
+                    <div class="metric-header">
+                        <div class="metric-label">PROMEDIO DOCS/CASO</div>
+                    </div>
+                    <div class="metric-value">
+                        <div class="metric-number" id="avgDocs">--</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="blacknox-logo">
+                <img src="{{ request.url_for('static', path='Blacknox - Fraud Logo - PNG.png') }}" alt="Blacknox" class="blacknox-logo-img">
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="main-header">
+                <div class="header-top">
+                    <h1 class="main-title">Sistema Inteligente de Análisis de Fraude</h1>
+                    <div class="last-login-main" id="mainLastLogin">Último inicio de sesión: --</div>
+                </div>
+            </div>
+
+            <section class="analysis-section">
+                <h2 class="section-title">Crear un nuevo análisis</h2>
+                <div class="upload-module">
+                    <div class="upload-area" id="uploadArea">
+                        <input type="file" id="fileInput" multiple accept=".pdf,.jpg,.jpeg,.png,.docx,.xlsx,.csv">
+                        <div class="upload-icon">
+                            <i class="ri-upload-cloud-2-line"></i>
+                        </div>
+                        <div class="upload-text">Arrastra los documentos aquí</div>
+                        <div class="upload-subtext">o haz clic para seleccionar archivos</div>
+                    </div>
+                    <div class="upload-hint">Formatos soportados: PDF, JPG, PNG, DOCX, XLSX, CSV</div>
+                    <div class="file-list" id="fileList"></div>
+                    <div class="button-row">
+                        <button type="button" class="action-button secondary" id="clearFilesBtn">
+                            <i class="ri-delete-bin-line"></i>
+                            Limpiar selección
+                        </button>
+                        <button type="button" class="action-button primary" id="analyzeBtn" disabled>
+                            <i class="ri-scan-line"></i>
+                            Analizar caso
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            <section class="cases-section">
+                <h2 class="section-title">Casos procesados disponibles</h2>
+                <div class="cases-table-container">
+                    <div class="table-header">
+                        <div class="table-header-cell">Número de siniestro</div>
+                        <div class="table-header-cell">Nombre del asegurado</div>
+                        <div class="table-header-cell">Documentos</div>
+                        <div class="table-header-cell">Procesado</div>
+                        <div class="table-header-cell">Score de fraude</div>
+                        <div class="table-header-cell">Estado</div>
+                        <div class="table-header-cell">Acciones</div>
+                    </div>
+                    <div class="table-body" id="casesTableBody"></div>
+                    <div class="no-cases" id="noCasesMessage" style="display: none;">No hay casos registrados.</div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        const dashboardState = {
+            selectedFiles: [],
+            uploadInProgress: false,
+            cases: []
+        };
+
+        const averageFormatter = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeUserProfile();
+            setupUploadModule();
+            renderFileList();
+            loadDashboardData();
+        });
+
+        function initializeUserProfile() {
+            const body = document.body;
+            const rawUserName = (body.dataset.userName || '').trim();
+            const displayName = rawUserName || 'Usuario';
+            const sidebarName = document.getElementById('sidebarUserName');
+            if (sidebarName) {
+                sidebarName.textContent = displayName;
+            }
+
+            const formattedLogin = formatLastLogin(body.dataset.lastLoginIso, body.dataset.lastLoginDisplay);
+            const mainLogin = document.getElementById('mainLastLogin');
+            if (mainLogin) {
+                mainLogin.textContent = `Último inicio de sesión: ${formattedLogin}`;
+            }
+        }
+
+        function formatLastLogin(isoValue, fallback) {
+            if (isoValue) {
+                const parsed = new Date(isoValue);
+                if (!Number.isNaN(parsed.getTime())) {
+                    return parsed.toLocaleString('es-MX', {
+                        dateStyle: 'short',
+                        timeStyle: 'short'
+                    });
+                }
+            }
+            if (fallback) {
+                return fallback;
+            }
+            return 'Sin registro';
+        }
+
+        function setupUploadModule() {
+            const uploadArea = document.getElementById('uploadArea');
+            const fileInput = document.getElementById('fileInput');
+            const clearButton = document.getElementById('clearFilesBtn');
+            const analyzeButton = document.getElementById('analyzeBtn');
+
+            if (!uploadArea || !fileInput || !clearButton || !analyzeButton) {
+                return;
+            }
+
+            uploadArea.addEventListener('click', (event) => {
+                if (event.target !== fileInput) {
+                    fileInput.click();
+                }
+            });
+
+            uploadArea.addEventListener('dragover', (event) => {
+                event.preventDefault();
+                uploadArea.classList.add('dragover');
+            });
+
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+
+            uploadArea.addEventListener('drop', (event) => {
+                event.preventDefault();
+                uploadArea.classList.remove('dragover');
+                handleFiles(event.dataTransfer.files);
+            });
+
+            fileInput.addEventListener('change', (event) => {
+                const files = Array.from(event.target.files || []);
+                handleFiles(files);
+                event.target.value = '';
+            });
+
+            clearButton.addEventListener('click', () => clearFiles());
+
+            analyzeButton.addEventListener('click', () => {
+                if (!dashboardState.uploadInProgress) {
+                    startAnalysis();
+                }
+            });
+        }
+
+        function handleFiles(fileList) {
+            if (!fileList || !fileList.length) {
+                return;
+            }
+
+            const newFiles = Array.from(fileList);
+            const existingNames = new Set(dashboardState.selectedFiles.map((file) => file.name));
+
+            newFiles.forEach((file) => {
+                if (!existingNames.has(file.name)) {
+                    dashboardState.selectedFiles.push(file);
+                }
+            });
+
+            renderFileList();
+            updateAnalyzeButtonState();
+        }
+
+        function renderFileList() {
+            const fileListContainer = document.getElementById('fileList');
+            if (!fileListContainer) {
+                return;
+            }
+
+            if (!dashboardState.selectedFiles.length) {
+                fileListContainer.innerHTML = '<div class="upload-hint">No hay archivos seleccionados.</div>';
+                return;
+            }
+
+            fileListContainer.innerHTML = dashboardState.selectedFiles
+                .map((file, index) => `
+                    <div class="file-item">
+                        <div class="file-info">
+                            <span class="file-name">${escapeHtml(file.name)}</span>
+                            <span class="file-meta">${escapeHtml(file.type || 'Formato desconocido')} · ${formatFileSize(file.size)}</span>
+                        </div>
+                        <button class="file-action" type="button" aria-label="Eliminar archivo" onclick="removeFile(${index})">
+                            <i class="ri-close-line"></i>
+                        </button>
+                    </div>
+                `)
+                .join('');
+        }
+
+        function escapeHtml(value) {
+            return String(value)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function formatFileSize(bytes) {
+            if (!Number.isFinite(bytes)) {
+                return '—';
+            }
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex += 1;
+            }
+            return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+        }
+
+        function removeFile(index) {
+            dashboardState.selectedFiles.splice(index, 1);
+            renderFileList();
+            updateAnalyzeButtonState();
+        }
+
+        function clearFiles() {
+            dashboardState.selectedFiles = [];
+            renderFileList();
+            updateAnalyzeButtonState();
+        }
+
+        function updateAnalyzeButtonState() {
+            const analyzeButton = document.getElementById('analyzeBtn');
+            if (!analyzeButton) {
+                return;
+            }
+            const shouldDisable = dashboardState.uploadInProgress || dashboardState.selectedFiles.length === 0;
+            analyzeButton.disabled = shouldDisable;
+            if (!dashboardState.uploadInProgress) {
+                analyzeButton.innerHTML = '<i class="ri-scan-line"></i> Analizar caso';
+            }
+        }
+
+        function setUploadInProgress(flag) {
+            dashboardState.uploadInProgress = flag;
+            const analyzeButton = document.getElementById('analyzeBtn');
+            if (!analyzeButton) {
+                return;
+            }
+            analyzeButton.disabled = flag || dashboardState.selectedFiles.length === 0;
+            if (flag) {
+                analyzeButton.classList.add('loading');
+                analyzeButton.innerHTML = '<span class="spinner-inline"></span> Iniciando...';
+            } else {
+                analyzeButton.classList.remove('loading');
+                analyzeButton.innerHTML = '<i class="ri-scan-line"></i> Analizar caso';
+            }
+        }
+
+        async function startAnalysis() {
+            if (!dashboardState.selectedFiles.length) {
+                return;
+            }
+
+            setUploadInProgress(true);
+
+            try {
+                const existingCase = await checkExistingCase();
+                if (existingCase && existingCase.existing_case) {
+                    alert('Se detectó un caso existente. Te llevaremos a las opciones de reprocesamiento.');
+                    clearFiles();
+                    window.location.href = `/upload?mode=reprocess&case_id=${encodeURIComponent(existingCase.case_id)}`;
+                    return;
+                }
+
+                const formData = new FormData();
+                dashboardState.selectedFiles.forEach((file) => {
+                    formData.append('files', file);
+                });
+
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error('Ocurrió un error al subir los archivos.');
+                }
+
+                const result = await response.json();
+                clearFiles();
+                window.location.href = `/upload?process_id=${encodeURIComponent(result.process_id)}`;
+            } catch (error) {
+                console.error('Error al iniciar análisis:', error);
+                alert(error?.message || 'No se pudo iniciar el análisis. Inténtalo de nuevo.');
+                setUploadInProgress(false);
+            }
+        }
+
+        async function checkExistingCase() {
+            if (!dashboardState.selectedFiles.length) {
+                return null;
+            }
+
+            const fileNames = dashboardState.selectedFiles.map((file) => file.name);
+            const limit = Math.min(10, dashboardState.selectedFiles.length);
+            const filesToHash = dashboardState.selectedFiles.slice(0, limit);
+
+            let hashes = [];
+            try {
+                hashes = await Promise.all(filesToHash.map(computeSHA256));
+            } catch (error) {
+                console.warn('No se pudieron calcular los hashes SHA-256 en el navegador:', error);
+            }
+
+            try {
+                const response = await fetch('/api/case/null/check-existing', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ files: fileNames, hashes })
+                });
+
+                if (!response.ok) {
+                    return null;
+                }
+
+                const data = await response.json();
+                if (data && data.existing_case) {
+                    return data;
+                }
+            } catch (error) {
+                console.error('Error verificando caso existente:', error);
+            }
+            return null;
+        }
+
+        async function computeSHA256(file) {
+            const buffer = await file.arrayBuffer();
+            const digest = await crypto.subtle.digest('SHA-256', buffer);
+            const view = new DataView(digest);
+            const hexBytes = [];
+            for (let i = 0; i < view.byteLength; i += 1) {
+                hexBytes.push(view.getUint8(i).toString(16).padStart(2, '0'));
+            }
+            return hexBytes.join('');
+        }
+
+        async function loadDashboardData() {
+            try {
+                const [statsResp, casesResp] = await Promise.all([
+                    fetch('/replay/api/stats'),
+                    fetch('/replay/api/cases')
+                ]);
+
+                const statsPayload = statsResp.ok ? await statsResp.json() : {};
+                const casesPayload = casesResp.ok ? await casesResp.json() : {};
+
+                const stats = statsPayload.data || statsPayload || {};
+                const cases = casesPayload.data || casesPayload || [];
+
+                dashboardState.cases = Array.isArray(cases) ? cases : [];
+
+                updateMetrics(stats, dashboardState.cases);
+                renderCasesTable(dashboardState.cases);
+            } catch (error) {
+                console.error('Error cargando datos del dashboard:', error);
+            }
+        }
+
+        function updateMetrics(stats, cases) {
+            const totalCasesElement = document.getElementById('totalCases');
+            const globalFraudElement = document.getElementById('globalFraudScore');
+            const cacheSizeElement = document.getElementById('cacheSize');
+            const cachedFilesElement = document.getElementById('cachedFiles');
+            const avgDocsElement = document.getElementById('avgDocs');
+
+            const totalCases = stats.case_count ?? cases.length;
+            if (totalCasesElement) {
+                totalCasesElement.textContent = totalCases;
+            }
+
+            const moneySavedElement = document.getElementById('moneySaved');
+            if (moneySavedElement) {
+                moneySavedElement.textContent = 'N/A';
+            }
+
+            if (globalFraudElement) {
+                globalFraudElement.textContent = 'N/A';
+            }
+
+            if (cacheSizeElement) {
+                const size = stats.total_size_mb ?? 0;
+                cacheSizeElement.textContent = `${(Number(size) || 0).toFixed(2)} MB`;
+            }
+
+            if (cachedFilesElement) {
+                cachedFilesElement.textContent = stats.file_count ?? 0;
+            }
+
+            if (avgDocsElement) {
+                const average = cases.length
+                    ? averageFormatter.format(cases.reduce((sum, item) => sum + (item.document_count || 0), 0) / cases.length)
+                    : '0.0';
+                avgDocsElement.textContent = average;
+            }
+        }
+
+        function renderCasesTable(cases) {
+            const tableBody = document.getElementById('casesTableBody');
+            const emptyState = document.getElementById('noCasesMessage');
+
+            if (!tableBody) {
+                return;
+            }
+
+            if (!cases.length) {
+                tableBody.innerHTML = '';
+                if (emptyState) {
+                    emptyState.style.display = 'block';
+                }
+                return;
+            }
+
+            if (emptyState) {
+                emptyState.style.display = 'none';
+            }
+
+            const sortedCases = [...cases].sort((a, b) => {
+                const dateB = b.processed_at ? new Date(b.processed_at) : new Date(0);
+                const dateA = a.processed_at ? new Date(a.processed_at) : new Date(0);
+                return dateB - dateA;
+            });
+
+            const rows = sortedCases.map((caseItem) => {
+                const caseIdRaw = caseItem.case_id || '';
+                const claimNumber = caseItem.claim_number || 'N/A';
+                const insuredName = caseItem.insured_name || 'N/A';
+                const documentCount = caseItem.document_count ?? 0;
+                const processedAt = formatDateTime(caseItem.processed_at);
+                const fraudScore = 'N/A';
+                const status = 'N/A';
+
+                return `
+                    <div class="table-row">
+                        <div class="table-cell">
+                            <span>${escapeHtml(claimNumber)}</span>
+                            <span class="cell-subtitle">${escapeHtml(caseIdRaw || 'N/A')}</span>
+                        </div>
+                        <div class="table-cell">
+                            <span>${escapeHtml(insuredName)}</span>
+                        </div>
+                        <div class="table-cell">
+                            <span>${documentCount}</span>
+                        </div>
+                        <div class="table-cell">
+                            <span>${escapeHtml(processedAt)}</span>
+                        </div>
+                        <div class="table-cell">
+                            <span>${fraudScore}</span>
+                        </div>
+                        <div class="table-cell">
+                            <span>${status}</span>
+                        </div>
+                        <div class="table-cell">
+                            <div class="action-buttons">
+                                <button class="action-btn delete-btn" type="button" onclick='deleteCase(${JSON.stringify(caseIdRaw)})'>
+                                    <i class="ri-delete-bin-line"></i>
+                                </button>
+                                <button class="action-btn edit-btn" type="button" onclick='editCase(${JSON.stringify(caseIdRaw)})'>
+                                    <i class="ri-edit-line"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            tableBody.innerHTML = rows.join('');
+        }
+
+        function formatDateTime(value) {
+            if (!value) {
+                return 'N/A';
+            }
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                return value;
+            }
+            return parsed.toLocaleString('es-MX', {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            });
+        }
+
+        async function deleteCase(caseId) {
+            if (!caseId) {
+                return;
+            }
+            const confirmed = confirm(`¿Está seguro de eliminar el caso ${caseId}?`);
+            if (!confirmed) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/replay/api/deep-purge/${encodeURIComponent(caseId)}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    throw new Error('No se pudo eliminar el caso.');
+                }
+
+                alert(`Caso ${caseId} eliminado correctamente.`);
+                await loadDashboardData();
+            } catch (error) {
+                console.error('Error eliminando caso:', error);
+                alert(error?.message || 'No se pudo eliminar el caso.');
+            }
+        }
+
+        function editCase(caseId) {
+            console.info('Edición solicitada para', caseId);
+            alert('La funcionalidad de edición de casos está pendiente de implementación.');
+        }
+    </script>
+</body>
+</html>

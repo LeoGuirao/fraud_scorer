@@ -156,7 +156,6 @@ fraud_scorer/
 ## 📊 API REST
 [http://localhost:8000/docs](http://localhost:8000/docs)
 
-- `POST /documents/upload` → Subir y procesar  
 - `GET  /reports/generate` → Generar reporte  
 - `GET  /health` → Estado del sistema  
 

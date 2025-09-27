@@ -1,11 +1,13 @@
-# Postmortem y Guía Técnica: Reproceso 3.5, Detección de Duplicados y Conteos
+# Better Practices Fraud Scorer: Reproceso 3.5, Detección de Duplicados y Conteos
 
-Este documento describe en detalle los problemas detectados y las soluciones implementadas en el sistema Fraud Scorer en cuatro áreas:
+Este documento (Better Practices) describe en detalle los problemas detectados y las soluciones implementadas en el sistema Fraud Scorer en seis áreas:
 
 - Reprocesamiento exclusivo de la Fase 3.5 (análisis de fraude) sin archivos originales.
 - Activación confiable del menú de reprocesamiento al subir archivos ya procesados.
 - Conteos erróneos de documentos (índices inflados) en la UI y normalización del índice del caso.
 - Prevención de la creación de la base de datos innecesaria `data/fraud_scorer.db`.
+- Reutilización de análisis de fraude en reprocesos parciales sin romper plantillas.
+- Limpieza completa de casos (deep purge y purgas parciales) sin residuos en el filesystem.
 
 Se incluyen causas raíz, decisiones de diseño y fragmentos de código exactos con rutas de archivo reales, alineados con la estructura actual del proyecto.
 
@@ -332,6 +334,93 @@ Resultado: cualquier reproceso parcial conserva la sección de fraude previa, el
 
 ---
 
+## 6) Limpieza completa de casos (residuos en FS después del purge)
+
+### Síntoma
+
+Tras ejecutar `DELETE /replay/api/deep-purge/<case_id>` la base de datos quedaba limpia, pero persistían archivos relacionados al caso:
+
+- Respaldos de índice `case_index/CASE-*.json.backup_*`.
+- Reportes HTML/PDF/JSON cuyo nombre no coincidía exactamente con el `insured_name` guardado (variaciones con acentos o reemplazos de caracteres).
+
+Esto provocaba que un “deep purge” pareciera exitoso, pero al inspeccionar `data/ocr_cache/case_index/` o `data/reports/` seguían presentes artefactos con `case_id` y `claim_number` del siniestro.
+
+### Causa raíz
+
+- `ReplayService.clear_cache()` únicamente eliminaba el archivo índice principal y reportes que coincidieran con patrones simples (`case_id`, `INF-{case_id}` o el nombre sanitizado literal). No consideraba respaldos automáticos (`*.backup_*`) ni variantes de nombres con tildes/guiones.
+- No existía una búsqueda basada en contenido del reporte (JSON) para detectar el `case_id` cuando el nombre del archivo era diferente al asegurado registrado en el índice.
+
+### Solución
+
+- Incorporar auxiliares dedicados en `src/fraud_scorer/services/replay_service.py`:
+  - `_collect_name_variations()` genera combinaciones (original, sanitizada, sin acentos, sin espacios, minúsculas) para cubrir discrepancias entre nomenclaturas.
+  - `_remove_report_family()` elimina el trío `json/html/pdf` sin importar el sufijo (`_RESULTADOS`, `_INFORME`, `_REPORTE`, `_FINAL`).
+  - `_remove_reports_by_case_id()` abre cada JSON en `data/reports`, busca el `case_id` y elimina toda la familia aunque el nombre no coincida con el asegurado.
+- Durante el purge:
+  - Conservar `insured_name`/`claim_number`, inferirlos desde el nombre de la carpeta (`<ASEGURADO> - <SINIESTRO>`) si el índice ya no está disponible.
+  - Eliminar respaldos `case_index/{case_id}.json.backup_*` además del índice principal.
+ - Para el pipeline cache (`data/temp/pipeline_cache`) usar patrones basados en `case_id` y `claim_number`.
+
+### Verificación posterior al procesamiento
+
+- Después de consolidar un caso se ejecuta `verify_case_artifacts(case_id)`:
+  - Confirma que `cases`, `documents`, `ocr_results`, `extracted_data`, `fraud_analyses`, `runs` y `ai_analyses` tengan registros para el caso.
+  - Valida que exista `case_index/<case_id>.json` y que las rutas reorganizadas sigan disponibles.
+  - Localiza duplicados por `file_hash` y elimina automáticamente los registros sobrantes (con cascada en OCR/extracción).
+  - Reporta advertencias si faltan shards hash o si el índice y la BD se desalinean.
+- Si detecta un problema crítico (caso inexistente, sin documentos o sin índice), el pipeline levanta una excepción para revisar el proceso antes de continuar.
+
+Archivo clave: `src/fraud_scorer/services/replay_service.py`
+
+### Sistema de borrado completo (checklist)
+
+Al ejecutar `DELETE /replay/api/deep-purge/<case_id>` o la acción equivalente desde la UI, se debe verificar que:
+
+1. **BD**: se elimina la fila en `cases` y, por cascada, `documents`, `ocr_results`, `extracted_data`, `fraud_analyses`, `runs` y métricas (`reset_cache_stats(case_id)`).
+2. **Índices**: se eliminan `case_index/{case_id}.json` y cualquier `*.backup_*` asociado.
+3. **Carpetas reorganizadas**: `data/ocr_cache/<ASEGURADO - SINIESTRO>/` desaparece (incluye subcarpetas y shards).
+4. **Archivos temporales**: se borran carpetas bajo `data/temp/...` que contengan el `case_id` o el siniestro (incluye `pipeline_cache` y staging temporales).
+5. **Reportes**: para cada coincidencia de `case_id`, `claim_number` o variantes del asegurado, se eliminan los archivos `HTML/PDF/JSON` de `data/reports/`.
+6. **Residuos adicionales**: si la limpieza se ejecuta mediante `clear_cache(['all'])`, también se vacía `case_index/` por completo antes de reconstruir la estructura.
+
+Con estas garantías, volver a subir los mismos documentos hará que `/api/case/null/check-existing` responda `existing_case: false` y el pipeline procese el caso desde cero sin depender de artefactos previos.
+
+---
+
+## 7) Estado actual del almacenamiento y caché (2025)
+
+### Directorios canónicos
+
+- `data/ocr_cache` y `data/ocr_cache/case_index`: única fuente para resultados OCR y metadatos por hash/caso. Todo nuevo desarrollo debe consumirlos a través de `OCRCacheManager` (`src/fraud_scorer/storage/ocr_cache.py`).
+- `data/temp/pipeline_cache`: staging oficial para consolidado y marcadores de pipeline (`*_CONSOLIDADO.json`, `*.status.jsonl`).
+- `data/uploads` (`/renombre_de_documentos`): staging de organización/clasificación en dos fases (`document_organizer.py`).
+- `data/reports`: carpeta de salida estable tanto para CLI como API (`scripts/run_report.py`, endpoints `reports`).
+
+### Directorios retirados o solo temporales
+
+- `data/raw`, `data/temp_reports`, `data/feedback_archive`: se eliminaron junto con el endpoint legacy `/documents/upload` y scripts asociados. No volver a crearlos salvo que exista un productor claro; ajustamos limpieza/test para ignorarlos.
+- `data/temp`: sigue siendo staging general para uploads/API; cualquier limpieza debe conservar la carpeta base pero purgar contenido dinámico.
+- `data/training_examples`: contiene ejemplos utilizados por prompts; mantener únicamente archivos necesarios para los modelos.
+
+### Base de datos y métricas
+
+- `data/cases.db` permanece como origen de verdad: `cases`, `documents`, `ocr_results`, `extracted_data`, `fraud_analyses`, `ai_analyses`, `runs`, `cache_stats` (`src/fraud_scorer/storage/db.py`).
+- Persistimos hashing por archivo y reuso global; los índices únicos (`idx_docs_case_hash`) previenen duplicados cuando el pipeline sube correctamente los hashes.
+- La UI/replay consulta `cache_stats` combinando métricas de BD y conteos en FS; cualquier nuevo contador debe agregarse aquí para mantener coherencia.
+
+### Limpieza y scripts auxiliares
+
+- `scripts/clean_orphaned_files.py` y `ReplayService.clear_cache` solo tocan directorios vigentes (`reports`, `temp`, `uploads`, `ocr_cache`). Si se añade una ruta nueva, debe registrarse explícitamente.
+- `scripts/test_system.py` verifica que `data/uploads`, `data/reports`, `data/temp` existan. Mantener esta lista en sincronía con la arquitectura.
+- Los scripts de purge no deben reintroducir rutas retiradas; de hacerlo, actualizar primero la documentación y el verificador post-proceso.
+
+### Buenas prácticas de ampliación
+
+- Centralizar rutas nuevas en `src/fraud_scorer/settings.py` para evitar hardcodes dispersos.
+- Antes de añadir cualquier carpeta, definir quién la pobla y qué script la limpia. Si no hay productor + limpiador, no crearla.
+- Preferir persistencia y deduplicación vía BD. Si se necesita caché adicional, extender `OCRCacheManager` o `post_process_verifier` en lugar de crear carpetas huérfanas.
+- Documentar cualquier cambio en la jerarquía en esta sección y añadir el nodo a los chequeos automáticos (tests, clean scripts, verificador).
+
 ## Consideraciones finales
 
 - Reproceso 3.5: ahora funciona sin archivos originales, consumiendo únicamente JSONs reorganizados, siempre que existan extracciones previas (carátula previa incluida).
@@ -373,7 +462,7 @@ Si deseas, podemos reforzar `get_cache_stats()` para contar únicamente `ocr_res
   - Para “FS file count”, contar únicamente `ocr_results_for_*.json` en `data/ocr_cache` (excluyendo `case_index` y shards).
 
 - Limpieza y mantenimiento:
-  - `scripts/clean_orphaned_files.py --dry-run` para vista previa y `--all` para limpieza total (incluye `feedback_archive` y `raw`).
+  - `scripts/clean_orphaned_files.py --dry-run` para vista previa y `--all` para limpieza total.
   - `scripts/system_integrity_check.py` para diagnóstico cruzado BD ↔ FS (índices y reorganizados).
 
 ---
@@ -534,3 +623,98 @@ WHERE file_hash IN (
 GROUP BY case_id
 ORDER BY cnt DESC;
 ```
+
+---
+
+## 7) Checkpoint de Clasificación y Catálogo de Documentos
+
+### Reglas clave al modificar clasificación manual o tipos de documentos
+
+- **Sincronizar enum y catálogo UI**
+  - Cada vez que se agregue un valor a `DocumentType` (`src/fraud_scorer/processors/document_classifier.py`), actualizar `_get_grouped_document_types()` en `src/fraud_scorer/api/web_interface.py`.
+  - Tras el cambio, revisar los logs de arranque: `_audit_document_type_groups()` debe imprimir listas vacías para `missing_document_types` y `duplicate_assignments`.
+  - Validar también `GET /api/system/document-type-audit`; usarlo como chequeo de smoke test en QA/CI.
+
+- **Revisión manual con baseline consistente**
+  - `update_classifications` debe reemplazar `case["ai_classifications"]` con los datos más recientes y registrar `logger.info("Actualizando baseline de IA...")` para trazabilidad.
+  - Persistir overrides mediante `OCRCacheManager.save_manual_classifications(..., replace=True)` para evitar mezclar sesiones.
+  - Mantener `ai_prediction_details` y `ai_predictions_history` con un máximo razonable (actualmente 10) para auditar cambios de modelo sin inflar el índice.
+
+- **Pipeline post-checkpoint**
+  - Antes de continuar a extracción/consolidación, recargar clasificaciones desde cache (`process_case` aplica `_ai_document_type` y respeta overrides manuales).
+  - En reprocesos (`reprocess_case_background`), reactivar `ENABLE_CLASSIFICATION_REVIEW`, monitorear marcadores `.awaiting_review` y limpiar solo los del `case_id` actual.
+
+- **UI del checkpoint**
+  - Cargar `ai_classifications`, `ai_confidence` y `ai_reasons` para que “Reclasificar con AI” reproduzca el último baseline.
+  - Calcular badges de confianza con el valor disponible (`doc.confidence` o, si no hay, `doc.ai_confidence`).
+
+- **Pruebas recomendadas**
+  - Crear caso → revisar checkpoint → modificar manualmente → continuar → reprocesar (con y sin reclasificar) y confirmar persistencia de overrides.
+  - Invocar `GET /api/system/document-type-audit` y verificar `{ "missing_document_types": [] }` antes de liberar.
+
+> Estas prácticas mantienen alineados el motor, la UI y los reprocesos, evitando sorpresas cuando se añaden documentos o se ajusta el checkpoint manual.
+
+---
+
+## 8) Guías de Fraude: Escapes en Regex y Validador Preventivo
+
+### Síntoma
+
+- La Fase 3.5 comenzó a registrar múltiples errores `Error cargando guía ... while scanning a double-quoted scalar`.
+- Los patrones en `validation_rules` usaban comillas dobles con secuencias tipo `\d`, `\s`, `\.`; PyYAML intentó interpretar los escapes y falló con `unknown escape character`.
+- Resultado: 19 guías no se cargaron y el análisis de fraude solo procesó 3 documentos elegibles.
+
+### Causa raíz
+
+- Se escribieron regex en YAML con comillas dobles; `PyYAML` interpreta `"..."` al estilo JSON y requiere duplicar las barras (`\\d`).
+- Al copiar patrones desde Python sin duplicar escapes, la carga del YAML falla antes de que `FraudGuideManager` pueda registrar la guía.
+
+### Solución
+
+1. **Normalizar las guías**
+   - Cambiar los `pattern` a comillas simples (`'...'`) para evitar el post-procesado de escapes por YAML.
+   - Revisar y corregir todas las guías impactadas (`reporte_gps.yaml`, `cfdi_carta_porte.yaml`, `carta_porte_simple.yaml`, etc.).
+2. **Validador dedicado**
+   - Se añadió `scripts/validate_guides.py`, que carga cada guía (YAML/JSON), exige `metadata.type`/`metadata.version` y compila cada regex.
+   - El script devuelve `exit code 1` cuando una guía no es válida, listo para CI o hooks locales.
+3. **Pipeline endurecido**
+   - `FraudGuideManager` vuelve a cargar todas las guías sin errores; el pipeline reporta el número real de documentos elegibles.
+
+### Procedimiento recomendado
+
+```bash
+# Validar todas las guías antes de desplegar
+./venv/bin/python scripts/validate_guides.py
+
+# Opcional: validar un directorio alterno de guías
+./venv/bin/python scripts/validate_guides.py --guides-dir path/a/otro_set
+```
+
+- Agregar el script a CI (p. ej. job “Guide Validation”) o a un pre-commit hook para bloquear pushes con YAML mal formado.
+- Si una guía falla, el log mostrará `Regex inválido:` o `metadata.type ausente`, señalando el archivo y la sección exacta.
+
+> Con esta práctica se evita repetir los cortes en Fase 3.5 por escapes inválidos y se obtiene una verificación rápida antes de cada despliegue.
+
+## 9) Doble diálogo y FileList vacío en el dashboard
+
+### Síntoma
+
+- Al seleccionar archivos mediante el cuadro de diálogo en macOS/Chromium el selector se abría dos veces y la UI solo mostraba archivos hasta el segundo intento.
+- `handleFiles` recibía una lista vacía en Safari/WebKit, por lo que `dashboardState.selectedFiles` seguía sin cambios.
+
+### Causa raíz
+
+- `src/fraud_scorer/api/templates/dashboard.html:227` posiciona el `<input type="file">` sobre toda el área de carga con opacidad 0; el primer clic ya ocurre en ese control.
+- El handler del contenedor (`uploadArea.addEventListener('click', () => fileInput.click());`) relanzaba `click()` sobre el input después del evento real. Chrome/Chromium reabrían el diálogo inmediatamente.
+- Además, el reset inmediato (`event.target.value = ''`) sobre el mismo `FileList` provocaba que `handleFiles` leyera `length = 0` (listas "vivas" en WebKit).
+
+### Solución
+
+- Clonar la selección antes de limpiar el control: `const files = Array.from(event.target.files || []); handleFiles(files);` en `dashboard.html:737`.
+- Evitar el doble `click()` verificando el target del evento: si el clic ya viene del `<input>`, no repetir `fileInput.click()` (`dashboard.html:720`).
+
+### Pruebas recomendadas
+
+1. Refrescar el dashboard y seleccionar múltiples archivos una sola vez; verificar que la lista se llena sin reabrir el diálogo.
+2. Repetir en Safari/Chrome para confirmar que `handleFiles` recibe la selección (agregar `console.log(files.length)` si se requiere diagnosticar).
+3. Validar arrastre y suelta; debe seguir funcionando porque usa `event.dataTransfer.files`.

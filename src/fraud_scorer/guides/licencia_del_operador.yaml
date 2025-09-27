@@ -70,10 +70,10 @@ methodology:
       pattern: "^[A-Z0-9-]{6,20}$"
     fecha_emision:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     fecha_vencimiento:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     nombre_operador:
       type: pattern
       pattern: "^.{3,}$"

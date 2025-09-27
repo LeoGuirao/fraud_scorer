@@ -78,10 +78,10 @@ methodology:
   validation_rules:
     fecha_emision:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     hora_salida:
       type: pattern
-      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d$"
+      pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$'
     placas_vehiculo:
       type: pattern
       pattern: "^[A-Z0-9-]{5,10}$"

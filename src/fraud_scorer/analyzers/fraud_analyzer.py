@@ -68,9 +68,12 @@ class FraudAnalyzer:
 
         start = datetime.now()
         try:
-            response_text = await self._call_ai_with_retry(prompt, context_name=document_name)
+            response_text, model_used = await self._call_ai_with_retry(
+                prompt, context_name=document_name
+            )
             analysis = self._parse_analysis_response(
                 response_text,
+                analysis_model=model_used,
                 document_id=document_id,
                 document_name=document_name,
                 document_type=document_type,
@@ -141,7 +144,9 @@ class FraudAnalyzer:
                 out.append(r)
         return out
 
-    async def _call_ai_with_retry(self, prompt: str, context_name: str, max_retries: int = 2) -> str:
+    async def _call_ai_with_retry(
+        self, prompt: str, context_name: str, max_retries: int = 2
+    ) -> Tuple[str, str]:
         last: Optional[Exception] = None
         for attempt in range(max_retries):
             try:
@@ -166,7 +171,7 @@ class FraudAnalyzer:
                 content = content.replace("```json", "").replace("```", "").strip()
                 # Validación mínima de JSON
                 json.loads(content)
-                return content
+                return content, model_name
             except Exception as e:  # pragma: no cover - red restringida
                 last = e
                 await asyncio.sleep(1.5 * (attempt + 1))
@@ -175,6 +180,7 @@ class FraudAnalyzer:
     def _parse_analysis_response(
         self,
         response_text: str,
+        analysis_model: str,
         document_id: str,
         document_name: str,
         document_type: str,
@@ -225,10 +231,10 @@ class FraudAnalyzer:
                 return default
 
         score = _to_float(data.get("fraud_score", 0.5), 0.5)
-        provided_risk = str(data.get("risk_level", "")).strip().lower() or "medio"
+        provided_risk_raw = str(data.get("risk_level", "")).strip().lower()
+        provided_risk = provided_risk_raw if provided_risk_raw in {"bajo", "medio", "alto", "critico"} else None
         derived = self._derive_risk_level(score)
-        risk_str = provided_risk if provided_risk in {"bajo", "medio", "alto", "critico"} else derived
-        risk_level = RiskLevel(risk_str)
+        risk_level = RiskLevel(derived)
 
         # Evidencia y recomendaciones (a listas de strings)
         evidence = data.get("evidence", []) or []
@@ -241,9 +247,9 @@ class FraudAnalyzer:
             recommendations = [str(recommendations)]
         recommendations = [str(r) for r in recommendations]
 
-        if risk_str != derived:
+        if provided_risk and provided_risk != derived:
             evidence.append(
-                f"Riesgo ajustado de '{risk_str}' a '{derived}' (score={score:.2f})"
+                f"Riesgo ajustado de '{provided_risk}' a '{derived}' (score={score:.2f})"
             )
 
         return FraudAnalysisResult(
@@ -258,7 +264,7 @@ class FraudAnalyzer:
             indicators=indicators,
             evidence=evidence,
             recommendations=recommendations,
-            analysis_model=self.model,
+            analysis_model=analysis_model,
             guide_version=guide.version,
             processing_time_ms=0,
         )

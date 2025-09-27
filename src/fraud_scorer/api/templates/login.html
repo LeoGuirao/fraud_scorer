@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blacknox - Fraud | Iniciar Sesión</title>
+
+    <!-- Fuente Montserrat como en el diseño -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Montserrat', sans-serif;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #ffffff;
+            background-image: url('/static/Blacknox%20Background.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
+        }
+
+        /* Login container - tarjeta blanca con sombra negra */
+        .login-container {
+            position: relative;
+            z-index: 10;
+            width: 100%;
+            max-width: 460px;
+            background: #ffffff;
+            /* Sombra negra desplazada característico del diseño */
+            box-shadow: 14px 17px 0 0 #000000;
+            border: 2.75px solid #000000;
+        }
+
+        /* Logo section */
+        .logo-section {
+            padding: 50px 40px 30px;
+            text-align: center;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .logo-img {
+            width: 180px;
+            height: auto;
+            margin: 0 auto;
+            display: block;
+        }
+
+        /* Form section */
+        .form-section {
+            padding: 0 40px 50px;
+        }
+
+        .form-title {
+            font-size: 26px;
+            font-weight: 700;
+            text-align: center;
+            color: #000000;
+            margin-bottom: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        .form-subtitle {
+            font-size: 15px;
+            font-weight: 700;
+            color: rgba(0, 0, 0, 0.5);
+            text-align: center;
+            margin-bottom: 35px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Form fields */
+        .form-group {
+            margin-bottom: 30px;
+        }
+
+        label {
+            display: block;
+            font-size: 15px;
+            font-weight: 700;
+            color: #000000;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            height: 58px;
+            padding: 0 20px;
+            background: #ffffff;
+            border: 2.75px solid #000000;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 14px;
+            font-weight: 500;
+            color: #000000;
+            outline: none;
+            transition: all 0.2s ease;
+        }
+
+        input[type="text"]:focus,
+        input[type="password"]:focus {
+            border-color: #000000;
+            background: #fafafa;
+        }
+
+        input::placeholder {
+            color: rgba(0, 0, 0, 0.35);
+            font-size: 14px;
+            font-weight: 400;
+        }
+
+        /* Submit button */
+        .btn-submit {
+            width: 100%;
+            height: 58px;
+            background: #000000;
+            border: 2.75px solid #000000;
+            color: #ffffff;
+            font-family: 'Montserrat', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .btn-submit:hover {
+            background: #ffffff;
+            color: #000000;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn-submit:active {
+            transform: translateY(0);
+            box-shadow: none;
+        }
+
+        /* Links */
+        .form-links {
+            margin-top: 25px;
+            text-align: center;
+        }
+
+        .form-links a {
+            color: rgba(0, 0, 0, 0.6);
+            font-size: 13px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s ease;
+        }
+
+        .form-links a:hover {
+            color: #000000;
+            text-decoration: underline;
+        }
+
+        /* Error message */
+        .error-message {
+            display: none;
+            background: #ffebee;
+            border: 2px solid #f44336;
+            color: #c62828;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 4px;
+        }
+
+        .error-message.show {
+            display: block;
+            animation: shake 0.5s;
+        }
+
+        /* Success message */
+        .success-message {
+            display: none;
+            background: #e8f5e9;
+            border: 2px solid #4caf50;
+            color: #2e7d32;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 4px;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: slideDown 0.3s;
+        }
+
+        /* Loading state */
+        .btn-submit.loading {
+            opacity: 0.8;
+            cursor: not-allowed;
+        }
+
+        .btn-submit.loading::after {
+            content: '...';
+            animation: dots 1s steps(3, end) infinite;
+        }
+
+        @keyframes dots {
+            0%, 20% {
+                content: '.';
+            }
+            40% {
+                content: '..';
+            }
+            60%, 100% {
+                content: '...';
+            }
+        }
+
+        @keyframes shake {
+            0%, 100% {
+                transform: translateX(0);
+            }
+            10%, 30%, 50%, 70%, 90% {
+                transform: translateX(-5px);
+            }
+            20%, 40%, 60%, 80% {
+                transform: translateX(5px);
+            }
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 520px) {
+            body {
+                padding: 20px;
+            }
+
+            .login-container {
+                box-shadow: 10px 12px 0 0 #000000;
+            }
+
+            .logo-section {
+                padding: 40px 30px 25px;
+            }
+
+            .logo-img {
+                width: 150px;
+            }
+
+            .form-section {
+                padding: 0 30px 40px;
+            }
+
+            .form-title {
+                font-size: 22px;
+            }
+
+            .form-subtitle {
+                font-size: 13px;
+            }
+
+            label {
+                font-size: 13px;
+            }
+
+            input[type="text"],
+            input[type="password"],
+            .btn-submit {
+                height: 50px;
+            }
+
+            .btn-submit {
+                font-size: 14px;
+            }
+        }
+
+        @media (max-width: 380px) {
+            .login-container {
+                box-shadow: 7px 9px 0 0 #000000;
+            }
+
+            .logo-section {
+                padding: 30px 20px 20px;
+            }
+
+            .form-section {
+                padding: 0 20px 30px;
+            }
+
+            .logo-img {
+                width: 120px;
+            }
+
+            .form-title {
+                font-size: 20px;
+            }
+
+            .form-subtitle {
+                font-size: 12px;
+            }
+
+            input[type="text"],
+            input[type="password"],
+            .btn-submit {
+                height: 45px;
+                font-size: 13px;
+            }
+        }
+
+        /* Page load animation */
+        .login-container {
+            animation: slideUp 0.5s ease;
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Additional hover effects */
+        input[type="text"]:hover,
+        input[type="password"]:hover {
+            border-color: #333;
+        }
+
+        /* Focus indicator for accessibility */
+        *:focus {
+            outline: none;
+        }
+
+        input:focus,
+        button:focus,
+        a:focus {
+            outline: 2px solid #000;
+            outline-offset: 2px;
+        }
+
+        /* Disable outline for mouse users */
+        *:focus:not(:focus-visible) {
+            outline: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Login Container -->
+    <div class="login-container">
+        <!-- Logo Section -->
+        <div class="logo-section">
+            <img
+                src="/static/Blacknox - Fraud Logo - PNG.png"
+                alt="Blacknox Logo"
+                class="logo-img"
+            >
+        </div>
+
+        <!-- Form Section -->
+        <div class="form-section">
+            <h1 class="form-title">INICIAR SESIÓN</h1>
+            <p class="form-subtitle">Ingresa tus credenciales</p>
+
+            <!-- Error/Success Messages -->
+            <div class="error-message" id="errorMessage">
+                <strong>Error:</strong> Credenciales incorrectas. Por favor, intente de nuevo.
+            </div>
+
+            <div class="success-message" id="successMessage">
+                <strong>¡Éxito!</strong> Inicio de sesión exitoso. Redirigiendo...
+            </div>
+
+            <!-- Login Form -->
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <!-- Usuario Field -->
+                <div class="form-group">
+                    <label for="username">Usuario</label>
+                    <input
+                        type="text"
+                        id="username"
+                        name="username"
+                        placeholder="Ingrese su usuario"
+                        required
+                        autocomplete="username"
+                    >
+                </div>
+
+                <!-- Contraseña Field -->
+                <div class="form-group">
+                    <label for="password">Contraseña</label>
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        placeholder="Ingrese su contraseña"
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn-submit" id="submitButton">
+                    INGRESAR
+                </button>
+            </form>
+
+        </div>
+    </div>
+
+    <script>
+        // Handle login form submission
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const submitButton = document.getElementById('submitButton');
+            const errorMessage = document.getElementById('errorMessage');
+            const successMessage = document.getElementById('successMessage');
+
+            // Hide messages
+            errorMessage.classList.remove('show');
+            successMessage.classList.remove('show');
+
+            // Show loading state
+            submitButton.classList.add('loading');
+            submitButton.disabled = true;
+            submitButton.textContent = 'INGRESANDO';
+
+            // Get form data
+            const formData = new FormData(event.target);
+            const username = formData.get('username');
+            const password = formData.get('password');
+
+            try {
+                const response = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    successMessage.innerHTML =
+                        `<strong>¡Éxito!</strong> ${data.message || 'Inicio de sesión exitoso. Redirigiendo...'}`;
+                    successMessage.classList.add('show');
+
+                    setTimeout(() => {
+                        window.location.href = data.redirect || '/';
+                    }, 800);
+                } else {
+                    const data = await response.json().catch(() => ({}));
+                    errorMessage.innerHTML =
+                        `<strong>Error:</strong> ${data.detail || data.message || 'Credenciales incorrectas. Por favor, intente de nuevo.'}`;
+                    errorMessage.classList.add('show');
+
+                    submitButton.classList.remove('loading');
+                    submitButton.disabled = false;
+                    submitButton.textContent = 'INGRESAR';
+                }
+            } catch (error) {
+                console.error('Login error:', error);
+                errorMessage.innerHTML =
+                    '<strong>Error:</strong> No se pudo contactar al servidor. Intenta nuevamente.';
+                errorMessage.classList.add('show');
+
+                submitButton.classList.remove('loading');
+                submitButton.disabled = false;
+                submitButton.textContent = 'INGRESAR';
+            }
+        }
+
+        // Auto-focus username field on load
+        window.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('username').focus();
+        });
+
+        // Handle Enter key in username field
+        document.getElementById('username').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && e.target.value) {
+                e.preventDefault();
+                document.getElementById('password').focus();
+            }
+        });
+
+        // Check if images loaded correctly
+        window.addEventListener('load', () => {
+            const logo = document.querySelector('.logo-img');
+            if (logo.naturalWidth === 0) {
+                console.warn('Logo image failed to load');
+                // Optionally set a fallback
+            }
+        });
+    </script>
+</body>
+</html>

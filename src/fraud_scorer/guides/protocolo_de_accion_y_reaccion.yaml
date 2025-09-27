@@ -79,10 +79,10 @@ methodology:
       pattern: "^[A-Z0-9-]{5,20}$"
     vigencia_permiso:
       type: pattern
-      pattern: "^(19|20)\d{2}-\d{2}-\d{2}$"
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
     horarios_seguimiento:
       type: pattern
-      pattern: "^(?:[01]\d|2[0-3]):[0-5]\d(?:\s*-\s*(?:[01]\d|2[0-3]):[0-5]\d)?$"
+      pattern: '^(?:[01]\d|2[0-3]):[0-5]\d(?:\s*-\s*(?:[01]\d|2[0-3]):[0-5]\d)?$'
 
   cross_reference_documents:
     - cfdi_carta_porte
