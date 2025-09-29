@@ -11,16 +11,33 @@ from typing import Any, Dict, List, Optional
 
 import json
 import unicodedata
+from collections import defaultdict
 
 from ..storage.ocr_cache import OCRCacheManager
 from ..storage.post_process_verifier import verify_case_artifacts
-from ..storage.db import get_conn
+from ..storage.db import get_conn, get_correlation_findings
+from ..storage.cases import get_case_by_id, get_total_savings
 from ..pipelines.data_flow import build_docs_for_template_from_db
 from ..processors.ai.ai_field_extractor import AIFieldExtractor
 from ..processors.ai.ai_consolidator import AIConsolidator
 from ..templates.ai_report_generator import AIReportGenerator
 
 logger = logging.getLogger(__name__)
+
+def _summarize_correlation_counts(findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    counts: Dict[str, int] = defaultdict(int)
+    severity: Dict[str, int] = defaultdict(int)
+    for item in findings or []:
+        status = str(item.get("status") or "").lower()
+        severity_level = str(item.get("severity") or "").lower()
+        if status:
+            counts[status] += 1
+        if severity_level:
+            severity[severity_level] += 1
+    counts["total"] = len(findings or [])
+    if severity:
+        counts["by_severity"] = dict(severity)
+    return dict(counts)
 
 class ReplayService:
     """
@@ -80,6 +97,10 @@ class ReplayService:
                     return parsed
 
         return None
+
+    def compute_claim_amount(self, case_data: Dict[str, Any]) -> Optional[float]:
+        """Calcula el monto de reclamación usando heurísticas consolidadas."""
+        return self._extract_claim_amount(case_data)
 
     def _extract_claim_amount(self, case_data: Dict[str, Any]) -> Optional[float]:
         consolidated_fields = (
@@ -219,6 +240,10 @@ class ReplayService:
                         out["ms_saved"] = row["ms_saved"]
             except Exception:
                 pass
+            try:
+                out["total_savings"] = float(get_total_savings())
+            except Exception:
+                out["total_savings"] = 0.0
             return out
         except Exception as e:
             logger.error(f"Error al calcular estadísticas del caché: {e}")
@@ -236,6 +261,16 @@ class ReplayService:
                 continue
 
             case_index = self.cache_manager.get_case_index(case_id, auto_reconstruct=True) or {}
+            correlation_counts: Dict[str, Any] = {}
+            correlation_report = case_index.get("fraud_correlations") or {}
+            findings_payload = correlation_report.get("findings") or []
+            if not findings_payload:
+                try:
+                    findings_payload = get_correlation_findings(case_id)
+                except Exception:
+                    findings_payload = []
+            if findings_payload:
+                correlation_counts = _summarize_correlation_counts(findings_payload)
             consolidated_fields = (
                 (case_index.get("consolidated_data") or {}).get("consolidated_fields")
                 or {}
@@ -268,6 +303,9 @@ class ReplayService:
 
             claim_amount = self._extract_claim_amount(case_index)
             tentative_fraud = self._detect_tentative_fraud(case_index)
+            case_row = get_case_by_id(case_id)
+            tentative_decision = case_row["tentative_decision"] if case_row else None
+            savings_amount = float(case_row["savings_amount"] or 0.0) if case_row else 0.0
 
             entry = {
                 "case_id": case_id,
@@ -282,6 +320,10 @@ class ReplayService:
                 "claim_amount": claim_amount,
                 "tentative_fraud": tentative_fraud,
                 "fraud_score": None,
+                "tentative_decision": tentative_decision,
+                "savings_amount": savings_amount,
+                "correlation_counts": correlation_counts,
+                "has_correlations": bool(correlation_counts.get("total")),
             }
 
             result.append(entry)
@@ -297,7 +339,7 @@ class ReplayService:
 
     def cleanup_db_orphans(self) -> dict:
         """Elimina orfandad en DB para mantener consistencia tras cambios manuales en FS."""
-        from ..storage.db import get_conn
+        from ..storage.db import get_conn, get_correlation_findings
         stats = {}
         with get_conn() as conn:
             stats['orphan_extracted_before'] = conn.execute(
@@ -335,7 +377,7 @@ class ReplayService:
             await self.purge_case(case_id)
 
             # 2) Eliminar caso en DB (cascada elimina documentos, ocr_results, extracted_data, runs)
-            from ..storage.db import get_conn
+            from ..storage.db import get_conn, get_correlation_findings
             with get_conn() as conn:
                 conn.execute("DELETE FROM cases WHERE case_id = ?", (case_id,))
 

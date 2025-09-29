@@ -50,6 +50,19 @@ class FraudGuide:
 
 
 class FraudGuideManager:
+    ALIASES: Dict[str, str] = {
+        'carta_reclamacion': 'carta_de_reclamacion_formal_a_la_aseguradora',
+        'carta_respuesta': 'carta_de_reclamacion_formal_a_la_aseguradora',
+        'carpeta': 'carpeta_de_investigacion',
+        'denuncia': 'denuncia_de_los_hechos',
+        'denuncia_hechos': 'denuncia_de_los_hechos',
+        'poliza': 'poliza_de_la_aseguradora',
+        'factura': 'facturas_comerciales_internacionales',
+        'factura_compra': 'facturas_comerciales_internacionales',
+        'tarjeta_circulacion': 'tarjeta_de_circulacion_vehiculo',
+        'carta_porte': 'cfdi_carta_porte',
+    }
+
     def __init__(self, guides_dir: Optional[Path] = None):
         if guides_dir is None:
             guides_dir = Path(__file__).resolve().parent.parent / "guides"
@@ -85,24 +98,21 @@ class FraudGuideManager:
         return FraudGuide(data)
 
     def get_guide(self, document_type: str) -> Optional[FraudGuide]:
-        if document_type in self._guides:
-            return self._guides[document_type]
-        aliases = {
-            # Heurísticos/API → tipos canónicos
-            'carta_reclamacion': 'carta_de_reclamacion_formal_a_la_aseguradora',
-            'carta_respuesta': 'carta_de_reclamacion_formal_a_la_aseguradora',
-            'carpeta': 'carpeta_de_investigacion',
-            'denuncia': 'denuncia_de_los_hechos',
-            'denuncia_hechos': 'denuncia_de_los_hechos',
-            'poliza': 'poliza_de_la_aseguradora',
-            # Facturación: usar guía especializada de Factura Comercial Internacional
-            'factura': 'facturas_comerciales_internacionales',
-            'factura_compra': 'facturas_comerciales_internacionales',
-            'tarjeta_circulacion': 'tarjeta_de_circulacion_vehiculo',
-            'carta_porte': 'cfdi_carta_porte',
-        }
-        target = aliases.get(document_type)
-        if target and target in self._guides:
-            return self._guides[target]
+        canonical = self.normalize_type(document_type)
+        guide = self._guides.get(canonical)
+        if guide:
+            return guide
         logger.warning(f"No se encontró guía para tipo: {document_type}")
         return None
+
+    def normalize_type(self, document_type: str) -> str:
+        doc_type = (document_type or "").strip()
+        if not doc_type:
+            return ""
+        if doc_type in self._guides:
+            return doc_type
+        lower = doc_type.lower()
+        alias = self.ALIASES.get(lower)
+        if alias:
+            return alias
+        return doc_type

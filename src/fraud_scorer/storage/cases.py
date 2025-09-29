@@ -66,3 +66,38 @@ def update_case_status(case_id: str, status: str, notes: Optional[str] = None) -
             (status, notes, _now(), case_id),
         )
         return cur.rowcount == 1
+
+VALID_DECISIONS = {'with', 'without'}
+
+def set_case_decision(case_id: str, decision: str, user: Optional[str], savings: Optional[float]) -> bool:
+    if decision not in VALID_DECISIONS:
+        raise ValueError('decision debe ser "with" o "without"')
+    timestamp = _now()
+    with get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE cases SET tentative_decision = ?, tentative_by = ?, tentative_at = ?, savings_amount = COALESCE(?, savings_amount), updated_at = ? WHERE case_id = ?",
+            (decision, user, timestamp, savings, timestamp, case_id),
+        )
+        return cur.rowcount == 1
+
+def clear_case_decision(case_id: str) -> bool:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE cases SET tentative_decision = NULL, tentative_by = NULL, tentative_at = NULL, updated_at = ? WHERE case_id = ?",
+            (_now(), case_id),
+        )
+        return cur.rowcount == 1
+
+def update_case_savings(case_id: str, savings: float) -> bool:
+    timestamp = _now()
+    with get_conn() as conn:
+        cur = conn.execute(
+            "UPDATE cases SET savings_amount = ?, tentative_at = COALESCE(tentative_at, ?), updated_at = ? WHERE case_id = ?",
+            (savings, timestamp, timestamp, case_id),
+        )
+        return cur.rowcount == 1
+
+def get_total_savings() -> float:
+    with get_conn() as conn:
+        row = conn.execute("SELECT COALESCE(SUM(savings_amount), 0) AS total FROM cases").fetchone()
+        return float(row["total"] or 0.0)

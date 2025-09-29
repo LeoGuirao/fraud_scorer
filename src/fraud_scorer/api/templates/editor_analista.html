@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Editor del analista</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/remixicon@3.5.0/fonts/remixicon.css">
+  <link rel="stylesheet" href="/static/css/editor_analista.css">
+</head>
+<body class="editor-body" data-case-id="{{ case_id }}">
+  <div class="editor-shell">
+    <aside class="reprocess-panel" id="reprocessPanel">
+      <div class="reprocess-panel-header">
+        <button class="ghost-btn" type="button" onclick="window.location.href='/'">⟵ Volver al dashboard</button>
+        <h2>Opciones de reprocesamiento</h2>
+      </div>
+      <div class="reprocess-panel-content">
+        <div id="reprocessCards" class="reprocess-cards"></div>
+        <div class="progress" id="reprocessProgress" hidden>
+          <div class="bar"><span id="reprocessFill"></span></div>
+          <span id="reprocessLabel">Preparando reproceso…</span>
+          <button class="ghost-btn" id="reprocessAbort" type="button" hidden>Cancelar tarea</button>
+        </div>
+      </div>
+      <section class="reprocess-panel-footer case-meta" id="caseMeta"></section>
+    </aside>
+
+    <main class="editor-main" id="editorMain" data-active-tab="analysis">
+      <header class="report-header">
+        <div class="title-wrap">
+          <h1 id="caseTitle">Editor del analista</h1>
+          <p id="caseSubtitle" class="case-subtitle"></p>
+        </div>
+        <div class="report-controls">
+          <div class="report-zoom">
+            <button type="button" class="zoom-btn" data-zoom="out">−</button>
+            <span class="report-zoom-label" id="zoomLabel">100%</span>
+            <button type="button" class="zoom-btn" data-zoom="in">+</button>
+          </div>
+          <div class="report-actions">
+            <button class="primary" id="btnDownloadPdf" type="button">Descargar PDF</button>
+            <button class="secondary" id="btnOpenFull" type="button">Abrir reporte completo</button>
+            <button class="secondary" id="btnEditReport" type="button">Editar reporte</button>
+            <button class="primary" id="btnSaveReport" type="button" hidden>Guardar cambios</button>
+            <button class="ghost" id="btnCancelEdit" type="button" hidden>Cancelar</button>
+            <button class="ghost" id="btnResetReport" type="button" hidden>Restaurar versión automática</button>
+          </div>
+        </div>
+      </header>
+      <nav class="editor-tabs" id="editorTabs">
+        <button class="editor-tab is-active" type="button" data-tab="analysis">Panel de análisis</button>
+        <button class="editor-tab" type="button" data-tab="report">Vista final</button>
+      </nav>
+      <section class="analysis-panel tab-panel is-active" id="analysisPanel" data-tab-panel="analysis">
+        <header class="analysis-header">
+          <div class="analysis-titles">
+            <h2>Documentos analizados</h2>
+            <p>Controla la visibilidad de cada documento y ejecuta reprocesos puntuales sin afectar al caso completo.</p>
+          </div>
+          <span class="analysis-counter" id="fraudDocumentsCount">—</span>
+        </header>
+        <div class="fraud-documents-list" id="fraudDocumentsList"></div>
+        <div class="fraud-documents-empty" id="fraudDocumentsEmpty" hidden>
+          <div class="empty-state">
+            <i class="ri-file-info-line"></i>
+            <p>No hay análisis de fraude disponibles para este caso todavía.</p>
+          </div>
+        </div>
+      </section>
+      <section class="report-panel tab-panel" id="reportPanel" data-tab-panel="report" hidden>
+        <div class="report-frame-viewport" id="reportFrameViewport">
+          <div class="report-frame-inner" id="reportFrameInner">
+            <iframe id="reportFrame" src="/report/{{ case_id }}" title="Reporte" loading="lazy"></iframe>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <aside class="right-rail" id="rightRail">
+      <div id="rickPanel" class="rick-panel"></div>
+      <section class="correlation-panel" id="correlationPanel">
+        <header class="correlation-header">
+          <h2>Correlaciones</h2>
+          <span class="correlation-badge" id="correlationSummaryBadge">—</span>
+        </header>
+        <div class="correlation-summary" id="correlationSummary"></div>
+        <div class="correlation-filters">
+          <label for="correlationStatusFilter">Estado</label>
+          <select id="correlationStatusFilter">
+            <option value="all">Todos</option>
+          </select>
+          <label for="correlationSeverityFilter">Severidad</label>
+          <select id="correlationSeverityFilter">
+            <option value="all">Todas</option>
+          </select>
+        </div>
+        <div class="correlation-table" id="correlationTable"></div>
+        <div class="correlation-empty" id="correlationEmpty" hidden>Sin hallazgos para mostrar.</div>
+      </section>
+      <section class="case-actions">
+        <button class="danger" id="btnDeleteCase" type="button">Eliminar siniestro</button>
+        <div class="decision-group">
+          <button class="accent" data-decision="with" type="button">Con tentativa</button>
+          <button class="neutral" data-decision="without" type="button">Sin tentativa</button>
+        </div>
+        <div class="status-chip" id="tentativeStatus"></div>
+        <div class="status-chip" id="savingsStatus"></div>
+      </section>
+    </aside>
+  </div>
+  <script type="module" src="/static/js/editor_analista.js"></script>
+  <script type="module" src="/static/js/agente_rick.js"></script>
+</body>
+</html>

@@ -11,6 +11,7 @@ Un sistema empresarial que combina OCR avanzado con IA (GPT-4) para analizar doc
 - **Sistema de Cache**: Reutilización inteligente de resultados OCR  
 - **Modo Replay**: Reprocesamiento de casos sin re-escanear documentos  
 - **Generación de Reportes**: Informes HTML/PDF profesionales con análisis detallado  
+- **Correlación Inter-documental**: Motor que detecta inconsistencias entre documentos y documenta hallazgos accionables  
 
 ---
 
@@ -122,6 +123,9 @@ fraud_scorer/
 │   │   └── ai/           # GPT-4 extractors
 │   ├── storage/          # Cache y base de datos
 │   ├── templates/        # Generación de reportes
+│   ├── analyzers/
+│   │   ├── fraud_analyzer.py       # Motor por documento
+│   │   └── correlation/            # Motor inter-documentos
 │   └── models/           # Modelos de datos
 ├── scripts/              # Scripts de ejecución
 ├── data/                 # Datos y reportes
@@ -168,6 +172,9 @@ python scripts/test_system.py
 
 # Tests unitarios
 pytest tests/
+
+# Tests del motor de correlación
+pytest tests/correlation
 
 # Test de integración
 python scripts/run_report.py data/test_cases/ejemplo --debug

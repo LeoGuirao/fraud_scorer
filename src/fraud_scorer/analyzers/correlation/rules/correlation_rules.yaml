@@ -1,0 +1,218 @@
+meta:
+  version: v1.1.0
+  description: Catalogo ampliado de reglas determinísticas para correlación inter-documental.
+rules:
+  - id: policy_vs_invoice_amount
+    version: "1.0"
+    severity: high
+    description: El monto reclamado debe coincidir entre la póliza y las facturas internacionales.
+    documents:
+      - poliza_de_la_aseguradora
+      - facturas_comerciales_internacionales
+    entities:
+      - monto_reclamacion
+      - monto_total
+    condition:
+      type: equality
+      source: consolidated.consolidated_fields.monto_reclamacion
+      target: aggregates.facturas_comerciales_internacionales.monto_total
+      tolerance: 0.05
+    on_fail:
+      recommendation: Validar discrepancias con el área de siniestros y solicitar documentación soporte actualizada.
+    missing_summary: No se encontró información suficiente para validar montos entre póliza y facturas.
+    tags:
+      - monto
+      - discrepancia
+
+  - id: claim_vs_sum_insured_ceiling
+    version: "1.0"
+    severity: critical
+    description: El monto reclamado no debe exceder la suma asegurada declarada.
+    documents:
+      - poliza_de_la_aseguradora
+    entities:
+      - monto_reclamacion
+      - suma_asegurada
+    condition:
+      type: numeric_order
+      lhs: consolidated.consolidated_fields.monto_reclamacion
+      rhs: consolidated.consolidated_fields.suma_asegurada
+      operator: "<="
+      tolerance: 0.03
+    on_fail:
+      recommendation: Escalar a suscripción para validar coberturas y solicitar endosos vigentes.
+    missing_summary: Faltan montos de reclamación o suma asegurada para validar cobertura.
+    tags:
+      - monto
+      - cobertura
+
+  - id: claim_date_sequence
+    version: "1.0"
+    severity: medium
+    description: La fecha de reclamación no puede ser anterior a la fecha de ocurrencia del siniestro.
+    documents:
+      - poliza_de_la_aseguradora
+    entities:
+      - fecha_ocurrencia
+      - fecha_reclamacion
+    condition:
+      type: temporal_order
+      earlier: consolidated.consolidated_fields.fecha_ocurrencia
+      later: consolidated.consolidated_fields.fecha_reclamacion
+      allow_equal: false
+    on_fail:
+      recommendation: Confirmar con el asegurado y revisar bitácora de eventos para documentar el timeline.
+    missing_summary: Faltan fechas consolidadas para comparar ocurrencia vs reclamación.
+    tags:
+      - cronologia
+      - inconsistencia
+
+  - id: occurrence_vs_denuncia_date
+    version: "1.0"
+    severity: medium
+    description: La denuncia formal debe registrarse después de la fecha de ocurrencia del siniestro.
+    documents:
+      - denuncia_de_los_hechos
+      - poliza_de_la_aseguradora
+    entities:
+      - fecha_ocurrencia
+      - fecha_denuncia
+    condition:
+      type: temporal_order
+      earlier: consolidated.consolidated_fields.fecha_ocurrencia
+      later: documents.denuncia_de_los_hechos[0].extracted_fields.fecha_denuncia
+      allow_equal: false
+    on_fail:
+      recommendation: Solicitar constancia del ministerio público y validar cronología con el ajustador.
+    missing_summary: No se localizaron fechas de ocurrencia o denuncia para validar.
+    tags:
+      - cronologia
+      - denuncia
+
+  - id: investigation_after_denuncia
+    version: "1.0"
+    severity: medium
+    description: La apertura de la carpeta de investigación debe ocurrir después de la denuncia formal.
+    documents:
+      - denuncia_de_los_hechos
+      - carpeta_de_investigacion
+    entities:
+      - fecha_denuncia
+      - fecha_apertura
+    condition:
+      type: temporal_order
+      earlier: documents.denuncia_de_los_hechos[0].extracted_fields.fecha_denuncia
+      later: documents.carpeta_de_investigacion[0].extracted_fields.fecha_apertura
+      allow_equal: true
+    on_fail:
+      recommendation: Confirmar con jurídico el folio de la carpeta e investigar retrasos en la denuncia.
+    missing_summary: Faltan fechas para denuncia o carpeta de investigación.
+    tags:
+      - cronologia
+      - juridico
+
+  - id: gps_window_covers_occurrence_start
+    version: "1.0"
+    severity: medium
+    description: El monitoreo GPS debe iniciar antes de la fecha del siniestro.
+    documents:
+      - reporte_gps
+    entities:
+      - fecha_inicio
+      - fecha_ocurrencia
+    condition:
+      type: temporal_order
+      earlier: documents.reporte_gps[0].extracted_fields.fecha_inicio
+      later: consolidated.consolidated_fields.fecha_ocurrencia
+      allow_equal: true
+    on_fail:
+      recommendation: Solicitar reporte completo a la empresa de monitoreo y revisar si hubo pérdida de señal.
+    missing_summary: No se detectaron fechas de inicio de GPS o del siniestro.
+    tags:
+      - cronologia
+      - monitoreo
+
+  - id: gps_window_covers_occurrence_end
+    version: "1.0"
+    severity: medium
+    description: El monitoreo GPS debe seguir vigente durante la fecha del siniestro.
+    documents:
+      - reporte_gps
+    entities:
+      - fecha_fin
+      - fecha_ocurrencia
+    condition:
+      type: temporal_order
+      earlier: consolidated.consolidated_fields.fecha_ocurrencia
+      later: documents.reporte_gps[0].extracted_fields.fecha_fin
+      allow_equal: true
+    on_fail:
+      recommendation: Confirmar continuidad del monitoreo y solicitar logs sin cortes durante el evento.
+    missing_summary: No se detectaron fechas fin de GPS o del siniestro.
+    tags:
+      - cronologia
+      - monitoreo
+
+  - id: route_overlap_gps_vs_carta_porte
+    version: "1.0"
+    severity: high
+    description: La ruta registrada en GPS debe coincidir con la declarada en Carta Porte.
+    documents:
+      - cfdi_carta_porte
+      - reporte_gps
+    entities:
+      - trayecto
+      - ruta_planeada
+    condition:
+      type: set_overlap
+      source: documents.reporte_gps[0].extracted_fields.trayecto
+      target: documents.cfdi_carta_porte[0].extracted_fields.ruta_planeada
+      min_overlap: 1
+    on_fail:
+      recommendation: Revisar desvíos con logística y solicitar evidencia de peajes o itinerarios aprobados.
+    missing_summary: No hay datos de ruta en GPS o Carta Porte para comparar.
+    tags:
+      - ruta
+      - monitoreo
+
+  - id: vin_plate_overlap
+    version: "1.0"
+    severity: high
+    description: El VIN debe coincidir entre el CFDI Carta Porte y la carpeta de investigación.
+    documents:
+      - cfdi_carta_porte
+      - carpeta_de_investigacion
+    entities:
+      - vin
+    condition:
+      type: set_overlap
+      source: documents.cfdi_carta_porte[0].extracted_fields.vin
+      target: documents.carpeta_de_investigacion[0].extracted_fields.vin
+      min_overlap: 1
+    on_fail:
+      recommendation: Escalar a investigación para confirmar datos vehiculares y revisar posibles vehículos clonados.
+    missing_summary: No se localizaron campos de identificación vehicular para validar.
+    tags:
+      - vehiculo
+      - identidad
+
+  - id: plate_overlap_carta_porte_investigacion
+    version: "1.0"
+    severity: high
+    description: Las placas declaradas en Carta Porte deben coincidir con la carpeta de investigación.
+    documents:
+      - cfdi_carta_porte
+      - carpeta_de_investigacion
+    entities:
+      - placas
+    condition:
+      type: set_overlap
+      source: documents.cfdi_carta_porte[0].extracted_fields.placas
+      target: documents.carpeta_de_investigacion[0].extracted_fields.placas
+      min_overlap: 1
+    on_fail:
+      recommendation: Corroborar placas con tránsito y revisar si hubo cambio de unidad sin aviso.
+    missing_summary: No se localizaron placas en Carta Porte o carpeta de investigación.
+    tags:
+      - vehiculo
+      - identidad

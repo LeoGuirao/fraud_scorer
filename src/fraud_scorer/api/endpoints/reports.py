@@ -439,6 +439,7 @@ async def _process_documents_and_generate_report(
                     consolidated_data=consolidated,
                     fraud_analyses=fraud_analyses,
                     documents_metadata=[{'name': o['file_name'], 'type': o['document_type']} for o in ocr_results],
+                    correlation_report=None,
                 )
                 html_content = fraud_gen.render_html_template('report_template.html', report_data)
                 # Guardar

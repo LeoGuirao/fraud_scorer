@@ -2,9 +2,10 @@
 Generador de reportes con sección de Análisis de Fraude por Documento
 """
 from __future__ import annotations
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from datetime import datetime
 
+from fraud_scorer.analyzers.correlation.models import CorrelationReport, CorrelationFinding
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.models.extraction import ConsolidatedExtraction
 from fraud_scorer.models.fraud_analysis import FraudAnalysisResult, FraudMetrics
@@ -94,11 +95,18 @@ class FraudReportGenerator(AIReportGenerator):
         consolidated_data: ConsolidatedExtraction,
         fraud_analyses: List[FraudAnalysisResult],
         documents_metadata: List[Dict[str, Any]],
+        correlation_report: Optional[CorrelationReport] = None,
     ) -> Dict[str, Any]:
         base = self._extract_base_data(consolidated_data)
 
+        visible_analyses = [
+            analysis
+            for analysis in fraud_analyses
+            if getattr(analysis, "include_in_report", True)
+        ]
+
         docs: List[Dict[str, Any]] = []
-        for a in fraud_analyses:
+        for a in visible_analyses:
             meta = self.DOCUMENT_METADATA.get(
                 a.document_type,
                 {"titulo": self._format_document_title(a.document_type), "icono": "ri-file-line", "orden": 99},
@@ -125,16 +133,30 @@ class FraudReportGenerator(AIReportGenerator):
 
         docs.sort(key=lambda x: self.DOCUMENT_METADATA.get(x["tipo"], {}).get("orden", 99))
 
-        metrics = self._calculate_metrics(fraud_analyses)
+        metrics_all = self._calculate_metrics(fraud_analyses)
+        metrics_visible = self._calculate_metrics(visible_analyses)
+        metrics_payload = metrics_all.__dict__.copy()
+        metrics_payload.update(
+            {
+                "documentos_publicables": len(visible_analyses),
+                "documentos_publicables_criticos": metrics_visible.documentos_criticos,
+                "documentos_publicables_alto_riesgo": metrics_visible.documentos_alto_riesgo,
+                "confianza_promedio_publicables": metrics_visible.confianza_promedio,
+                "indicadores_publicables": metrics_visible.indicadores_totales,
+            }
+        )
+        correlation_data = self._prepare_correlation_section(correlation_report)
 
         return {
             **base,
             "documentos_analizados": docs,
             "total_documentos": len(docs),
-            "metricas_fraude": metrics.__dict__,
+            "metricas_fraude": metrics_payload,
             "timestamp_analisis": datetime.now().strftime("%d/%m/%Y %H:%M"),
             "tiene_analisis_fraude": len(docs) > 0,
             "mostrar_seccion_fraude": len(docs) > 0,
+            "correlacion_inter_documentos": correlation_data,
+            "mostrar_seccion_correlacion": correlation_data.get("has_findings", False),
         }
 
     def _extract_base_data(self, consolidated_data: ConsolidatedExtraction) -> Dict[str, Any]:
@@ -232,3 +254,35 @@ class FraudReportGenerator(AIReportGenerator):
             confianza_promedio=round(conf * 100, 1),
             indicadores_totales=total_ind,
         )
+
+    def _prepare_correlation_section(
+        self,
+        report: Optional[CorrelationReport],
+    ) -> Dict[str, Any]:
+        if not report:
+            return {"summary": {}, "findings": [], "has_findings": False}
+
+        findings = [self._format_finding(f) for f in report.findings]
+        summary = report.as_summary()
+        return {
+            "summary": summary,
+            "findings": findings,
+            "has_findings": bool(findings),
+        }
+
+    def _format_finding(self, finding: CorrelationFinding) -> Dict[str, Any]:
+        return {
+            "id": finding.id,
+            "rule_id": finding.rule_id,
+            "rule_version": finding.rule_version,
+            "status": finding.status.value,
+            "severity": finding.severity.value,
+            "summary": finding.summary,
+            "description": finding.description,
+            "documents": finding.documents_involved,
+            "entities": finding.entities_involved,
+            "recommendation": finding.recommendation,
+            "tags": finding.tags,
+            "evidence": finding.evidence,
+            "metadata": finding.metadata,
+        }

@@ -54,6 +54,10 @@ class FraudAnalysisResult(BaseModel):
     guide_version: str
     processing_time_ms: int = 0
     timestamp: datetime = Field(default_factory=datetime.now)
+    include_in_report: bool = Field(
+        default=True,
+        description="Permite ocultar el análisis en el reporte final sin perder trazabilidad",
+    )
 
     @model_validator(mode="after")
     def _check_score_risk_coherence(self) -> "FraudAnalysisResult":
@@ -79,7 +83,8 @@ class DocumentAnalysisSection(BaseModel):
     risk_color: str
     fraud_score: str  # porcentaje string
     analisis: Dict[str, Any]
-    presente: bool = True
+    presente: bool = True  # compatibilidad histórica
+    include_in_report: bool = True
 
 
 class FraudMetrics(BaseModel):

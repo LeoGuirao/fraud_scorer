@@ -12,19 +12,27 @@ import tempfile
 import shutil
 import logging
 import json
+
+# Cargar variables de entorno desde .env
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv no es crítico
 from collections import defaultdict
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Literal
 from datetime import datetime
 import uuid
 
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException, BackgroundTasks
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException, BackgroundTasks, Query
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+from pydantic import BaseModel
 
 # Configurar logging
 logging.basicConfig(
@@ -42,7 +50,12 @@ from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
 from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
-from fraud_scorer.storage.cases import create_case
+from fraud_scorer.storage.cases import (
+    create_case,
+    get_case_by_id,
+    set_case_decision,
+)
+from fraud_scorer.storage.db import get_correlation_findings
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.parsers.document_parser import DocumentParser
 from fraud_scorer.api.endpoints.replay import router as replay_router
@@ -53,6 +66,13 @@ from fraud_scorer.api.auth_simple import (
     is_authenticated,
     current_user,
     last_login,
+)
+from fraud_scorer.ai.orchestration import AgenteRickService
+from fraud_scorer.ai.vector_store.maintenance import list_indexed_cases
+from fraud_scorer.services.replay_service import ReplayService
+from fraud_scorer.services.fraud_document_service import (
+    FraudDocumentCatalog,
+    FraudDocumentReprocessService,
 )
 
 # Inicializar FastAPI
@@ -160,6 +180,18 @@ processing_status = {}
 # Mapa interno para tareas en ejecución (no se expone en respuestas)
 active_jobs: dict[str, dict] = {}
 
+# Servicio del Agente Rick
+rick_service = AgenteRickService()
+
+# Servicio reutilizado de replay para operaciones del editor
+replay_service = ReplayService()
+fraud_document_catalog = FraudDocumentCatalog()
+fraud_document_reprocess = FraudDocumentReprocessService(
+    catalog=fraud_document_catalog,
+    reports_dir=REPORTS_DIR,
+    templates_dir=FRAUD_SCORER_TEMPLATES,
+)
+
 
 def _build_case_summary(case_id: str, case_index: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     """Create a normalized payload with case metadata for UI consumption."""
@@ -185,6 +217,18 @@ def _build_case_summary(case_id: str, case_index: Optional[Dict[str, Any]]) -> D
         documents = case_data.get("documents") or []
         total_documents = len(documents)
 
+    correlation_report = case_data.get("fraud_correlations") or {}
+    correlation_counts: Dict[str, Any] = correlation_report.get("status_counts") or {}
+    if not correlation_report or "findings" not in correlation_report:
+        db_findings = get_correlation_findings(case_id)
+        if db_findings:
+            correlation_report = {
+                "case_id": case_id,
+                "findings": db_findings,
+            }
+            correlation_counts = _summarize_correlation_counts(db_findings)
+    has_correlation = bool(correlation_report and correlation_report.get("findings"))
+
     return {
         "case_id": case_id,
         "case_info": case_data,
@@ -195,9 +239,111 @@ def _build_case_summary(case_id: str, case_index: Optional[Dict[str, Any]]) -> D
         "has_extraction": bool(case_data.get("extraction_results")),
         "has_consolidation": bool(case_data.get("consolidated_data")),
         "has_fraud_analysis": bool(case_data.get("fraud_analyses")),
+        "has_correlations": has_correlation,
+        "correlation_report": correlation_report,
+        "correlation_counts": correlation_counts,
         "total_documents": total_documents,
         "processed_at": case_data.get("processed_at"),
+        "tentative_decision": case_data.get("tentative_decision"),
+        "tentative_by": case_data.get("tentative_by"),
+        "tentative_at": case_data.get("tentative_at"),
+        "savings_amount": case_data.get("savings_amount"),
     }
+
+
+def _summarize_correlation_counts(findings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    counts = defaultdict(int)
+    severity = defaultdict(int)
+    for finding in findings:
+        status = str(finding.get("status") or "").lower()
+        severity_level = str(finding.get("severity") or "").lower()
+        if status:
+            counts[status] += 1
+        if severity_level:
+            severity[severity_level] += 1
+    counts["total"] = len(findings)
+    if severity:
+        counts["by_severity"] = dict(severity)
+    return dict(counts)
+
+@app.get("/api/case/{case_id}/correlations")
+async def get_case_correlations(case_id: str, status: Optional[str] = Query(None), severity: Optional[str] = Query(None)):
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+    correlation_report = case_index.get("fraud_correlations") or {}
+    findings = correlation_report.get("findings") or []
+    if not findings:
+        findings = get_correlation_findings(case_id)
+
+    status_filter = (status or "").strip().lower() or None
+    severity_filter = (severity or "").strip().lower() or None
+
+    filtered: List[Dict[str, Any]] = []
+    for item in findings or []:
+        status_value = str(item.get("status") or "").lower()
+        severity_value = str(item.get("severity") or "").lower()
+        if status_filter and status_value != status_filter:
+            continue
+        if severity_filter and severity_value != severity_filter:
+            continue
+        filtered.append(item)
+
+    counts = _summarize_correlation_counts(filtered)
+    summary_payload = {
+        "status_counts": correlation_report.get("status_counts") or counts,
+        "severity_counts": correlation_report.get("severity_counts"),
+        "generated_at": correlation_report.get("generated_at"),
+        "metadata": correlation_report.get("metadata") or {},
+    }
+    summary_payload["total"] = counts.get("total", len(filtered))
+
+    return {
+        "case_id": case_id,
+        "summary": summary_payload,
+        "findings": filtered,
+        "counts": counts,
+    }
+
+
+
+
+
+def _resolve_report_html(case_id: str, case_index: Optional[Dict[str, Any]] = None) -> Optional[Path]:
+    cm = OCRCacheManager()
+    data = case_index or cm.get_case_index(case_id) or {}
+    candidates: List[Path] = []
+    insured = data.get("insured_name") or ""
+    claim = data.get("claim_number") or ""
+    if insured and claim:
+        try:
+            sanitized_insured = cm._sanitize_filename(insured)
+            sanitized_claim = cm._sanitize_filename(claim)
+            candidates.append(REPORTS_DIR / f"{sanitized_insured}_{sanitized_claim}_INFORME.html")
+        except Exception:
+            pass
+    candidates.append(REPORTS_DIR / f"INF-{case_id}.html")
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _collect_active_process(case_id: str) -> Optional[Dict[str, Any]]:
+    for process_id, status in processing_status.items():
+        if status.get("case_id") != case_id:
+            continue
+        if status.get("status") in {"processing", "awaiting_review"}:
+            return {
+                "process_id": process_id,
+                "status": status.get("status"),
+                "message": status.get("message"),
+                "progress": status.get("progress"),
+            }
+    return None
+
 
 class FraudScorerProcessor:
     """Clase principal para procesar documentos"""
@@ -514,7 +660,21 @@ async def get_upload_page(request: Request):
     Sirve la página original de carga de documentos.
     Esta es la nueva ruta para la funcionalidad de 'run_report'.
     """
-    return templates.TemplateResponse("upload.html", {"request": request, "user": current_user()})
+    return templates.TemplateResponse("process_monitor.html", {"request": request, "user": current_user()})
+
+@app.get("/analyst/{case_id}", response_class=HTMLResponse)
+async def get_analyst_editor(request: Request, case_id: str):
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+    context = {
+        "request": request,
+        "user": current_user(),
+        "case_id": case_id,
+    }
+    return templates.TemplateResponse("editor_analista.html", context)
+
 
 @app.post("/upload")
 async def upload_files(
@@ -688,13 +848,305 @@ async def process_documents_background(process_id: str, files: List[Path]):
         except Exception as cleanup_error:
             logger.warning(f"No se pudo limpiar directorio temporal {process_id}: {cleanup_error}")
 
-@app.get("/status/{process_id}")
-async def get_status(process_id: str):
-    """Obtiene el estado del procesamiento"""
-    if process_id not in processing_status:
-        raise HTTPException(status_code=404, detail="Proceso no encontrado")
-    
-    return processing_status[process_id]
+
+class CaseDecisionRequest(BaseModel):
+    decision: Literal['with', 'without']
+
+
+class FraudVisibilityUpdate(BaseModel):
+    include_in_report: bool
+
+
+class ReportHTMLUpdate(BaseModel):
+    html: str
+
+
+@app.get("/api/editor/{case_id}/bootstrap")
+async def editor_bootstrap(case_id: str):
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+    summary = _build_case_summary(case_id, case_index)
+    case_row = get_case_by_id(case_id)
+    if case_row:
+        summary["tentative_decision"] = case_row["tentative_decision"]
+        summary["tentative_by"] = case_row["tentative_by"]
+        summary["tentative_at"] = case_row["tentative_at"]
+        summary["savings_amount"] = float(case_row["savings_amount"] or 0.0)
+
+    try:
+        fraud_preview = fraud_document_catalog.build_preview(case_id)
+    except ValueError:
+        fraud_preview = []
+    except Exception as exc:
+        logger.warning("No se pudo construir el preview de fraude para %s: %s", case_id, exc)
+        fraud_preview = []
+
+    active = _collect_active_process(case_id)
+    manual_meta = {
+        "has_manual_html": bool(case_index.get("report_override_html")),
+        "updated_at": case_index.get("report_override_updated_at"),
+    }
+    return {
+        "summary": summary,
+        "report_url": f"/report/{case_id}",
+        "pdf_url": f"/api/editor/{case_id}/report/pdf",
+        "tentative_decision": summary.get("tentative_decision"),
+        "savings_amount": summary.get("savings_amount"),
+        "active_reprocess": active,
+        "fraud_documents_preview": fraud_preview,
+        "report_manual_override": manual_meta,
+    }
+
+
+@app.get("/api/editor/{case_id}/fraud-documents")
+async def list_fraud_documents(case_id: str):
+    try:
+        return fraud_document_catalog.build_catalog(case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.patch("/api/editor/{case_id}/fraud-documents/{document_id}")
+async def toggle_fraud_document(case_id: str, document_id: str, payload: FraudVisibilityUpdate):
+    try:
+        analysis, preview = fraud_document_catalog.update_visibility(
+            case_id, document_id, payload.include_in_report
+        )
+    except (ValueError, LookupError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    try:
+        fraud_document_reprocess.refresh_report(case_id)
+    except Exception as exc:
+        logger.warning("No se pudo refrescar reporte tras toggle %s/%s: %s", case_id, document_id, exc)
+    message = (
+        "Documento marcado para reporte"
+        if payload.include_in_report
+        else "Documento oculto del reporte"
+    )
+    process_id = f"fraud-toggle-{uuid.uuid4()}"
+    processing_status[process_id] = {
+        "status": "completed",
+        "message": message,
+        "progress": 100,
+        "case_id": case_id,
+        "document_id": document_id,
+        "updated_at": datetime.now().isoformat(),
+    }
+    return {
+        "process_id": process_id,
+        "analysis": analysis.model_dump(),
+        "include_in_report": analysis.include_in_report,
+        "fraud_documents_preview": preview,
+    }
+
+
+@app.get("/api/editor/{case_id}/report-html")
+async def get_report_html(case_id: str):
+    try:
+        manual_html = fraud_document_catalog.get_manual_report_html(case_id)
+        if manual_html:
+            return {"case_id": case_id, "html": manual_html, "is_manual": True}
+        case_index = fraud_document_catalog.load_case_index(case_id)
+        html_path = _resolve_report_html(case_id, case_index)
+        if not html_path or not html_path.exists():
+            raise HTTPException(status_code=404, detail="Reporte no disponible")
+        return {"case_id": case_id, "html": html_path.read_text(encoding="utf-8"), "is_manual": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.put("/api/editor/{case_id}/report-html")
+async def update_report_html(case_id: str, payload: ReportHTMLUpdate):
+    try:
+        sanitized = fraud_document_catalog.set_manual_report_html(case_id, payload.html)
+        fraud_document_reprocess.refresh_report(case_id)
+        return {"case_id": case_id, "html": sanitized, "is_manual": True}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error("No se pudo guardar edición manual para %s: %s", case_id, exc)
+        raise HTTPException(status_code=500, detail="No se pudo guardar el reporte editado")
+
+
+@app.delete("/api/editor/{case_id}/report-html")
+async def clear_report_html(case_id: str):
+    try:
+        fraud_document_catalog.clear_manual_report_html(case_id)
+        fraud_document_reprocess.refresh_report(case_id)
+        return {"case_id": case_id, "is_manual": False}
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error("No se pudo restaurar reporte automático para %s: %s", case_id, exc)
+        raise HTTPException(status_code=500, detail="No se pudo restaurar el reporte automático")
+
+@app.post("/api/editor/{case_id}/fraud-documents/{document_id}/reprocess")
+async def reprocess_fraud_document(case_id: str, document_id: str, background_tasks: BackgroundTasks):
+    try:
+        fraud_document_catalog.load_case_index(case_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+
+    for pid, job in list(active_jobs.items()):
+        if job.get("case_id") == case_id and job.get("document_id") == document_id:
+            state = processing_status.get(pid, {})
+            if state.get("status") not in {"completed", "error", "cancelled"}:
+                raise HTTPException(status_code=409, detail="Ya existe un reproceso en curso para este documento")
+
+    for pid, status in processing_status.items():
+        if (
+            status.get("case_id") == case_id
+            and status.get("document_id") == document_id
+            and status.get("status") in {"queued", "processing", "re-analyzing", "refreshing-report"}
+        ):
+            raise HTTPException(status_code=409, detail="Ya existe un reproceso en curso para este documento")
+
+    process_id = str(uuid.uuid4())
+    processing_status[process_id] = {
+        "status": "queued",
+        "message": "Documento en cola para reproceso",
+        "progress": 5,
+        "case_id": case_id,
+        "document_id": document_id,
+        "started_at": datetime.now().isoformat(),
+    }
+    background_tasks.add_task(reprocess_fraud_document_background, process_id, case_id, document_id)
+    active_jobs[process_id] = {
+        "case_id": case_id,
+        "document_id": document_id,
+        "type": "fraud_document_reprocess",
+    }
+    return {
+        "process_id": process_id,
+        "message": "Reproceso individual iniciado",
+        "status_url": f"/status/{process_id}",
+    }
+
+
+async def reprocess_fraud_document_background(process_id: str, case_id: str, document_id: str):
+    def _update(stage: str, message: str, progress: int) -> None:
+        status = processing_status.get(process_id, {})
+        status.update(
+            {
+                "status": stage,
+                "message": message,
+                "progress": progress,
+                "case_id": case_id,
+                "document_id": document_id,
+            }
+        )
+        processing_status[process_id] = status
+
+    try:
+        _update("processing", "Preparando reproceso individual…", 15)
+        analysis, artifacts, preview = await fraud_document_reprocess.reprocess(
+            case_id,
+            document_id,
+            progress_callback=_update,
+        )
+        status_payload = {
+            "status": "completed",
+            "message": "Documento reprocesado exitosamente",
+            "progress": 100,
+            "case_id": case_id,
+            "document_id": document_id,
+            "completed_at": datetime.now().isoformat(),
+            "report_url": f"/report/{case_id}",
+            "analysis": analysis.model_dump(),
+            "fraud_documents_preview": preview,
+        }
+        if artifacts.html_path:
+            status_payload["report_path"] = str(artifacts.html_path)
+        if artifacts.pdf_path:
+            status_payload["pdf_path"] = str(artifacts.pdf_path)
+        processing_status[process_id] = status_payload
+    except Exception as exc:
+        logger.error("Error reprocesando documento %s/%s: %s", case_id, document_id, exc, exc_info=True)
+        processing_status[process_id] = {
+            "status": "error",
+            "message": f"Error al reprocesar documento: {exc}",
+            "progress": 0,
+            "case_id": case_id,
+            "document_id": document_id,
+        }
+    finally:
+        active_jobs.pop(process_id, None)
+
+
+@app.get("/api/editor/{case_id}/report/pdf")
+async def editor_report_pdf(case_id: str):
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+    html_path = _resolve_report_html(case_id, case_index)
+    if not html_path:
+        raise HTTPException(status_code=404, detail="Reporte no disponible")
+
+    pdf_path = REPORTS_DIR / f"{case_id}.pdf"
+    needs_regeneration = not pdf_path.exists() or pdf_path.stat().st_mtime < html_path.stat().st_mtime
+
+    if needs_regeneration:
+        try:
+            from weasyprint import HTML
+            HTML(filename=str(html_path)).write_pdf(str(pdf_path))
+        except Exception as exc:
+            logger.error("No se pudo generar PDF para %s: %s", case_id, exc)
+            raise HTTPException(status_code=500, detail="No se pudo generar el PDF del reporte")
+
+    if not pdf_path.exists():
+        raise HTTPException(status_code=404, detail="PDF no disponible")
+
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"{case_id}.pdf")
+
+
+@app.post("/api/case/{case_id}/decision")
+async def set_case_manual_decision(case_id: str, payload: CaseDecisionRequest):
+    case_row = get_case_by_id(case_id)
+    if not case_row:
+        raise HTTPException(status_code=404, detail="Caso no encontrado")
+
+    cm = OCRCacheManager()
+    case_index = cm.get_case_index(case_id, auto_reconstruct=True)
+    if not case_index:
+        raise HTTPException(status_code=404, detail="Índice del caso no disponible")
+
+    claim_amount = replay_service.compute_claim_amount(case_index)
+    savings = float(claim_amount or 0.0) if payload.decision == 'with' and claim_amount else 0.0
+
+    user_obj = current_user()
+    if isinstance(user_obj, dict):
+        user_name = user_obj.get('username') or user_obj.get('email') or 'analyst'
+    else:
+        user_name = user_obj or 'analyst'
+
+    if not set_case_decision(case_id, payload.decision, user_name, savings):
+        raise HTTPException(status_code=500, detail="No se pudo registrar la decisión")
+
+    timestamp = datetime.now().isoformat()
+    case_index["tentative_decision"] = payload.decision
+    case_index["tentative_by"] = user_name
+    case_index["tentative_at"] = timestamp
+    case_index["savings_amount"] = savings
+    try:
+        cm.save_case_index(case_id, case_index)
+    except Exception as exc:
+        logger.warning("No se pudo persistir índice actualizado para %s: %s", case_id, exc)
+
+    logger.info("Decisión manual %s registrada para %s por %s", payload.decision, case_id, user_name)
+
+    return {
+        "tentative_decision": payload.decision,
+        "savings_amount": savings,
+        "tentative_by": user_name,
+        "tentative_at": timestamp,
+    }
+
 
 # ===============================
 # Endpoints mínimos de checkpoint
@@ -1451,6 +1903,14 @@ async def cancel_process_api(process_id: str):
     except Exception as e:
         return {"success": False, "message": str(e)}
 
+@app.get("/status/{process_id}")
+async def get_process_status(process_id: str):
+    status = processing_status.get(process_id)
+    if not status:
+        raise HTTPException(status_code=404, detail="Proceso no encontrado")
+    return status
+
+
 @app.get("/status/stream/{case_id}")
 async def status_stream(case_id: str):
     """Endpoint SSE para streaming de eventos de progreso en tiempo real"""
@@ -1570,35 +2030,69 @@ async def process_feedback(case_id: str, feedback_data: dict):
 
 @app.get("/report/{case_id}", response_class=HTMLResponse)
 async def get_report(case_id: str):
-    """Devuelve el reporte HTML final resolviendo nomenclatura v2 dinámicamente.
-
-    Intenta primero la nomenclatura v2: <ASEGURADO>_<SINIESTRO>_INFORME.html
-    Si no existe, cae a la nomenclatura legacy: INF-<CASE_ID>.html
-    """
-    # Intentar con nomenclatura v2 usando datos del índice del caso
-    try:
-        cm = OCRCacheManager()
-        case = cm.get_case_index(case_id)
-        if case:
-            insured = case.get("insured_name") or ""
-            claim = case.get("claim_number") or ""
-            if insured and claim:
-                s_insured = cm._sanitize_filename(insured)  # reuse internal sanitizer
-                s_claim = cm._sanitize_filename(claim)
-                v2_path = REPORTS_DIR / f"{s_insured}_{s_claim}_INFORME.html"
-                if v2_path.exists():
-                    with open(v2_path, "r", encoding="utf-8") as f:
-                        return HTMLResponse(content=f.read())
-    except Exception:
-        pass
-
-    # Fallback legacy por case_id
-    legacy_path = REPORTS_DIR / f"INF-{case_id}.html"
-    if legacy_path.exists():
-        with open(legacy_path, "r", encoding="utf-8") as f:
-            return HTMLResponse(content=f.read())
-
+    """Devuelve el reporte HTML final resolviendo nomenclatura v2 dinámicamente."""
+    html_path = _resolve_report_html(case_id)
+    if html_path and html_path.exists():
+        with open(html_path, "r", encoding="utf-8") as fh:
+            return HTMLResponse(content=fh.read())
     raise HTTPException(status_code=404, detail="Reporte no encontrado")
+
+# ===============================
+# Agente Rick (placeholder RAG)
+# ===============================
+
+
+class RickQueryRequest(BaseModel):
+    case_id: str
+    question: str
+    scope: str | None = "case"
+    language: str | None = "es"
+
+
+@app.post("/api/rick/query")
+async def query_rick(request: RickQueryRequest):
+    user = current_user()
+    result = rick_service.query(
+        case_id=request.case_id,
+        question=request.question,
+        scope=request.scope or "case",
+        language=request.language or "es",
+        user_id=user if isinstance(user, str) else (user.get("username") if user else None),
+    )
+    return {
+        "answer": result.answer,
+        "sources": result.sources,
+        "latency_ms": result.latency_ms,
+        "tokens_input": result.tokens_input,
+        "tokens_output": result.tokens_output,
+        "metadata": result.metadata,
+    }
+
+
+class RickReindexRequest(BaseModel):
+    case_id: str
+    rebuild: bool | None = False
+
+
+@app.post("/api/rick/reindex")
+async def reindex_rick(request: RickReindexRequest):
+    try:
+        rick_service.index_case(request.case_id, rebuild=bool(request.rebuild))
+        return {"status": "ok", "case_id": request.case_id}
+    except Exception as exc:
+        logger.error("Error indexando caso %s para Agente Rick: %s", request.case_id, exc)
+        raise HTTPException(status_code=500, detail="No se pudo indexar el caso")
+
+
+@app.get("/api/rick/stats")
+async def rick_stats():
+    stats = list_indexed_cases()
+    return {
+        "total": len(stats),
+        "items": stats,
+        "audit_log": str(rick_service.config.audit_log_path),
+    }
+
 
 @app.get("/health")
 async def health_check():

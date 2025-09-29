@@ -172,6 +172,54 @@ def check_system_integrity():
             pipeline_files = list(pipeline_cache.glob("*"))
             print(f"  - Archivos en pipeline_cache: {len(pipeline_files)}")
 
+
+    # 8. Motor de correlación
+    print(f"\n🧠 MOTOR DE CORRELACIÓN:")
+    try:
+        conn_corr = sqlite3.connect("data/cases.db")
+        cursor = conn_corr.cursor()
+        total_corr = cursor.execute("SELECT COUNT(*) FROM fraud_correlations").fetchone()[0]
+        case_corr = cursor.execute("SELECT COUNT(DISTINCT case_id) FROM fraud_correlations").fetchone()[0]
+        print(f"  - Hallazgos registrados: {total_corr}")
+        print(f"  - Casos con correlaciones: {case_corr}")
+    except Exception as exc:
+        issues.append(f"No se pudo consultar fraud_correlations: {exc}")
+    finally:
+        try:
+            conn_corr.close()
+        except Exception:
+            pass
+
+    audit_path = Path("data/logs/agent_rick_audit.jsonl")
+    if audit_path.exists():
+        try:
+            correlation_entries = 0
+            malformed_entries = 0
+            with audit_path.open('r', encoding='utf-8') as audit_file:
+                for raw in audit_file:
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    try:
+                        entry = json.loads(raw)
+                    except json.JSONDecodeError:
+                        malformed_entries += 1
+                        continue
+                    if entry.get('module') == 'correlation':
+                        correlation_entries += 1
+                        if not entry.get('sources'):
+                            warnings.append('Entrada de auditoría RAG sin fuentes registradas')
+                        if entry.get('status') in {None, ''}:
+                            warnings.append('Entrada de auditoría RAG sin status definido')
+            print(f"  - Auditoría RAG correlación: {correlation_entries} registros")
+            if malformed_entries:
+                warnings.append(f"{malformed_entries} entradas de auditoría corruptas")
+        except Exception as exc:
+            warnings.append(f"No se pudo leer agent_rick_audit.jsonl: {exc}")
+    else:
+        warnings.append('No existe agent_rick_audit.jsonl para registrar consultas RAG')
+
+    # Resumen
     # 7. Verificar duplicación de bases de datos
     print(f"\n💾 ARCHIVOS DE BASE DE DATOS:")
     db_files = list(Path("data").glob("*.db"))

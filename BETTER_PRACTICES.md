@@ -8,6 +8,8 @@ Este documento (Better Practices) describe en detalle los problemas detectados y
 - Prevención de la creación de la base de datos innecesaria `data/fraud_scorer.db`.
 - Reutilización de análisis de fraude en reprocesos parciales sin romper plantillas.
 - Limpieza completa de casos (deep purge y purgas parciales) sin residuos en el filesystem.
+- Variables sensibles (.env): las claves de servicios externos (por ejemplo `OPENAI_API_KEY`, `AZURE_OCR_KEY`) se almacenan en la raíz del proyecto en `.env`. Cualquier instalación o reparación debe verificar este archivo antes de ejecutar scripts que dependan de esos proveedores.
+- Motor de correlación inter-documental (CaseContext + RuleEngine) y generación de reportes consolidados.
 
 Se incluyen causas raíz, decisiones de diseño y fragmentos de código exactos con rutas de archivo reales, alineados con la estructura actual del proyecto.
 
@@ -312,7 +314,31 @@ Resultado: no volverá a crearse `data/fraud_scorer.db` desde este sistema.
 
 ---
 
-## 5) Reutilización de análisis de fraude en reprocesos parciales
+## 5) Toggles del editor bloquean la UI (WeasyPrint en cada PATCH)
+
+### Síntoma
+
+En el editor del analista, alternar la visibilidad de un documento congelaba la interfaz durante varios segundos e incluso abortaba el proceso (`pointer being freed was not allocated`). Los logs mostraban múltiples inicializaciones de `AIReportGenerator` y advertencias repetidas de WeasyPrint; cada toggle disparaba la generación completa del PDF.
+
+### Causa raíz
+
+- El endpoint `PATCH /api/editor/{case_id}/fraud-documents/{document_id}` reutilizaba `FraudDocumentReprocessService._regenerate_report` con `generate_pdf=True`.
+- WeasyPrint abre fuentes WOFF2 y recalcula el layout completo. Esta operación es costosa y no está pensada para ejecutarse decenas de veces por sesión interactiva.
+
+### Solución
+
+- Exponer `FraudDocumentReprocessService.refresh_report()` para regenerar **solo el HTML** del informe (misma plantilla de producción) tras cada toggle y conservar el PDF anterior.
+- Ajustar `_regenerate_report(..., generate_pdf: bool = True)` para que únicamente los reprocesos “grandes” (Fase 3.5 o full replay) generen PDF nuevo.
+- El frontend mantiene el cache busting del iframe (`reportFrame.src = ...?t=<timestamp>`), por lo que la “Vista final” se actualiza al instante sin bloquear al usuario.
+- Las ediciones manuales completas del informe se almacenan como `report_override_html` y se aplican al regenerar el archivo; los toggles respetan esa versión sin invocar WeasyPrint, y el PDF sólo se actualiza al ejecutar un reproceso explícito.
+
+Archivos clave: `src/fraud_scorer/services/fraud_document_service.py`, `src/fraud_scorer/api/web_interface.py`, `static/js/editor_analista.js`.
+
+Resultado: los toggles son inmediatos, el iframe refleja la visibilidad actual y el servidor deja de saturarse con conversiones PDF innecesarias. Si se requiere un PDF actualizado, se obtiene automáticamente al ejecutar un reproceso individual o global que sí pasa `generate_pdf=True`.
+
+---
+
+## 6) Reutilización de análisis de fraude en reprocesos parciales
 
 ### Síntoma
 
@@ -718,3 +744,171 @@ ORDER BY cnt DESC;
 1. Refrescar el dashboard y seleccionar múltiples archivos una sola vez; verificar que la lista se llena sin reabrir el diálogo.
 2. Repetir en Safari/Chrome para confirmar que `handleFiles` recibe la selección (agregar `console.log(files.length)` si se requiere diagnosticar).
 3. Validar arrastre y suelta; debe seguir funcionando porque usa `event.dataTransfer.files`.
+
+---
+
+## 7) Agente Rick RAG — Embeddings y Recuperación
+
+### 7.1 Manejo de residencia (HTTP 451)
+
+**Síntoma**
+
+Al reconstruir índices con `tasks/index_builder.py`, OpenAI devolvía `HTTP 451 missing_compute_residency_info` tras varios lotes exitosos, dejando el índice a medio escribir.
+
+**Causa raíz**
+
+La cuenta de OpenAI requería que cada llamada a embeddings declarara explícitamente la región de residencia. El cliente default de LangChain no envía ese header.
+
+**Solución**
+
+- Se añadió `AGENTE_RICK_OPENAI_RESIDENCY` en `.env` y se propagó a `RickAgentConfig` (`src/fraud_scorer/ai/config.py`).
+- `RickVectorStoreManager` genera el header `OpenAI-Compute-Residency` cuando la variable está presente (`src/fraud_scorer/ai/vector_store/manager.py`).
+- `index_builder` captura la excepción, limpia el directorio parcial y re-lanza con mensaje explícito (`tasks/index_builder.py`).
+
+Resultado: la indexación queda protegida ante residencias obligatorias y no deja residuos en disco si el proveedor rechaza la petición.
+
+### 7.2 Duplicados al reindexar (DuplicateIDError)
+
+**Síntoma**
+
+Reejecutar `index_builder` sobre un caso ya indexado provocaba `chromadb.errors.DuplicateIDError`, deteniendo la operación.
+
+**Causa raíz**
+
+El manager volvía a insertar chunks con el mismo ID sin inspeccionar si ya existían en Chroma; Chroma 1.x exige que los IDs sean únicos por colección.
+
+**Solución**
+
+- `_filter_new_records` deduplica en memoria y consulta al store los IDs ya persistidos antes de llamar a `add_documents` (`src/fraud_scorer/ai/vector_store/manager.py`).
+- Se añadió prueba idempotente (`tests/ai/test_vector_store_manager.py::test_upsert_documents_is_idempotent`).
+
+Resultado: `index_builder` puede ejecutarse sin `--rebuild` y solo agrega chunks realmente nuevos.
+
+### 7.3 Umbral de similitud y carga de variables
+
+**Síntoma**
+
+Las consultas devolvían `status: low_similarity` aun con documentos relevantes recuperados; el API no respetaba el umbral ajustado en `.env`.
+
+**Causa raíz**
+
+1. `AGENTE_RICK_SIMILARITY_THRESHOLD` estaba definido a 0.35, por encima de las similitudes reales (~0.23).
+2. FastAPI no cargaba `.env`, por lo que usaba el valor por defecto.
+
+**Solución**
+
+- Se invocó `load_dotenv()` al cargar la configuración (`src/fraud_scorer/ai/config.py`) y al iniciar la aplicación (`src/fraud_scorer/api/web_interface.py`).
+- Se calibró el umbral vía `.env` (`AGENTE_RICK_SIMILARITY_THRESHOLD=0.22`).
+
+Resultado: las consultas guardan `status: answered`, incluyen fuentes y registran similitudes reales en la auditoría.
+
+> Nota: cualquier ajuste futuro de umbral debe documentarse en este archivo y validar que la tasa de respuestas sin contexto se mantiene dentro del rango esperado.
+
+
+## 10) Editor del Analista — Bootstrap, decisiones y ahorro
+
+### Contexto
+La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agente Rick. Mantenerla alineada con los pipelines previos evita duplicar lógica y garantiza que los guardas descritos en las secciones 1 y 2 (docless y detección de duplicados) sigan vigentes.
+
+### Bootstrap y servicios compartidos
+- Reutilizar `ReplayService` en `web_interface.py` para obtener resúmenes y montos. Su método `compute_claim_amount` aplica las mismas heurísticas que el dashboard/replay.
+- El payload de `GET /api/editor/{case}/bootstrap` debe basarse en `_build_case_summary`, que ya calcula `has_ocr`, `has_extraction`, etc. Nunca reconstruir esos campos en frontend.
+- Incluir en el resumen los campos `tentative_decision`, `tentative_by`, `tentative_at` y `savings_amount` para que editor y dashboard tengan una fuente de verdad compartida.
+
+### Migración idempotente
+- Añadir columnas (`tentative_decision`, `tentative_by`, `tentative_at`, `savings_amount`) usando `ensure_editor_columns()` dentro de `storage/db.py`. Este helper ejecuta `PRAGMA table_info` y solo aplica `ALTER TABLE` cuando falta una columna, permitiendo despliegues sin scripts manuales.
+
+### Guardas para reprocesos
+- Las tarjetas de reproceso en el editor deben respetar las banderas de `_build_case_summary`:
+  - Fase 1.4 requiere `has_ocr`.
+  - Fase 2 depende de `has_classifications`.
+  - Fase 3 y 3.5 exigen `has_extraction` (modo docless de la sección 1).
+- Mostrar mensajes claros cuando una opción se bloquee para evitar reprocesos fallidos.
+
+### Flujo post-proceso
+- `process_monitor.html` ya no presenta el panel legacy de reprocesos. Si `checkExistingCase()` detecta duplicado, redirige directo a `/analyst/{case_id}`.
+- Tras un procesamiento nuevo, mostrar botón “Ir al Editor” y programar un redirect automático (4 s) hacia `/analyst/{case_id}`; así todo caso pasa por la revisión central.
+
+### Registro de decisiones y ahorro
+- `POST /api/case/{case}/decision` debe:
+  1. Validar `{'with','without'}`.
+  2. Calcular ahorro con `replay_service.compute_claim_amount`.
+  3. Persistir con `set_case_decision` (actualiza columnas y `updated_at`).
+  4. Guardar índice de caso (`OCRCacheManager.save_case_index`).
+- El dashboard debe consumir `savings_amount` al mostrar métricas (`SUM(savings_amount)`) y la columna de decisión.
+
+### Pruebas rápidas
+1. `PYTHONDONTWRITEBYTECODE=1 python3 -m py_compile …` tras modificar endpoints del editor (detecta variables como `replay_service`).
+2. Subir archivos que ya existen → confirmar redirección al editor sin residuos en `temp/`.
+3. Marcar “Con tentativa” → verificar columnas en `cases`, índice JSON y actualización en dashboard.
+4. Intentar reproceso 3.5 sin extracciones → la UI debe bloquearlo y detallar el motivo.
+
+## 11) Editor del Analista — Integridad de assets y controles interactivos
+
+### Síntoma
+- Tras un refactor de layout el editor cargaba sin tarjetas de reproceso, sin panel de Rick y con todos los botones (zoom, PDF, decisiones) inoperantes.
+- El inspector mostraba errores de JavaScript porque el módulo `editor_analista.js` contenía literales `\n` y fragmentos incompletos; el navegador abortó la ejecución antes de inicializar cualquier handler.
+
+### Causa raíz
+- El script se reescribió usando sustituciones rápidas que introdujeron secuencias escapadas (`\n`) en lugar de saltos de línea reales.
+- Se añadieron listeners y helpers en puntos intermedios sin recompilar/validar el bundle, de modo que el archivo quedó incoherente y sin pruebas posteriores.
+
+### Solución aplicada
+1. **Reescritura completa del módulo:** se regeneró `editor_analista.js` con el estado del zoom, listeners y bootstrap en un solo bloque coherente.
+2. **Validación posterior:** se ejecutó `PYTHONDONTWRITEBYTECODE=1 PYTHONPYCACHEPREFIX=./.pycache_tmp python3 -m py_compile …` para comprobar que no quedaran errores de sintaxis o importaciones.
+3. **Controles de zoom seguros:** se inicializa el zoom en `applyZoom` después de `bootstrap`, se persiste por `case_id` y se vuelve a aplicar cuando carga el iframe.
+4. **Scroll controlado:** los paneles ahora usan `height:100vh`, `min-height:0` y `overflow-y:auto` para evitar que el contenido desaparezca.
+
+### Prevención recomendada
+- Al editar JS almacenado, evitar scripts de reemplazo masivo con secuencias escapadas; preferir utilidades tipo `apply_patch` sin literales `\n` o reescribir el bloque completo.
+- Tras cambios en `static/js/` o `static/css/`, ejecutar `python3 -m py_compile …` sobre los módulos Python afectados y abrir el editor en local para revisar que los elementos interactivos aparezcan.
+- Cada vez que se toque el layout del editor:
+  - Verificar que `REPROCESS_TASKS` se renderice (guard docless activo).
+  - Confirmar respuesta de botones clave (Descargar PDF, Abrir reporte, Con/Sin tentativa, Reindexar Rick).
+  - Probar los niveles de zoom extremos (50 % / 150 %) y asegurar que la preferencia persiste al recargar.
+- Documentar en la PR cuáles pruebas UI manuales se ejecutaron (captura o lista) antes de fusionar.
+
+## 12) Motor de correlación inter-documental (Fase 3.5+)
+
+### Síntoma
+- Los reportes solo mostraban hallazgos por documento; contradicciones entre póliza, facturas, carta porte o carpetas de investigación se detectaban manualmente.
+- Las reglas de fraude individuales no podían cruzar consolidado + extracciones + resultados previos, lo que elevaba el riesgo de falsos negativos.
+
+### Solución
+- Se creó el motor en `src/fraud_scorer/analyzers/correlation/` con:
+  - `CaseContext`: hidrata consolidado, extracciones y resultados de fraude, construye agregados (`aggregates`) y timeline ordenado.
+  - `RuleEngine`: evalúa reglas YAML (`equality`, `temporal_order`, `set_overlap`, `exists`) y devuelve `CorrelationFinding`.
+  - `CorrelationEngine`: orquesta reglas, correlador estadístico, RAG y devuelve `CorrelationReport` con métricas.
+- Integración en `scripts/run_report.py` tras la Fase 3.5; el reporte HTML incorpora la sección *Correlaciones inter-documentos* con métricas de estado/severidad.
+- Los hallazgos se guardan en `case_index['fraud_correlations']` y en el JSON de resultados del caso.
+
+### Buenas prácticas para no romper el motor
+- **Contexto**: Siempre pasar objetos Pydantic (`DocumentExtraction`, `FraudAnalysisResult`). Si el input viene como dict, validar con `model_validate` antes de invocar `CaseContext.from_case`.
+- **Rutas en reglas**: Verificar con `CaseContext.resolve()` en shell/REPL antes de publicar una regla nueva. Rutas inexistentes degradan automáticamente a `needs_context`.
+- **Tolerancias**: Definir `tolerance` (porcentaje) o `absolute_tolerance` para montos. Sin tolerancia, se exige igualdad exacta.
+- **Fechas**: Normalizar extracciones a `YYYY-MM-DD`; las cadenas inválidas provocan fallbacks y el hallazgo pasa a `needs_context`.
+- **Evidencia**: Conservar la política de degradación defensiva. Nunca lanzar excepciones desde evaluadores; usar `missing_summary` en YAML para hallazgos con datos insuficientes.
+- **Reportes**: Mantener `FraudReportGenerator.prepare_fraud_report_data` con `correlation_report` opcional y preservar la clave `mostrar_seccion_correlacion` para evitar romper plantillas existentes.
+- **Configuración estadística**: Versionar `rules/statistical_config.yaml` igual que las reglas determinísticas. Documentar en la PR los cambios de umbrales, tolerancias y nuevos checkers.
+- **RAG**: Habilitar `CORRELATION_ENABLE_RAG=true` solo cuando el Agente Rick esté indexado para el caso. El builder debe degradar a `FAIL` únicamente si recibe respuesta distinta a `NO_CONTEXT_MESSAGE`; en otro caso conservar el `status` original.
+- **Persistencia**: Grabar hallazgos con `save_correlation_findings()` inmediatamente después de construir el reporte. Si se agregan campos nuevos, actualizar el esquema de `fraud_correlations` y los helpers de lectura/escritura.
+
+### Consejos de implementación
+- Reutilizar agregados de `CaseContext.aggregates` para reglas numéricas: evita recontar montos en código.
+- Versionar cada cambio de reglas en `rules/correlation_rules.yaml` (`meta.version`) y documentarlo en la PR.
+- Añadir aliases en `rules/entity_mappings.yaml` cuando un nuevo documento reutiliza campos existentes (ej. variantes de factura o VIN).
+- Migrar cualquier validador Pydantic que toque extracciones a la sintaxis v2 (`@field_validator`). Así evitamos warnings y mantenemos coherencia con el resto del proyecto.
+- Generar timestamps con `datetime.now(timezone.utc)` cuando se creen reportes o entradas de auditoría; facilita comparar registros entre servicios.
+
+### Testing recomendado
+- Ejecutar `python3 -m pytest tests/correlation -v` al tocar reglas, agregados o evaluadores para garantizar compatibilidad.
+- Usar fixtures con `tmp_path` y YAML sintético para ensayar nuevas reglas antes de incorporarlas al catálogo oficial.
+- Correr `python3 -m compileall src/fraud_scorer/analyzers/correlation` dentro del `venv` para detectar errores de sintaxis o imports.
+- Definir `asyncio_default_fixture_loop_scope = "function"` en `pyproject.toml` para que los tests async dejen de depender de heurísticas implícitas de `pytest-asyncio`.
+- Validar las transformaciones críticas (montos, fechas, listas) tras cada migración de Pydantic; las suites de correlación (`tests/correlation/test_correlation_engine.py`) cubren los escenarios mínimos.
+
+### Observabilidad y fallback
+- El log `"✓ Motor de correlación ejecutado: %s hallazgos"` confirma la ejecución. Si falta, revisar `self.enable_fraud` y la configuración de reproceso.
+- Si una regla falla o faltan datos, el motor degrada a `needs_context`; monitorizar los conteos en el JSON y en la tabla `fraud_correlations` para detectar reglas demasiado restrictivas.
+- Registrar periódicamente las métricas (`statistical_count`, `rag_enabled`, latencias Rick) para descubrir degradaciones. Un pico de `needs_context` suele indicar datos faltantes o tolerancias mal calibradas.
+- Conservar índices (`idx_fcorr_case`, `idx_fcorr_rule`) y limpiar registros antiguos cuando se repite un caso en múltiples iteraciones; evita crecimiento descontrolado de la tabla.

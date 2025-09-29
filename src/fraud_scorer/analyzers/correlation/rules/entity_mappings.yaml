@@ -1,0 +1,42 @@
+version: v1.1.0
+document_aliases:
+  facturas:
+    - facturas_comerciales_internacionales
+    - guias_y_facturas
+  denuncia:
+    - denuncia_de_los_hechos
+    - denuncia_formal
+  carpeta:
+    - carpeta_de_investigacion
+    - carpeta_de_investigacion_fiscal
+  carta_porte:
+    - cfdi_carta_porte
+    - carta_porte_simple
+  reporte_gps:
+    - reporte_gps
+    - reporte_monitoreo_gps
+field_aliases:
+  monto_total_facturas:
+    canonical: monto_total
+  monto_reclamo:
+    canonical: monto_reclamacion
+  numero_placas:
+    canonical: placas
+  placa:
+    canonical: placas
+  matricula:
+    canonical: placas
+  vin_numero:
+    canonical: vin
+  fecha_denuncia:
+    canonical: fecha_denuncia
+  fecha_apertura_carpeta:
+    canonical: fecha_apertura
+  fecha_inicio_gps:
+    canonical: fecha_inicio
+  fecha_fin_gps:
+    canonical: fecha_fin
+  ruta_declarada:
+    canonical: ruta_planeada
+  trayecto_registrado:
+    canonical: trayecto

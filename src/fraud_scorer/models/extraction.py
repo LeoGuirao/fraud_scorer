@@ -5,7 +5,7 @@ Incluye compatibilidad Pydantic v1/v2 y la clase ConsolidatedFields.
 """
 
 from typing import Optional, Dict, List, Any, Union
-from pydantic import BaseModel, Field, validator, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 import re
 import json
@@ -58,43 +58,29 @@ class DocumentExtraction(BaseModelCompat):
     extracted_fields: Dict[str, Optional[Any]] = Field(default_factory=dict)
     extraction_metadata: Dict[str, Any] = Field(default_factory=dict)
 
-    @validator('extracted_fields')
-    def _validate_dates(cls, v: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Valida y normaliza campos de fecha conocidos si vienen como string.
-        (Deja la implementación real de parsing pendiente para tu formato específico).
-        """
+    @field_validator('extracted_fields', mode='after')
+    def _normalize_extraction_fields(cls, value: Dict[str, Any]) -> Dict[str, Any]:
+        if not value:
+            return value or {}
+        normalized = dict(value)
+
         date_fields = ['fecha_ocurrencia', 'fecha_reclamacion', 'vigencia_inicio', 'vigencia_fin']
         for field in date_fields:
-            if field in v and v[field]:
-                if isinstance(v[field], str):
-                    # Aquí podrías normalizar a 'YYYY-MM-DD' si lo necesitas.
-                    # Por ahora, lo dejamos tal cual para no introducir errores.
-                    v[field] = v[field].strip()
-        return v
+            if field in normalized and normalized[field]:
+                if isinstance(normalized[field], str):
+                    normalized[field] = normalized[field].strip()
 
-    @validator('extracted_fields')
-    def _validate_amounts(cls, v: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Valida y normaliza el monto de la reclamación si llega como string con símbolos.
-        Nota: ConsolidatedFields lo almacena como string para el template; la conversión a float
-        aquí solo intenta limpiar el input. En consolidación se convertirá a str sin inventar.
-        """
         key = 'monto_reclamacion'
-        if key in v and v[key]:
-            if isinstance(v[key], str):
-                # Mantén sólo dígitos, puntos y comas, luego quita separadores de miles simples.
-                clean = re.sub(r'[^\d.,-]', '', v[key]).strip()
-                # Intenta parsear como número para validar (sin forzar)
+        if key in normalized and normalized[key]:
+            if isinstance(normalized[key], str):
+                clean = re.sub(r'[^\d.,-]', '', normalized[key]).strip()
                 try:
                     num = float(clean.replace(',', ''))
-                    # Conserva como string "limpia" para el template posteriormente
-                    # (evitamos perder formato monetario esperado).
-                    v[key] = f"{num}"
+                    normalized[key] = f"{num}"
                 except Exception:
-                    # Si no se puede parsear, deja el string limpio
-                    v[key] = clean or v[key]
-        return v
+                    normalized[key] = clean or normalized[key]
+
+        return normalized
 
 
 # =========================
@@ -110,6 +96,7 @@ class ConsolidatedFields(BaseModelCompat):
     numero_siniestro: Optional[str] = None
     nombre_asegurado: Optional[str] = None
     monto_reclamacion: Optional[Union[str, float]] = None   # aceptar numérico o string
+    suma_asegurada: Optional[Union[str, float]] = None
     numero_poliza: Optional[str] = None
     # Compatibilidad: mantener campos separados y cadena agregada
     vigencia_inicio: Optional[str] = None

@@ -2,7 +2,7 @@
 from __future__ import annotations
 import sqlite3, json, hashlib, os, datetime, uuid
 from pathlib import Path
-from typing import Any, Dict, Optional, Tuple, List
+from typing import Any, Dict, Optional, Tuple, List, Sequence
 
 # Ruta a la base de datos. Por compatibilidad, forzamos a no usar 'fraud_scorer.db'.
 DB_PATH = Path(os.getenv("FRAUD_DB_PATH", "data/cases.db"))
@@ -13,12 +13,66 @@ if DB_PATH.name.lower() == "fraud_scorer.db":
 def _now() -> str:
     return datetime.datetime.now().isoformat(timespec="seconds")
 
+
 def get_conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys=ON;")
+    try:
+        ensure_fraud_visibility_column(conn)
+    except Exception:
+        # Modo defensivo: en escenarios de migración antigua preferimos no bloquear la conexión
+        pass
     return conn
+
+
+def ensure_fraud_visibility_column(conn: Optional[sqlite3.Connection] = None) -> None:
+    """Garantiza la columna include_in_report en fraud_analyses (idempotente)."""
+    owns_conn = False
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys=ON;")
+        owns_conn = True
+
+    try:
+        rows = conn.execute("PRAGMA table_info(fraud_analyses)").fetchall()
+        if not rows:
+            return
+        existing = {row['name'] for row in rows}
+        if 'include_in_report' not in existing:
+            conn.execute(
+                "ALTER TABLE fraud_analyses ADD COLUMN include_in_report INTEGER NOT NULL DEFAULT 1"
+            )
+            conn.commit()
+    finally:
+        if owns_conn:
+            conn.close()
+
+
+def ensure_editor_columns(conn: Optional[sqlite3.Connection] = None) -> None:
+    """Garantiza columnas del editor del analista en la tabla cases (idempotente)."""
+    owns_conn = False
+    if conn is None:
+        conn = get_conn()
+        owns_conn = True
+    try:
+        rows = conn.execute("PRAGMA table_info(cases)").fetchall()
+        existing = {row['name'] for row in rows}
+        if 'tentative_decision' not in existing:
+            conn.execute("ALTER TABLE cases ADD COLUMN tentative_decision TEXT CHECK(tentative_decision IN ('with','without') OR tentative_decision IS NULL)")
+        if 'tentative_by' not in existing:
+            conn.execute("ALTER TABLE cases ADD COLUMN tentative_by TEXT")
+        if 'tentative_at' not in existing:
+            conn.execute("ALTER TABLE cases ADD COLUMN tentative_at TEXT")
+        if 'savings_amount' not in existing:
+            conn.execute("ALTER TABLE cases ADD COLUMN savings_amount REAL DEFAULT 0")
+        conn.commit()
+    finally:
+        if owns_conn:
+            conn.close()
+
 
 def init_db() -> None:
     """Crea todas las tablas necesarias si no existen (esquema nuevo con year/seq)."""
@@ -161,6 +215,7 @@ def init_db() -> None:
                 guide_version   TEXT,
                 analysis_uuid   TEXT,
                 prompt_hash     TEXT,
+                include_in_report INTEGER NOT NULL DEFAULT 1,
                 created_at      TEXT NOT NULL,
                 updated_at      TEXT NOT NULL,
                 FOREIGN KEY(document_id) REFERENCES documents(id) ON DELETE CASCADE,
@@ -168,14 +223,49 @@ def init_db() -> None:
             );
             """
         )
+        ensure_fraud_visibility_column(conn)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_case ON fraud_analyses(case_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_risk ON fraud_analyses(risk_level);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_score ON fraud_analyses(fraud_score);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_prompt ON fraud_analyses(prompt_hash);")
 
+        # fraud_correlations (hallazgos inter-documentales)
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fraud_correlations (
+                id              TEXT PRIMARY KEY,
+                case_id         TEXT NOT NULL,
+                rule_id         TEXT NOT NULL,
+                rule_version    TEXT,
+                status          TEXT CHECK(status IN ('pass','fail','needs_context')),
+                severity        TEXT,
+                summary         TEXT,
+                documents       TEXT,
+                entities        TEXT,
+                metadata        TEXT,
+                evidence        TEXT,
+                tags            TEXT,
+                finding_type    TEXT,
+                prompt_hash     TEXT,
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY(case_id) REFERENCES cases(case_id) ON DELETE CASCADE
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_case ON fraud_correlations(case_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_rule ON fraud_correlations(rule_id);")
+
         # (Tabla 'feedback' eliminada del esquema)
         
         # cache_stats - Tabla para métricas de caché persistentes
+
+        # Columnas editor analista
+        try:
+            ensure_editor_columns(conn)
+        except Exception as exc:
+            print(f'Advertencia: no se pudieron asegurar columnas editor: {exc}')
+
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS cache_stats (
@@ -372,6 +462,145 @@ def get_extracted_by_document_id(document_id: str) -> Optional[sqlite3.Row]:
         ).fetchone()
         return row
 
+# --- FRAUD CORRELATIONS HELPERS ---
+
+def ensure_correlation_table(conn: Optional[sqlite3.Connection] = None) -> None:
+    owns_conn = False
+    if conn is None:
+        conn = get_conn()
+        owns_conn = True
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS fraud_correlations (
+                id              TEXT PRIMARY KEY,
+                case_id         TEXT NOT NULL,
+                rule_id         TEXT NOT NULL,
+                rule_version    TEXT,
+                status          TEXT CHECK(status IN ('pass','fail','needs_context')),
+                severity        TEXT,
+                summary         TEXT,
+                documents       TEXT,
+                entities        TEXT,
+                metadata        TEXT,
+                evidence        TEXT,
+                tags            TEXT,
+                finding_type    TEXT,
+                prompt_hash     TEXT,
+                created_at      TEXT NOT NULL,
+                updated_at      TEXT NOT NULL,
+                FOREIGN KEY(case_id) REFERENCES cases(case_id) ON DELETE CASCADE
+            );
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_case ON fraud_correlations(case_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_rule ON fraud_correlations(rule_id);")
+        conn.commit()
+    finally:
+        if owns_conn:
+            conn.close()
+
+
+def save_correlation_findings(case_id: str, findings: Sequence[Any]) -> None:
+    if not findings:
+        return
+    with get_conn() as conn:
+        ensure_correlation_table(conn)
+        now = _now()
+        payloads = []
+        for finding in findings:
+            finding_id = getattr(finding, "id", None)
+            if not finding_id:
+                continue
+            status = getattr(finding, "status", None)
+            severity = getattr(finding, "severity", None)
+            payloads.append(
+                (
+                    finding_id,
+                    case_id,
+                    getattr(finding, "rule_id", "unknown"),
+                    getattr(finding, "rule_version", None),
+                    status.value if status is not None else None,
+                    severity.value if severity is not None else None,
+                    getattr(finding, "summary", None),
+                    json.dumps(getattr(finding, "documents_involved", []) or [], ensure_ascii=False),
+                    json.dumps(getattr(finding, "entities_involved", []) or [], ensure_ascii=False),
+                    json.dumps(getattr(finding, "metadata", {}) or {}, ensure_ascii=False),
+                    json.dumps(getattr(finding, "evidence", []) or [], ensure_ascii=False),
+                    json.dumps(getattr(finding, "tags", []) or [], ensure_ascii=False),
+                    getattr(finding, "finding_type", None),
+                    getattr(finding, "prompt_hash", None),
+                    now,
+                    now,
+                )
+            )
+
+        if not payloads:
+            return
+
+        conn.executemany(
+            """
+            INSERT INTO fraud_correlations (
+                id, case_id, rule_id, rule_version, status, severity, summary,
+                documents, entities, metadata, evidence, tags, finding_type,
+                prompt_hash, created_at, updated_at
+            ) VALUES (
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+            )
+            ON CONFLICT(id) DO UPDATE SET
+                case_id=excluded.case_id,
+                rule_id=excluded.rule_id,
+                rule_version=excluded.rule_version,
+                status=excluded.status,
+                severity=excluded.severity,
+                summary=excluded.summary,
+                documents=excluded.documents,
+                entities=excluded.entities,
+                metadata=excluded.metadata,
+                evidence=excluded.evidence,
+                tags=excluded.tags,
+                finding_type=excluded.finding_type,
+                prompt_hash=excluded.prompt_hash,
+                updated_at=excluded.updated_at
+            ;
+            """,
+            payloads,
+        )
+        conn.commit()
+
+
+def get_correlation_findings(case_id: str) -> List[Dict[str, Any]]:
+    with get_conn() as conn:
+        ensure_correlation_table(conn)
+        rows = conn.execute(
+            "SELECT * FROM fraud_correlations WHERE case_id = ? ORDER BY created_at DESC",
+            (case_id,),
+        ).fetchall()
+
+    results: List[Dict[str, Any]] = []
+    for row in rows:
+        results.append(
+            {
+                "id": row["id"],
+                "case_id": row["case_id"],
+                "rule_id": row["rule_id"],
+                "rule_version": row["rule_version"],
+                "status": row["status"],
+                "severity": row["severity"],
+                "summary": row["summary"],
+                "documents": json.loads(row["documents"] or "[]"),
+                "entities": json.loads(row["entities"] or "[]"),
+                "metadata": json.loads(row["metadata"] or "{}"),
+                "evidence": json.loads(row["evidence"] or "[]"),
+                "tags": json.loads(row["tags"] or "[]"),
+                "finding_type": row["finding_type"],
+                "prompt_hash": row["prompt_hash"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+            }
+        )
+    return results
+
 # (Helpers de feedback eliminados)
 
 # --- CACHE STATS HELPERS ---
@@ -431,3 +660,13 @@ def reset_cache_stats(scope: str) -> None:
 
 if __name__ == "__main__":
     init_db()
+
+try:
+    ensure_editor_columns()
+except Exception:
+    pass
+
+try:
+    ensure_correlation_table()
+except Exception:
+    pass

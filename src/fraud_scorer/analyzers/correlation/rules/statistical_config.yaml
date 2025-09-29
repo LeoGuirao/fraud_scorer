@@ -1,0 +1,52 @@
+version: v1.0.0
+numeric_anomalies:
+  - id: invoices_outlier
+    description: "Montos de facturas presentan valores atípicos inusuales."
+    document_type: facturas_comerciales_internacionales
+    field: monto_total
+    min_samples: 3
+    max_zscore: 2.5
+    severity: medium
+    tags: [monto, outlier]
+  - id: claim_amount_vs_policy
+    description: "El monto reclamado excede significativamente la suma asegurada."
+    source_path: consolidated.consolidated_fields.monto_reclamacion
+    reference_path: consolidated.consolidated_fields.suma_asegurada
+    max_ratio: 1.0
+    tolerance: 0.05
+    severity: critical
+    tags: [monto, poliza]
+gap_anomalies:
+  - id: delayed_claim
+    description: "La reclamación ocurrió demasiado tiempo después del siniestro."
+    start: consolidated.consolidated_fields.fecha_ocurrencia
+    end: consolidated.consolidated_fields.fecha_reclamacion
+    max_days: 30
+    min_days: 0
+    severity: medium
+    tags: [cronologia, demora]
+  - id: claim_after_policy_expired
+    description: "La reclamación se presentó después del fin de la vigencia de la póliza."
+    start: consolidated.consolidated_fields.fecha_reclamacion
+    end: consolidated.consolidated_fields.vigencia_fin
+    min_days: 0
+    severity: high
+    tags: [cronologia, vigencia]
+
+correlation_checks:
+  - id: invoice_claim_alignment
+    description: "Correlación entre montos reclamados y facturas registradas"
+    method: pearson
+    pair_mode: document
+    left:
+      document_type: facturas_comerciales_internacionales
+      field: monto_total
+    right:
+      document_type: facturas_comerciales_internacionales
+      field: monto_total
+    min_samples: 5
+    min_abs_correlation: 0.3
+    expected_sign: positive
+    severity: low
+    tags: [monto, correlacion]
+    missing_summary: "Se requieren al menos cinco facturas con montos para evaluar correlación"

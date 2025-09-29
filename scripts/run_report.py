@@ -8,7 +8,7 @@ import asyncio
 import argparse
 from pathlib import Path
 import logging
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, TYPE_CHECKING
 import json
 import re
 from datetime import datetime
@@ -34,13 +34,14 @@ from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.parsers.document_parser import DocumentParser
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.storage.post_process_verifier import verify_case_artifacts
-from fraud_scorer.storage.db import sha256_of_file, get_conn
+from fraud_scorer.storage.db import sha256_of_file, get_conn, save_correlation_findings
 from fraud_scorer.storage.cases import create_case
 
 from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
 from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
+from fraud_scorer.analyzers.correlation import CorrelationEngine
 from fraud_scorer.analyzers.fraud_guide_manager import FraudGuideManager
 from fraud_scorer.templates.fraud_report_generator import FraudReportGenerator
 from fraud_scorer.models.extraction import (
@@ -48,10 +49,14 @@ from fraud_scorer.models.extraction import (
     ConsolidatedExtraction,
     ProgressEvent,
 )
+from fraud_scorer.models.fraud_analysis import FraudAnalysisResult
 from fraud_scorer.processors.document_classifier import DocumentClassifier
 from fraud_scorer.processors.document_organizer import DocumentOrganizer
 import time
 import os
+
+if TYPE_CHECKING:
+    from fraud_scorer.analyzers.correlation.models import CorrelationReport
 
 
 class _ProgressEmitter:
@@ -170,6 +175,7 @@ class FraudAnalysisSystemV2:
         self.report_generator = AIReportGenerator(template_dir=template_path)
         # Control de análisis de fraude
         self.enable_fraud = bool(enable_fraud)
+        self.correlation_engine = CorrelationEngine() if self.enable_fraud else None
 
         mode_desc = "Guiado" if self.guided_mode else "Estándar"
         logger.info(f"Sistema v2.0 inicializado - Modo: {mode_desc}, Extracción: {self.extraction_mode}")
@@ -456,10 +462,45 @@ class FraudAnalysisSystemV2:
                 continue
             if isinstance(item, dict):
                 try:
-                    hydrated.append(FraudAnalysisResult.model_validate(item))
+                    payload = dict(item)
+                    payload.setdefault("include_in_report", True)
+                    hydrated.append(FraudAnalysisResult.model_validate(payload))
                 except Exception as exc:
                     logger.warning(f"No se pudo reconstruir resultado de fraude: {exc}")
         return hydrated
+
+    def _run_correlation_analysis(
+        self,
+        *,
+        case_id: str,
+        consolidated: ConsolidatedExtraction,
+        extractions: List[DocumentExtraction],
+        fraud_analyses: List[FraudAnalysisResult],
+        case_data: Dict[str, Any],
+    ) -> Optional["CorrelationReport"]:
+        if not self.correlation_engine or not fraud_analyses:
+            return None
+        try:
+            report = self.correlation_engine.run(
+                case_id=case_id,
+                consolidated=consolidated,
+                extractions=extractions,
+                fraud_results=fraud_analyses,
+                case_index=case_data,
+                cache_manager=self.cache_manager,
+            )
+            logger.info(
+                "✓ Motor de correlación ejecutado: %s hallazgos",
+                len(report.findings),
+            )
+            return report
+        except Exception as exc:  # pragma: no cover - defensivo ante sandbox
+            logger.warning(
+                "⚠️ Motor de correlación degradado a revisión manual para %s: %s",
+                case_id,
+                exc,
+            )
+            return None
     
     def _clean_previous_case_files(
         self,
@@ -1554,7 +1595,7 @@ class FraudAnalysisSystemV2:
                 )
             previous_fraud = filtered_prev
         run_fraud = self.enable_fraud and (wants("reprocess_fraud") or not previous_fraud)
-        fraud_analyses: List[Any] = []
+        fraud_analyses: List[FraudAnalysisResult] = []
         if self.enable_fraud and run_fraud:
             logger.info("\n🔎 FASE 3.5: Análisis de fraude por documento")
             logger.info("-" * 40)
@@ -1725,6 +1766,27 @@ class FraudAnalysisSystemV2:
             if self.progress_emitter:
                 self.progress_emitter.emit("analyze", "done", message="Análisis de fraude reutilizado")
 
+        correlation_report: Optional["CorrelationReport"] = None
+        if self.enable_fraud and fraud_analyses:
+            correlation_report = self._run_correlation_analysis(
+                case_id=case_id,
+                consolidated=consolidated,
+                extractions=extractions,
+                fraud_analyses=fraud_analyses,
+                case_data=case_data,
+            )
+            if correlation_report and self.cache_manager:
+                try:
+                    case_data["fraud_correlations"] = correlation_report.model_dump()
+                    self.cache_manager.save_case_index(case_id, case_data)
+                except Exception as exc:
+                    logger.warning(f"No se pudieron guardar correlaciones en el índice: {exc}")
+            if correlation_report:
+                try:
+                    save_correlation_findings(case_id, correlation_report.findings)
+                except Exception as exc:
+                    logger.warning(f"No se pudieron persistir correlaciones en DB: {exc}")
+
         # ============================================
         # FASE 4: Generación del reporte
         # ============================================
@@ -1786,8 +1848,13 @@ class FraudAnalysisSystemV2:
                     consolidated_data=consolidated,
                     fraud_analyses=fraud_analyses,
                     documents_metadata=docs_meta,
+                    correlation_report=correlation_report,
                 )
-                html_content = fraud_gen.render_html_template("report_template.html", report_data)
+                auto_html = fraud_gen.render_html_template("report_template.html", report_data)
+                manual_html = None
+                if isinstance(case_data, dict):
+                    manual_html = case_data.get("report_override_html")
+                html_content = manual_html if isinstance(manual_html, str) and manual_html.strip() else auto_html
                 # Guardar HTML
                 with open(html_path, "w", encoding="utf-8") as f:
                     f.write(html_content)
@@ -1905,6 +1972,9 @@ class FraudAnalysisSystemV2:
             "report_path": str(html_path),  # Ruta del reporte HTML
             "pdf_path": str(pdf_path),      # Ruta del PDF
         }
+
+        if correlation_report:
+            results["correlation_report"] = correlation_report.model_dump()
 
         verification_payload = verify_case_artifacts(case_id)
         results["post_process_verification"] = verification_payload

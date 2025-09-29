@@ -757,169 +757,7 @@
         }
 
         /* Reprocess Options Section */
-        .reprocess-options {
-            display: none;
-            padding: 32px 24px;
-        }
 
-        .reprocess-header {
-            text-align: center;
-            margin-bottom: 32px;
-        }
-
-        .reprocess-header h2 {
-            font-size: 24px;
-            font-weight: 700;
-            color: var(--primary-navy);
-            margin-bottom: 12px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 12px;
-        }
-
-        .reprocess-header h2 i {
-            font-size: 28px;
-            color: var(--amber-600);
-        }
-
-        .existing-case-info {
-            background: var(--amber-100);
-            border: 1px solid var(--amber-600);
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 24px;
-        }
-
-        .existing-case-info h3 {
-            color: var(--slate-800);
-            font-size: 16px;
-            margin-bottom: 8px;
-        }
-
-        .existing-case-info p {
-            color: var(--slate-600);
-            font-size: 14px;
-            margin: 4px 0;
-        }
-
-        .reprocess-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 16px;
-            margin-bottom: 32px;
-        }
-
-        .reprocess-card {
-            background: var(--slate-50);
-            border: 2px solid var(--slate-200);
-            border-radius: 8px;
-            padding: 20px;
-            transition: all 0.2s ease;
-            cursor: pointer;
-            position: relative;
-        }
-
-        .reprocess-card:hover {
-            border-color: var(--primary-blue);
-            box-shadow: var(--shadow-md);
-            transform: translateY(-2px);
-        }
-
-        .reprocess-card.selected {
-            background: var(--light-blue);
-            border-color: var(--primary-blue);
-            box-shadow: var(--shadow-md);
-        }
-
-        .reprocess-card-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            margin-bottom: 12px;
-        }
-
-        .reprocess-card-title {
-            font-weight: 600;
-            color: var(--slate-800);
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .reprocess-card-title i {
-            color: var(--primary-blue);
-            font-size: 18px;
-        }
-
-        .reprocess-checkbox {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-
-        .reprocess-card-description {
-            color: var(--slate-600);
-            font-size: 13px;
-            line-height: 1.5;
-        }
-
-        .reprocess-card-badge {
-            display: inline-block;
-            padding: 2px 8px;
-            background: var(--primary-blue);
-            color: white;
-            border-radius: 12px;
-            font-size: 11px;
-            font-weight: 600;
-            margin-top: 8px;
-        }
-
-        .reprocess-actions {
-            display: flex;
-            gap: 16px;
-            justify-content: center;
-        }
-
-        .btn-reprocess {
-            padding: 14px 28px;
-            border: none;
-            border-radius: 6px;
-            font-size: 14px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            min-width: 160px;
-            font-family: 'Source Sans Pro', sans-serif;
-        }
-
-        .btn-process-new {
-            background: var(--slate-50);
-            color: var(--slate-700);
-            border: 1px solid var(--slate-300);
-        }
-
-        .btn-process-new:hover {
-            background: var(--slate-100);
-            border-color: var(--slate-400);
-        }
-
-        .btn-reprocess-selected {
-            background: linear-gradient(135deg, var(--primary-blue) 0%, var(--primary-navy) 100%);
-            color: white;
-            box-shadow: var(--shadow-sm);
-        }
-
-        .btn-reprocess-selected:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .btn-reprocess-selected:disabled {
-            opacity: 0.5;
-            cursor: not-allowed;
-        }
 
         /* Result Section */
         .result {
@@ -1211,122 +1049,6 @@
             </div>
         </div>
 
-        <!-- Reprocess Options Section -->
-        <div class="content-section reprocess-options" id="reprocessSection">
-            <div class="reprocess-header">
-                <h2>
-                    <i class="ri-refresh-line"></i>
-                    Caso Existente Detectado
-                </h2>
-                <p style="color: var(--slate-600); font-size: 15px;">
-                    Se ha detectado que estos documentos ya fueron procesados anteriormente.
-                    Selecciona qué partes deseas reprocesar:
-                </p>
-            </div>
-
-            <div class="existing-case-info" id="existingCaseInfo">
-                <h3>Información del Caso Existente</h3>
-                <p id="caseInfoDetails">Cargando información...</p>
-            </div>
-
-            <div class="reprocess-grid">
-                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_ocr')">
-                    <div class="reprocess-card-header">
-                        <div class="reprocess-card-title">
-                            <i class="ri-scan-line"></i>
-                            Reprocesar OCR
-                        </div>
-                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_ocr">
-                    </div>
-                    <div class="reprocess-card-description">
-                        Volver a extraer el texto de los documentos. Útil si los documentos originales han cambiado o mejorado.
-                    </div>
-                    <span class="reprocess-card-badge">Fase 1</span>
-                </div>
-
-                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_classification')">
-                    <div class="reprocess-card-header">
-                        <div class="reprocess-card-title">
-                            <i class="ri-file-list-3-line"></i>
-                            Reclasificar Documentos
-                        </div>
-                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_classification">
-                    </div>
-                    <div class="reprocess-card-description">
-                        Volver a clasificar todos los documentos usando AI o aplicar clasificaciones manuales.
-                    </div>
-                    <span class="reprocess-card-badge">Fase 1.4</span>
-                </div>
-
-                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_policy_detection')">
-                    <div class="reprocess-card-header">
-                        <div class="reprocess-card-title">
-                            <i class="ri-file-shield-2-line"></i>
-                            Redetectar Tipo de Póliza
-                        </div>
-                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_policy_detection">
-                    </div>
-                    <div class="reprocess-card-description">
-                        Volver a detectar el tipo de póliza. Esto afectará cómo se extraen los campos de la carátula.
-                    </div>
-                    <span class="reprocess-card-badge">Fase 1.5</span>
-                </div>
-
-                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_extraction')">
-                    <div class="reprocess-card-header">
-                        <div class="reprocess-card-title">
-                            <i class="ri-file-text-line"></i>
-                            Reextraer Campos
-                        </div>
-                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_extraction">
-                    </div>
-                    <div class="reprocess-card-description">
-                        Volver a extraer información de los documentos. Se ejecutará también la consolidación automáticamente.
-                    </div>
-                    <span class="reprocess-card-badge">Fase 2</span>
-                </div>
-
-                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_consolidation')">
-                    <div class="reprocess-card-header">
-                        <div class="reprocess-card-title">
-                            <i class="ri-git-merge-line"></i>
-                            Reconsolidar Datos
-                        </div>
-                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_consolidation">
-                    </div>
-                    <div class="reprocess-card-description">
-                        Volver a consolidar la información extraída usando los datos de la última extracción.
-                    </div>
-                    <span class="reprocess-card-badge">Fase 3</span>
-                </div>
-
-                <div class="reprocess-card" onclick="toggleReprocessOption(this, 'reprocess_fraud')">
-                    <div class="reprocess-card-header">
-                        <div class="reprocess-card-title">
-                            <i class="ri-search-eye-line"></i>
-                            Reanalizar Fraude
-                        </div>
-                        <input type="checkbox" class="reprocess-checkbox" data-option="reprocess_fraud">
-                    </div>
-                    <div class="reprocess-card-description">
-                        Volver a ejecutar el análisis de fraude por documento sin reprocesar fases anteriores.
-                    </div>
-                    <span class="reprocess-card-badge">Fase 3.5</span>
-                </div>
-            </div>
-
-            <div class="reprocess-actions">
-                <button class="btn-reprocess btn-process-new" onclick="processAsNew()">
-                    <i class="ri-add-line"></i>
-                    Procesar como Nuevo Caso
-                </button>
-                <button class="btn-reprocess btn-reprocess-selected" id="reprocessBtn" onclick="reprocessSelected()" disabled>
-                    <i class="ri-refresh-line"></i>
-                    Reprocesar Seleccionados
-                </button>
-            </div>
-        </div>
-
         <!-- Result Section -->
         <div class="content-section result" id="resultSection">
             <div class="result-success">
@@ -1343,6 +1065,10 @@
                 <i class="ri-file-text-line"></i>
                 Visualizar Reporte
             </a>
+            <button class="btn btn-primary" id="goToEditorBtn" style="width: 100%; margin-top: 10px; display: none;" onclick="goToEditor()">
+                <i class="ri-external-link-line"></i>
+                Ir al Editor
+            </button>
             <button class="btn btn-secondary" style="width: 100%; margin-top: 10px;" onclick="resetForm()">
                 <i class="ri-refresh-line"></i>
                 Analizar Otro Caso
@@ -1356,6 +1082,8 @@
         let originalClassifications = {};
         let aiClassifications = {};
         let hasPreviousClassifications = false;
+        let lastCompletedCaseId = null;
+        let editorRedirectTimer = null;
         
         // Configurar área de carga
         const uploadArea = document.getElementById('uploadArea');
@@ -1450,16 +1178,11 @@
             return Math.round(bytes / Math.pow(k, i) * 100) / 100 + ' ' + sizes[i];
         }
         
-let existingCaseId = null;
-let reprocessOptions = {};
-
 document.addEventListener('DOMContentLoaded', initializeUploadPage);
 
 function initializeUploadPage() {
     const params = new URLSearchParams(window.location.search || '');
     const processId = params.get('process_id');
-    const mode = params.get('mode');
-    const caseId = params.get('case_id');
 
     const uploadSection = document.getElementById('uploadSection');
     if (uploadSection) {
@@ -1472,195 +1195,57 @@ function initializeUploadPage() {
         return;
     }
 
-    if (mode === 'reprocess' && caseId) {
-        loadCaseSummary(caseId);
-        return;
-    }
-
     const notice = document.getElementById('legacyEntryNotice');
     if (notice) {
         notice.style.display = 'block';
     }
 }
 
-async function loadCaseSummary(caseId) {
-    try {
-        const response = await fetch(`/api/case/${encodeURIComponent(caseId)}/summary`);
-        if (!response.ok) {
-            throw new Error('Respuesta no válida del servidor');
-        }
-        const payload = await response.json();
-        const summary = payload.data || payload;
-        existingCaseId = summary.case_id || caseId;
-        showReprocessOptions(summary);
-    } catch (error) {
-        console.error('Error cargando resumen del caso:', error);
-        alert('No se pudo cargar la información del caso. Regresaremos al dashboard.');
-        window.location.href = '/';
+async function computeSHA256(file) {
+    const buf = await file.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    const view = new DataView(digest);
+    let hex = '';
+    for (let i = 0; i < view.byteLength; i++) {
+        const v = view.getUint8(i).toString(16).padStart(2, '0');
+        hex += v;
     }
+    return hex;
 }
 
-function toggleReprocessOption(card, option) {
-            const checkbox = card.querySelector('.reprocess-checkbox');
-            checkbox.checked = !checkbox.checked;
-            card.classList.toggle('selected', checkbox.checked);
+async function checkExistingCase() {
+    const fileNames = selectedFiles.map(f => f.name);
+    const limit = Math.min(10, selectedFiles.length || 0);
+    const filesToHash = selectedFiles.slice(0, limit);
+    let hashes = [];
+    try {
+        hashes = await Promise.all(filesToHash.map(computeSHA256));
+    } catch (e) {
+        console.warn('No se pudieron calcular hashes SHA-256 en el navegador:', e);
+    }
 
-            reprocessOptions[option] = checkbox.checked;
+    try {
+        const response = await fetch('/api/case/null/check-existing', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ files: fileNames, hashes })
+        });
 
-            // Habilitar/deshabilitar botón de reprocesar
-            const hasSelection = Object.values(reprocessOptions).some(v => v);
-            document.getElementById('reprocessBtn').disabled = !hasSelection;
-        }
-
-        async function computeSHA256(file) {
-            const buf = await file.arrayBuffer();
-            const digest = await crypto.subtle.digest('SHA-256', buf);
-            const view = new DataView(digest);
-            let hex = '';
-            for (let i = 0; i < view.byteLength; i++) {
-                const v = view.getUint8(i).toString(16).padStart(2, '0');
-                hex += v;
-            }
-            return hex;
-        }
-
-        async function checkExistingCase() {
-            const fileNames = selectedFiles.map(f => f.name);
-
-            // Calcular hashes para hasta 10 archivos (o todos si son menos de 10)
-            const limit = Math.min(10, selectedFiles.length || 0);
-            const filesToHash = selectedFiles.slice(0, limit);
-            let hashes = [];
-            try {
-                hashes = await Promise.all(filesToHash.map(computeSHA256));
-            } catch (e) {
-                console.warn('No se pudieron calcular hashes SHA-256 en el navegador:', e);
-                hashes = [];
-            }
-
-            try {
-                const response = await fetch('/api/case/null/check-existing', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ files: fileNames, hashes })
-                });
-
-                const result = await response.json();
-
-                if (result.existing_case) {
-                    existingCaseId = result.case_id;
-                    showReprocessOptions(result);
-                    return true;
-                }
-            } catch (error) {
-                console.error('Error checking existing case:', error);
-            }
+        if (!response.ok) {
             return false;
         }
 
-        function showReprocessOptions(caseData) {
-            document.getElementById('uploadSection').style.display = 'none';
-            document.getElementById('reprocessSection').style.display = 'block';
-
-            const notice = document.getElementById('legacyEntryNotice');
-            if (notice) {
-                notice.style.display = 'none';
-            }
-
-            reprocessOptions = {};
-            document.querySelectorAll('.reprocess-checkbox').forEach(cb => {
-                cb.checked = false;
-            });
-            document.querySelectorAll('.reprocess-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            document.getElementById('reprocessBtn').disabled = true;
-
-            // Mostrar información del caso
-            const details = `
-                <strong>Case ID:</strong> ${caseData.case_id}<br>
-                <strong>Fases completadas:</strong><br>
-                • OCR: ${caseData.has_ocr ? '✓' : '✗'}<br>
-                • Clasificación: ${caseData.has_classifications ? '✓' : '✗'}<br>
-                • Extracción: ${caseData.has_extraction ? '✓' : '✗'}<br>
-                • Consolidación: ${caseData.has_consolidation ? '✓' : '✗'}<br>
-                • Análisis de Fraude: ${caseData.has_fraud_analysis ? '✓' : '✗'}
-            `;
-            document.getElementById('caseInfoDetails').innerHTML = details;
+        const result = await response.json();
+        if (result && result.existing_case) {
+            alert('Se detectó un caso existente. Abriendo el editor del analista.');
+            window.location.href = `/analyst/${encodeURIComponent(result.case_id)}`;
+            return true;
         }
-
-        async function processAsNew() {
-            if (!existingCaseId) {
-                document.getElementById('reprocessSection').style.display = 'none';
-                await performNormalAnalysis();
-                return;
-            }
-
-            const payload = {
-                reprocess_ocr: true,
-                reprocess_classification: true,
-                reprocess_policy_detection: true,
-                reprocess_extraction: true,
-                reprocess_consolidation: true,
-                reprocess_fraud: true
-            };
-
-            document.getElementById('reprocessSection').style.display = 'none';
-            document.getElementById('processingSection').style.display = 'block';
-
-            try {
-                const response = await fetch(`/api/case/${existingCaseId}/reprocess`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Error al iniciar reprocesamiento');
-                }
-
-                const result = await response.json();
-                await monitorProgress(result.process_id);
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error al reprocesar: ' + error.message);
-                resetForm();
-            }
-        }
-
-        async function reprocessSelected() {
-            if (!existingCaseId || !Object.values(reprocessOptions).some(v => v)) return;
-
-            document.getElementById('reprocessSection').style.display = 'none';
-            document.getElementById('processingSection').style.display = 'block';
-
-            try {
-                const payload = {
-                    reprocess_ocr: !!reprocessOptions.reprocess_ocr,
-                    reprocess_classification: !!reprocessOptions.reprocess_classification,
-                    reprocess_policy_detection: !!reprocessOptions.reprocess_policy_detection,
-                    reprocess_extraction: !!reprocessOptions.reprocess_extraction,
-                    reprocess_consolidation: !!reprocessOptions.reprocess_consolidation,
-                    reprocess_fraud: !!reprocessOptions.reprocess_fraud
-                };
-                const response = await fetch(`/api/case/${existingCaseId}/reprocess`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                if (!response.ok) {
-                    throw new Error('Error al iniciar reprocesamiento');
-                }
-
-                const result = await response.json();
-                await monitorProgress(result.process_id);
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error al reprocesar: ' + error.message);
-                resetForm();
-            }
-        }
+    } catch (error) {
+        console.error('Error verificando caso existente:', error);
+    }
+    return false;
+}
 
         async function startAnalysis() {
             if (selectedFiles.length === 0) return;
@@ -1668,10 +1253,10 @@ function toggleReprocessOption(card, option) {
             // Verificar si es un caso existente
             const isExisting = await checkExistingCase();
             if (isExisting) {
-                return; // Las opciones de reprocesamiento ya se muestran
+                clearFiles();
+                return;
             }
 
-            // Si no es existente, procesar normalmente
             await performNormalAnalysis();
         }
 
@@ -2140,14 +1725,50 @@ function toggleReprocessOption(card, option) {
             document.getElementById('reviewSection').style.display = 'none';
             document.getElementById('resultSection').style.display = 'block';
             
-            document.getElementById('caseId').textContent = status.case_id || '-';
+            lastCompletedCaseId = status.case_id || null;
+            document.getElementById('caseId').textContent = lastCompletedCaseId || '-';
             
             const viewReportBtn = document.getElementById('viewReportBtn');
-            viewReportBtn.href = status.report_url || '#';
+            if (viewReportBtn) {
+                viewReportBtn.href = status.report_url || '#';
+            }
+
+            const goToEditorBtn = document.getElementById('goToEditorBtn');
+            if (goToEditorBtn) {
+                if (lastCompletedCaseId) {
+                    goToEditorBtn.style.display = 'block';
+                    goToEditorBtn.disabled = false;
+                    goToEditorBtn.dataset.caseId = lastCompletedCaseId;
+                } else {
+                    goToEditorBtn.style.display = 'none';
+                }
+            }
+
+            if (editorRedirectTimer) {
+                clearTimeout(editorRedirectTimer);
+            }
+            if (lastCompletedCaseId) {
+                editorRedirectTimer = setTimeout(() => {
+                    if (lastCompletedCaseId) {
+                        window.location.href = `/analyst/${encodeURIComponent(lastCompletedCaseId)}`;
+                    }
+                }, 4000);
+            }
         }
         
+        function goToEditor() {
+            if (!lastCompletedCaseId) {
+                return;
+            }
+            if (editorRedirectTimer) {
+                clearTimeout(editorRedirectTimer);
+                editorRedirectTimer = null;
+            }
+            window.location.href = `/analyst/${encodeURIComponent(lastCompletedCaseId)}`;
+        }
+
         function resetForm() {
-            const sections = ['uploadSection', 'processingSection', 'reviewSection', 'reprocessSection', 'resultSection'];
+            const sections = ['uploadSection', 'processingSection', 'reviewSection', 'resultSection'];
             sections.forEach((sectionId) => {
                 const section = document.getElementById(sectionId);
                 if (section) {
@@ -2165,13 +1786,16 @@ function toggleReprocessOption(card, option) {
                 notice.style.display = 'block';
             }
 
-            existingCaseId = null;
-            reprocessOptions = {};
             currentProcessId = null;
             currentCaseId = null;
             originalClassifications = {};
             startTime = null;
             progressHistory = [];
+            lastCompletedCaseId = null;
+            if (editorRedirectTimer) {
+                clearTimeout(editorRedirectTimer);
+                editorRedirectTimer = null;
+            }
 
             clearFiles();
 

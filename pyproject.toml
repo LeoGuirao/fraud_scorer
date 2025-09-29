@@ -27,6 +27,15 @@ dependencies = [
     "pandas",
     "scikit-learn",
 
+    # ---- RAG y LangChain ----
+    "langchain>=0.1.25",
+    "langchain-community>=0.0.38",
+    "langchain-openai>=0.1.7",
+    "langchain-chroma>=0.2.6",
+    "chromadb>=0.4.24",
+    "unstructured[md]>=0.11.8",
+    "tiktoken>=0.7.0",
+
     # ---- Procesamiento de Documentos y OCR ----
     "azure-ai-formrecognizer",
     "pypdf",
@@ -57,3 +66,7 @@ dev = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.pytest.ini_options]
+asyncio_default_fixture_loop_scope = "function"
+

@@ -340,8 +340,9 @@ class FraudAnalyzer:
                         risk_level, fraud_score, analisis_completo, indicators, evidence,
                         recommendations, confidence, analysis_model,
                         guide_version, analysis_uuid, prompt_hash,
+                        include_in_report,
                         created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         f"{analysis.document_id}_fraud",
@@ -359,6 +360,7 @@ class FraudAnalyzer:
                         analysis.guide_version,
                         analysis.analysis_id,
                         analysis.prompt_hash,
+                        1 if analysis.include_in_report else 0,
                         datetime.now().isoformat(),
                         datetime.now().isoformat(),
                     ),
@@ -388,6 +390,7 @@ class FraudAnalyzer:
                                 guide_version   TEXT,
                                 analysis_uuid   TEXT,
                                 prompt_hash     TEXT,
+                                include_in_report INTEGER NOT NULL DEFAULT 1,
                                 created_at      TEXT NOT NULL,
                                 updated_at      TEXT NOT NULL
                             );
