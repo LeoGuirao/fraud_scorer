@@ -10,6 +10,11 @@ from datetime import datetime
 import re
 import json
 
+from fraud_scorer.analyzers.correlation.utils.normalization import (
+    normalize_date,
+    normalize_decimal_as_str,
+)
+
 
 # =========================
 #   Compatibilidad Pydantic
@@ -64,21 +69,43 @@ class DocumentExtraction(BaseModelCompat):
             return value or {}
         normalized = dict(value)
 
-        date_fields = ['fecha_ocurrencia', 'fecha_reclamacion', 'vigencia_inicio', 'vigencia_fin']
+        date_fields = {
+            'fecha_ocurrencia',
+            'fecha_reclamacion',
+            'vigencia_inicio',
+            'vigencia_fin',
+            'fecha_timbrado',
+            'fecha_emision',
+            'fecha_denuncia',
+            'fecha_apertura',
+        }
+        numeric_fields = {
+            'monto_reclamacion',
+            'monto_total',
+            'valor_mercancia',
+            'suma_asegurada',
+            'deducible',
+            'peso_bruto',
+            'peso_total',
+            'peso',
+        }
+
         for field in date_fields:
-            if field in normalized and normalized[field]:
-                if isinstance(normalized[field], str):
+            if field in normalized and normalized[field] is not None:
+                normalised_value = normalize_date(normalized[field])
+                if normalised_value:
+                    normalized[field] = normalised_value
+                elif isinstance(normalized[field], str):
                     normalized[field] = normalized[field].strip()
 
-        key = 'monto_reclamacion'
-        if key in normalized and normalized[key]:
-            if isinstance(normalized[key], str):
-                clean = re.sub(r'[^\d.,-]', '', normalized[key]).strip()
-                try:
-                    num = float(clean.replace(',', ''))
-                    normalized[key] = f"{num}"
-                except Exception:
-                    normalized[key] = clean or normalized[key]
+        for field in numeric_fields:
+            if field in normalized and normalized[field] is not None:
+                normalised_value = normalize_decimal_as_str(normalized[field])
+                if normalised_value is not None:
+                    normalized[field] = normalised_value
+                elif isinstance(normalized[field], str):
+                    cleaned = re.sub(r'[^\d.,-]', '', normalized[field]).strip()
+                    normalized[field] = cleaned or normalized[field]
 
         return normalized
 

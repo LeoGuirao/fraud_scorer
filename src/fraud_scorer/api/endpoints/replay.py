@@ -18,7 +18,7 @@ class ReplayConfigPayload(BaseModel):
     case_id: str
     use_ai: bool = Field(True, alias='useAi')
     detailed_analysis: bool = Field(False, alias='detailedAnalysis')
-    model: str = "gpt-4o-mini"
+    model: str = "gpt-5"
     temperature: float = 0.1
     output_dir: Optional[str] = Field(None, alias='outputDir')
     regenerate_report: bool = Field(True, alias='regenerateReport')

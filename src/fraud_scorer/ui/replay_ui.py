@@ -180,7 +180,7 @@ class ReplayUI:
         
         # Modo de procesamiento
         console.print("[cyan]1. Modo de procesamiento:[/cyan]")
-        console.print("   [dim]IA usa GPT-4 para extracción inteligente[/dim]")
+        console.print("   [dim]IA usa la familia GPT-5 para extracción inteligente[/dim]")
         use_ai = Confirm.ask("   ¿Usar sistema de IA?", default=True)
         options['use_ai'] = use_ai
         console.print()
@@ -195,15 +195,15 @@ class ReplayUI:
             
             # Modelo de IA
             console.print("[cyan]3. Configuración de IA:[/cyan]")
-            console.print("   [dim]gpt-4o-mini es más rápido y económico[/dim]")
-            console.print("   [dim]gpt-4o es más preciso pero más costoso[/dim]")
+            console.print("   [dim]gpt-5-mini equilibra costo y velocidad[/dim]")
+            console.print("   [dim]gpt-5 ofrece máxima precisión; gpt-5-thinking profundiza si el caso lo requiere[/dim]")
             model = Prompt.ask(
                 "   Modelo a usar",
-                default="gpt-4o-mini",
-                choices=["gpt-4o", "gpt-4o-mini", "gpt-3.5-turbo"]
+                default="gpt-5",
+                choices=["gpt-5", "gpt-5-thinking", "gpt-5-mini", "gpt-5-vision"]
             )
             options['model'] = model
-            
+
             console.print("   [dim]0.1 = preciso, 0.7 = creativo[/dim]")
             temperature = Prompt.ask(
                 "   Temperatura (0.0-1.0)",

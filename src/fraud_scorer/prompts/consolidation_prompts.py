@@ -43,6 +43,22 @@ class ConsolidationPromptBuilder:
 - La prioridad de documentos ya ha sido aplicada en la extracción
 """
         
+        extra_rules = ""
+        if field_name == "fecha_ocurrencia":
+            extra_rules = """
+REGLA ABSOLUTA PARA FECHA_OCURRENCIA:
+1. Si existe un valor proveniente de 'informe_final_del_ajustador', DEBES seleccionarlo.
+2. Solo cuando falte esa fuente puedes considerar informes preliminares o denuncias.
+3. No utilices razonamientos contextuales que contradigan este orden.
+"""
+        elif field_name == "lugar_hechos":
+            extra_rules = """
+REGLA PARA LUGAR_HECHOS:
+1. Prefiere ubicaciones detalladas (carreteras, kilómetros, entronques) provenientes de informes o peritajes.
+2. Las denuncias solo deben usarse si no existen esas descripciones específicas.
+3. Evita respuestas genéricas (solo ciudad/estado) cuando haya detalles más precisos disponibles.
+"""
+
         prompt = f"""
 Necesito resolver un conflicto para el campo '{field_name}' en un siniestro de seguros.
 {guided_notice}
@@ -65,6 +81,7 @@ Necesito resolver un conflicto para el campo '{field_name}' en un siniestro de s
 3. Considera los ejemplos previos como guía
 4. Selecciona el valor más confiable y correcto
 5. Explica tu razonamiento de forma clara
+{extra_rules}
 
 **CRITERIOS DE DECISIÓN:**
 - Prioridad del tipo de documento según las reglas

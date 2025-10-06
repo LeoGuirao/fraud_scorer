@@ -11,8 +11,8 @@
   --danger: #d32f2f;
   --ghost-hover: #ededed;
   --font: 'Montserrat', sans-serif;
-  --left-track: minmax(340px, 24%);
-  --right-track: minmax(400px, 28%);
+  --left-track: minmax(360px, 25%);
+  --right-track: minmax(420px, 30%);
 }
 
 * {
@@ -771,8 +771,8 @@ body.editor-body {
 
 @media (max-width: 1280px) {
   :root {
-    --left-track: minmax(320px, 28%);
-    --right-track: minmax(340px, 30%);
+    --left-track: minmax(320px, 30%);
+    --right-track: minmax(360px, 36%);
   }
 }
 
@@ -800,10 +800,18 @@ body.editor-body {
   border: var(--border);
   box-shadow: var(--shadow-small);
   padding: 20px;
-  margin: 24px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  background: var(--card);
+}
+
+.correlation-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  flex: 1;
+  min-height: 0;
 }
 
 .correlation-header {
@@ -827,7 +835,7 @@ body.editor-body {
 
 .correlation-summary {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
   gap: 12px;
 }
 
@@ -852,7 +860,8 @@ body.editor-body {
 .correlation-filters {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  column-gap: 12px;
+  row-gap: 8px;
 }
 
 .correlation-filters label {
@@ -872,15 +881,15 @@ body.editor-body {
 .correlation-table {
   border: var(--border);
   background: #fff;
-  max-height: 240px;
+  max-height: clamp(220px, 32vh, 360px);
   overflow-y: auto;
   display: flex;
   flex-direction: column;
 }
 
 .correlation-row {
-  display: grid;
-  grid-template-columns: 1.2fr 0.8fr 0.8fr;
+  display: flex;
+  flex-direction: column;
   gap: 12px;
   padding: 12px 16px;
   border-bottom: var(--border-width) solid #00000011;
@@ -901,6 +910,12 @@ body.editor-body {
   color: #555;
 }
 
+.correlation-row__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .correlation-chip {
   display: inline-flex;
   align-items: center;
@@ -916,4 +931,25 @@ body.editor-body {
   font-size: 12px;
   color: #777;
   text-align: center;
+}
+
+@media (max-width: 1500px) {
+  .correlation-filters {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (min-width: 1500px) {
+  .correlation-row {
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .correlation-row__meta {
+    justify-content: flex-end;
+    align-items: center;
+    gap: 10px;
+  }
 }

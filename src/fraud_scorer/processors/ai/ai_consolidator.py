@@ -8,6 +8,7 @@ evita validación cuando no hay datos (cortocircuito) y nunca inventa valores.
 import os
 import json
 import logging
+import re
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
@@ -24,6 +25,10 @@ from fraud_scorer.models.extraction import (
 )
 from fraud_scorer.prompts.consolidation_prompts import ConsolidationPromptBuilder
 from fraud_scorer.utils.validators import FieldValidator  # Nuevo validador
+from fraud_scorer.analyzers.correlation.utils.normalization import (
+    normalize_decimal_as_str,
+    normalize_date,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +67,19 @@ class AIConsolidator:
     valida de forma conservadora (sin inventar).
     """
 
+    TIPO_SINIESTRO_CANONICAL = {
+        "robo total": "Robo de Bulto por Entero",
+        "robo total del embarque": "Robo de Bulto por Entero",
+        "robo total del embarque por asalto": "Robo de Bulto por Entero",
+        "robo de mercancía": "Robo de Bulto por Entero",
+        "robo de bulto": "Robo de Bulto por Entero",
+        "robo de bulto por entero": "Robo de Bulto por Entero",
+        "robo de bulto por entero (robo de mercancía)": "Robo de Bulto por Entero",
+        "robo total / parcial": "Robo de Bulto por Entero",
+        "robo parcial": "Robo Parcial",
+        "robo parcial de mercancía": "Robo Parcial",
+    }
+
     def __init__(self, api_key: Optional[str] = None):
         self.client = instructor.patch(
             AsyncOpenAI(api_key=api_key or os.getenv("OPENAI_API_KEY"))
@@ -99,7 +117,10 @@ class AIConsolidator:
         extractions: List[DocumentExtraction],
         case_id: str,
         use_advanced_reasoning: bool = True,
-        guided_mode: bool = True  # Añadir parámetro de modo guiado
+        guided_mode: bool = True,  # Añadir parámetro de modo guiado
+        *,
+        complexity: str = "normal",
+        allow_escalation: bool = True,
     ) -> ConsolidatedExtraction:
         """
         Consolida múltiples extracciones en un resultado final.
@@ -174,7 +195,7 @@ class AIConsolidator:
                     field_name=field_name,
                     options=options,
                     all_extractions=extractions,
-                    guided_mode=guided_mode
+                    guided_mode=guided_mode,
                 )
             else:
                 decision = self._resolve_conflict_with_rules(
@@ -200,7 +221,11 @@ class AIConsolidator:
         #   NUEVO: Extracción de emergencia si todo vino vacío
         # ==========================================================
         if not has_any_value and extractions:
-            logger.warning("Todos los campos vacíos - intentando extracción de emergencia")
+            logger.warning("EMERGENCIA: todos los campos llegaron vacíos; activando extracción de respaldo")
+            logger.warning("Documentos procesados en este lote: %s", len(extractions))
+            logger.warning(
+                "Revisar los logs de AIFieldExtractor para diagnosticar el problema de origen"
+            )
 
             import re
 
@@ -209,7 +234,11 @@ class AIConsolidator:
                 text = ""
                 if isinstance(meta, dict):
                     # convenciones más comunes
-                    text = meta.get("raw_text") or meta.get("text") or ""
+                    for key in ("raw_text", "text", "raw_text_snippet"):
+                        candidate = meta.get(key)
+                        if candidate:
+                            text = candidate
+                            break
 
                 if not text:
                     continue  # no hay material para raspar
@@ -249,12 +278,28 @@ class AIConsolidator:
             # Recalcular si ya tenemos algo tras la emergencia
             has_any_value = any(v is not None for v in consolidated_fields_dict.values())
 
+        # Heurísticas determinísticas adicionales para campos vacíos
+        self._apply_post_consolidation_fallbacks(
+            consolidated_fields_dict,
+            consolidation_sources,
+            confidence_scores,
+            extractions,
+        )
+
+        self._enforce_field_consistency(
+            consolidated_fields_dict,
+            consolidation_sources,
+            confidence_scores,
+        )
+
+        has_any_value = any(v is not None for v in consolidated_fields_dict.values())
+
         # Validación con IA (solo si ya hay algo)
         if use_advanced_reasoning and has_any_value:
             consolidated_fields_dict = await self._validate_with_ai_safe(
                 consolidated_fields_dict,
                 extractions,
-                guided_mode=guided_mode
+                guided_mode=guided_mode,
             )
         elif use_advanced_reasoning and not has_any_value:
             logger.info(
@@ -277,7 +322,6 @@ class AIConsolidator:
             conflicts_resolved=conflicts_resolved,
             confidence_scores=confidence_scores
         )
-
         self._log_consolidation_metrics(result)
         return result
 
@@ -288,7 +332,7 @@ class AIConsolidator:
         field_name: str,
         options: List[Dict[str, Any]],
         all_extractions: List[DocumentExtraction],
-        guided_mode: bool = True
+        guided_mode: bool = True,
     ) -> ConsolidationDecision:
         """
         Usa IA (estructura) para resolver conflictos de un campo.
@@ -304,6 +348,7 @@ class AIConsolidator:
 
         try:
             model_name = get_model_for_task("consolidation")
+            params = self.config.get_openai_params("consolidation")
             kwargs = {
                 "model": model_name,
                 "messages": [
@@ -317,10 +362,10 @@ class AIConsolidator:
                     {"role": "user", "content": prompt},
                 ],
                 "response_model": ConsolidationDecision,
-                "max_completion_tokens": 1000,
+                "max_completion_tokens": params.get("max_completion_tokens", 1500),
             }
-            if not (model_name or "").startswith("gpt-5"):
-                kwargs["temperature"] = 0.1
+            if "timeout" in params:
+                kwargs["timeout"] = params["timeout"]
             response: ConsolidationDecision = await self.client.chat.completions.create(**kwargs)
             return response
 
@@ -387,7 +432,8 @@ class AIConsolidator:
         self,
         consolidated_fields: Dict[str, Any],
         original_extractions: List[DocumentExtraction],
-        guided_mode: bool = True
+        guided_mode: bool = True,
+        complexity: str = "normal",
     ) -> Dict[str, Any]:
         """
         Validación final con IA **sin inventar**:
@@ -413,6 +459,7 @@ class AIConsolidator:
 
         try:
             model_name = get_model_for_task("consolidation")
+            params = self.config.get_openai_params("consolidation")
             kwargs = {
                 "model": model_name,
                 "messages": [
@@ -426,11 +473,10 @@ class AIConsolidator:
                     {"role": "user", "content": full_prompt},
                 ],
                 "response_model": ValidationResponse,
-                "max_completion_tokens": 1200,
+                "max_completion_tokens": params.get("max_completion_tokens", 1800),
             }
-            # Para gpt-5, omitir temperature; para otros, usar 0.0
-            if not (model_name or "").startswith("gpt-5"):
-                kwargs["temperature"] = 0.0
+            if "timeout" in params:
+                kwargs["timeout"] = params["timeout"]
             response: ValidationResponse = await self.client.chat.completions.create(**kwargs)
 
             adjustments = response.adjustments or {}
@@ -453,8 +499,6 @@ class AIConsolidator:
         except Exception as e:
             logger.error(f"Error en validación con IA: {e}. Se mantiene consolidado original.")
             return consolidated_fields
-
-    # ---------- Utilitarios internos ----------
 
     def _group_by_field(self, extractions: List[DocumentExtraction]) -> Dict[str, List[Dict[str, Any]]]:
         """
@@ -490,15 +534,332 @@ class AIConsolidator:
                     "priority": priority
                 })
         
+        monto_priorities = {
+            "facturas_comerciales_internacionales": 0,
+            "factura_comercial_cfdi": 0,
+            "conocimiento_de_embarque": 1,
+            "guias_y_facturas": 1,
+            "informe_final_del_ajustador": 2,
+            "informe_preliminar_del_ajustador": 2,
+            "poliza_de_la_aseguradora": 3,
+            "poliza": 3,
+            "carpeta_de_investigacion": 4,
+            "denuncia_de_los_hechos": 4,
+            "carta_de_reclamacion_formal_a_la_aseguradora": 5,
+        }
+
         # Ordenar opciones por prioridad para cada campo
-        for field_name in field_groups:
-            field_groups[field_name] = sorted(
-                field_groups[field_name], 
-                key=lambda x: x["priority"]
-            )
-        
+        for field_name, options in field_groups.items():
+            if field_name == "monto_reclamacion":
+                sorted_options = sorted(
+                    options,
+                    key=lambda x: (
+                        monto_priorities.get(x["document_type"], 99),
+                        x["priority"],
+                    ),
+                )
+                has_informe_final = any(
+                    opt["document_type"] == "informe_final_del_ajustador"
+                    for opt in sorted_options
+                )
+                if has_informe_final:
+                    field_groups[field_name] = [
+                        opt for opt in sorted_options
+                        if opt["document_type"] == "informe_final_del_ajustador"
+                    ]
+                else:
+                    field_groups[field_name] = sorted_options
+            elif field_name == "fecha_ocurrencia":
+                fecha_priorities = {
+                    "informe_final_del_ajustador": 0,
+                    "informe_preliminar_del_ajustador": 1,
+                    "denuncia_de_los_hechos": 2,
+                    "denuncia": 2,
+                    "carpeta_de_investigacion": 3,
+                }
+                sorted_options = sorted(
+                    options,
+                    key=lambda x: (
+                        fecha_priorities.get(x["document_type"], 99),
+                        x["priority"],
+                    ),
+                )
+                has_informe_final = any(
+                    opt["document_type"] == "informe_final_del_ajustador"
+                    for opt in sorted_options
+                )
+                if has_informe_final:
+                    field_groups[field_name] = [
+                        opt for opt in sorted_options
+                        if opt["document_type"] == "informe_final_del_ajustador"
+                    ]
+                else:
+                    field_groups[field_name] = sorted_options
+            elif field_name == "lugar_hechos":
+                lugar_priorities = {
+                    "informe_final_del_ajustador": 0,
+                    "peritaje": 1,
+                    "denuncia_de_los_hechos": 2,
+                    "denuncia": 2,
+                }
+                sorted_options = sorted(
+                    options,
+                    key=lambda x: (
+                        lugar_priorities.get(x["document_type"], 99),
+                        x["priority"],
+                    ),
+                )
+                has_informe_final = any(
+                    opt["document_type"] == "informe_final_del_ajustador"
+                    for opt in sorted_options
+                )
+                if has_informe_final:
+                    field_groups[field_name] = [
+                        opt for opt in sorted_options
+                        if opt["document_type"] == "informe_final_del_ajustador"
+                    ]
+                else:
+                    field_groups[field_name] = sorted_options
+            else:
+                field_groups[field_name] = sorted(
+                    options,
+                    key=lambda x: x["priority"]
+                )
+
         return field_groups
-    
+
+    def _apply_post_consolidation_fallbacks(
+        self,
+        fields: Dict[str, Any],
+        sources: Dict[str, str],
+        confidences: Dict[str, float],
+        extractions: List[DocumentExtraction],
+    ) -> None:
+        """Aplica heurísticas determinísticas cuando la IA deja campos vacíos."""
+
+        if not extractions:
+            return
+
+        month_map = {
+            "enero": "01",
+            "febrero": "02",
+            "marzo": "03",
+            "abril": "04",
+            "mayo": "05",
+            "junio": "06",
+            "julio": "07",
+            "agosto": "08",
+            "septiembre": "09",
+            "setiembre": "09",
+            "octubre": "10",
+            "noviembre": "11",
+            "diciembre": "12",
+        }
+
+        for extraction in extractions:
+            meta = getattr(extraction, "extraction_metadata", {}) or {}
+            raw_text = (
+                meta.get("raw_text")
+                or meta.get("text")
+                or meta.get("raw_text_snippet")
+                or ""
+            )
+            if not raw_text:
+                continue
+
+            doc_type = (getattr(extraction, "document_type", "") or "").lower()
+            source_doc = getattr(extraction, "source_document", "desconocido")
+            lowered = raw_text.lower()
+
+            # Suma asegurada desde póliza
+            if fields.get("suma_asegurada") in (None, "") and doc_type in {"poliza_de_la_aseguradora", "poliza"}:
+                match = re.search(
+                    r"(?:suma\s+asegurada|l[ií]mite\s+m[áa]ximo(?:\s+por\s+embarque|\s+de\s+responsabilidad)?)[:\s\$]*([\d.,]+)",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    value = normalize_decimal_as_str(match.group(1))
+                    if value:
+                        fields["suma_asegurada"] = value
+                        sources["suma_asegurada"] = f"fallback:{source_doc}"
+                        confidences["suma_asegurada"] = max(confidences.get("suma_asegurada", 0.0), 0.6)
+
+            # Monto reclamación desde informes/pólizas
+            if fields.get("monto_reclamacion") in (None, "") and doc_type in {
+                "informe_final_del_ajustador",
+                "informe_preliminar_del_ajustador",
+                "poliza_de_la_aseguradora",
+                "poliza",
+            }:
+                match = re.search(
+                    r"(?:total\s+perdida|total\s+p[eé]rdida|monto\s+total\s+de\s+la\s+reclamaci[oó]n|reclamaci[oó]n\s+por\s+la\s+cantidad\s+de)[:\s\$]*([\d.,]+)",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    value = normalize_decimal_as_str(match.group(1))
+                    if value:
+                        fields["monto_reclamacion"] = value
+                        sources["monto_reclamacion"] = f"fallback:{source_doc}"
+                        confidences["monto_reclamacion"] = max(confidences.get("monto_reclamacion", 0.0), 0.55)
+
+            # Tipo de siniestro desde informes o denuncias
+            if fields.get("tipo_siniestro") in (None, "") and doc_type in {
+                "informe_final_del_ajustador",
+                "informe_preliminar_del_ajustador",
+                "denuncia_de_los_hechos",
+                "denuncia",
+                "carpeta_de_investigacion",
+            }:
+                candidate = None
+                match = re.search(
+                    r"tipo\s+de\s+siniestro\s*[:\-]?\s*([A-ZÁÉÍÓÚÑa-z0-9 /\-]+)",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    candidate = match.group(1).split("\n")[0].strip(" .:")
+                if not candidate:
+                    for options in self.config.SINIESTRO_TYPES.values():
+                        for option in options:
+                            if option.lower() in lowered:
+                                candidate = option
+                                break
+                        if candidate:
+                            break
+                if not candidate and "robo" in lowered:
+                    candidate = "Robo de bulto por entero (Robo de mercancía)" if "bulto" in lowered else "Robo total"
+                if candidate:
+                    fields["tipo_siniestro"] = candidate[:120]
+                    sources["tipo_siniestro"] = f"fallback:{source_doc}"
+                    confidences["tipo_siniestro"] = max(confidences.get("tipo_siniestro", 0.0), 0.55)
+
+            # Fecha de reclamación desde cartas
+            if fields.get("fecha_reclamacion") in (None, "") and doc_type in {
+                "carta_de_reclamacion_formal_a_la_aseguradora",
+                "carta_de_reclamacion_formal_al_transportista",
+            }:
+                date_match = re.search(
+                    r"(?:[A-ZÁÉÍÓÚÑ\s]+,?\s+)?a\s*(\d{1,2})\s+de\s+([A-Za-zÁÉÍÓÚÑ]+)\s+de\s+(\d{4})",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if date_match:
+                    day = date_match.group(1).zfill(2)
+                    month_name = date_match.group(2).lower()
+                    year = date_match.group(3)
+                    month = month_map.get(month_name)
+                    if month:
+                        normalized = normalize_date(f"{day}/{month}/{year}")
+                        if not normalized:
+                            normalized = f"{year}-{month}-{day}"
+                        fields["fecha_reclamacion"] = normalized
+                        sources["fecha_reclamacion"] = f"fallback:{source_doc}"
+                        confidences["fecha_reclamacion"] = max(confidences.get("fecha_reclamacion", 0.0), 0.6)
+
+            # Ajustador desde informe final
+            if fields.get("ajuste") in (None, "") and doc_type == "informe_final_del_ajustador":
+                candidate = None
+                for known in getattr(self.config, "RECOGNIZED_ADJUSTERS", []):
+                    if known.lower() in lowered:
+                        candidate = known
+                        break
+                if not candidate:
+                    name_match = re.search(
+                        r"(?:ajustador(?:es)?|firma ajustadora|empresa ajustadora)\s*[:\-]?\s*([A-ZÁÉÍÓÚÑ\s&\.]+)",
+                        raw_text,
+                        re.IGNORECASE,
+                    )
+                    if name_match:
+                        candidate = " ".join(name_match.group(1).split())[:120]
+                if candidate:
+                    fields["ajuste"] = candidate
+                    sources["ajuste"] = f"fallback:{source_doc}"
+                    confidences["ajuste"] = max(confidences.get("ajuste", 0.0), 0.55)
+
+            # Conclusiones resumidas desde informe final
+            if fields.get("conclusiones") in (None, "") and doc_type == "informe_final_del_ajustador":
+                match = re.search(
+                    r"Conclusi[oó]n(?:es)?\s*[:\-]?\s*(.+?)(?:\n\s*\n|$)",
+                    raw_text,
+                    re.IGNORECASE | re.DOTALL,
+                )
+                if match:
+                    snippet = " ".join(match.group(1).split())[:240]
+                    if snippet:
+                        fields["conclusiones"] = snippet
+                        sources["conclusiones"] = f"fallback:{source_doc}"
+                        confidences["conclusiones"] = max(confidences.get("conclusiones", 0.0), 0.5)
+
+            # Bien reclamado desde encabezados
+            if fields.get("bien_reclamado") in (None, ""):
+                match = re.search(
+                    r"bien(?:es)?\s+afectad[oa]s?\s*[:\-]?\s*(.+?)(?:\n|$)",
+                    raw_text,
+                    re.IGNORECASE,
+                )
+                if match:
+                    snippet = " ".join(match.group(1).split())[:120]
+                    if snippet:
+                        fields["bien_reclamado"] = snippet
+                        sources["bien_reclamado"] = f"fallback:{source_doc}"
+                        confidences["bien_reclamado"] = max(confidences.get("bien_reclamado", 0.0), 0.5)
+
+    def _enforce_field_consistency(
+        self,
+        fields: Dict[str, Any],
+        sources: Dict[str, str],
+        confidences: Dict[str, float],
+    ) -> None:
+        """Aplica verificaciones finales de formato y consistencia temporal."""
+
+        numero_siniestro = fields.get("numero_siniestro")
+        if numero_siniestro:
+            digits = ''.join(filter(str.isdigit, str(numero_siniestro)))
+            if len(digits) != 14:
+                logger.warning(
+                    "Numero de siniestro inválido (%s). Se descarta para evitar confusiones.",
+                    numero_siniestro,
+                )
+                fields["numero_siniestro"] = None
+                sources.pop("numero_siniestro", None)
+                confidences.pop("numero_siniestro", None)
+
+        fecha_ocurrencia = fields.get("fecha_ocurrencia")
+        fecha_reclamacion = fields.get("fecha_reclamacion")
+        if fecha_ocurrencia and fecha_reclamacion:
+            dt_ocurrencia = self._parse_date_str(fecha_ocurrencia)
+            dt_reclamacion = self._parse_date_str(fecha_reclamacion)
+            if dt_ocurrencia and dt_reclamacion and dt_reclamacion < dt_ocurrencia:
+                logger.warning(
+                    "Fecha de reclamación %s anterior a ocurrencia %s. Se elimina para revisión.",
+                    fecha_reclamacion,
+                    fecha_ocurrencia,
+                )
+                fields["fecha_reclamacion"] = None
+                sources.pop("fecha_reclamacion", None)
+                confidences.pop("fecha_reclamacion", None)
+
+        tipo_siniestro = fields.get("tipo_siniestro")
+        if isinstance(tipo_siniestro, str) and tipo_siniestro.strip():
+            normalized = self.TIPO_SINIESTRO_CANONICAL.get(tipo_siniestro.strip().lower())
+            if normalized and normalized != tipo_siniestro:
+                fields["tipo_siniestro"] = normalized
+
+    @staticmethod
+    def _parse_date_str(value: Any) -> Optional[datetime]:
+        if not value:
+            return None
+        text = str(value).strip()
+        candidates = ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y")
+        for fmt in candidates:
+            try:
+                return datetime.strptime(text, fmt)
+            except Exception:
+                continue
+        return None
+
     def _get_document_priority(self, doc_type: str) -> int:
         """
         Obtiene la prioridad de un tipo de documento.

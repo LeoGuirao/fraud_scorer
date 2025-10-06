@@ -10,8 +10,61 @@ Este documento (Better Practices) describe en detalle los problemas detectados y
 - Limpieza completa de casos (deep purge y purgas parciales) sin residuos en el filesystem.
 - Variables sensibles (.env): las claves de servicios externos (por ejemplo `OPENAI_API_KEY`, `AZURE_OCR_KEY`) se almacenan en la raíz del proyecto en `.env`. Cualquier instalación o reparación debe verificar este archivo antes de ejecutar scripts que dependan de esos proveedores.
 - Motor de correlación inter-documental (CaseContext + RuleEngine) y generación de reportes consolidados.
+- Actualización del pipeline de extracción/consolidación IA (septiembre 2025).
 
 Se incluyen causas raíz, decisiones de diseño y fragmentos de código exactos con rutas de archivo reales, alineados con la estructura actual del proyecto.
+
+---
+
+## 3) Motor de extracción/consolidación para carátula
+
+Esta sección documenta el pipeline de IA que alimenta la carátula. Cualquier mejora futura (Rick, correlación, fraude) debe respetar estas reglas para no romper los campos consolidados.
+
+### 3.1 Modelos y sampling
+
+- Extracción OCR (`ocr_text`): `gpt-4o-mini`
+- Extracción multimodal (`direct_ai`): `gpt-4o`
+- Consolidación estándar y generación: `gpt-4o-mini`
+- Consolidación escalada (`complexity=high`): `gpt-4o`
+
+Los overrides se definen en `MODEL_SAMPLING_CONFIG`; `_chat_with_retry` sólo envía `temperature`/`top_p` cuando el modelo lo permite.
+
+### 3.2 Guías de extracción
+
+- **Informe final del ajustador**: recuperar folio de 14 dígitos, monto total (“RECLAMACIÓN Y AJUSTE”), fecha y lugar específicos (carretera/km/municipio), tipo de siniestro mapeado al catálogo y bien sin cantidades.
+- **Denuncia**: leer la narrativa para fechas/lugares (“pasamos por el kilómetro… entronque…”), ignorando el encabezado.
+- **Campo `lugar_hechos`**: guía específica exige ubicaciones detalladas; `bien_reclamado` evita números; `tipo_siniestro` enlaza a la taxonomía oficial.
+- El preprocesamiento de OCR conserva hasta 6 000 caracteres y guarda 8 000 caracteres en metadata (`raw_text_snippet`) para auditoría o fallbacks.
+
+### 3.3 Priorización y conflictos
+
+- `FIELD_SOURCE_RULES` y `DOCUMENT_PRIORITIES` dan prioridad máxima a los informes del ajustador.
+- `_group_by_field` prefiltra opciones cuando existe `informe_final_del_ajustador` para `monto_reclamacion`, `fecha_ocurrencia` y `lugar_hechos`; el LLM sólo ve la entrada prioritaria.
+- El prompt de consolidación recuerda explícitamente: “si hay informe final, debes usarlo”.
+- `_enforce_field_consistency` valida folios, normaliza `tipo_siniestro` y elimina fechas inconsistentes.
+- Fallbacks determinísticos (regex) siguen siendo la red de seguridad.
+
+### 3.4 Principios a mantener
+
+1. **No romper la carátula**: después de cualquier cambio, reproduce `CASE-2025-0001` y verifica los campos críticos.
+2. **Actualizar mapeos y guías** si se agregan nuevos documentos o campos.
+3. **Prompts antes que heurísticas**: refuerza la extracción antes de aumentar fallbacks.
+4. **No eliminar `raw_text_snippet`**: se usa para debugging y para motores secundarios.
+5. **Instrumenta métricas**: vigila cuántos campos provienen de consolidación vs. fallback para detectar regresiones.
+
+---
+
+## ⬆️ Nueva actualización 2025: Extracción y Consolidación IA
+
+El cambio de la familia GPT‑5 a **GPT‑4o-mini** resolvió los problemas de carátula y consolidado inconsistentes. Los puntos clave que debes recordar (ver detalles en [guides_md/AI_FIELD_EXTRACTION.md](guides_md/AI_FIELD_EXTRACTION.md)) son:
+
+- **Modelos y sampling**: `get_model_for_task` ahora usa `gpt-4o-mini` para extracción, consolidación estándar y generación; se reserva `gpt-4o` para visión y consolidaciones escaladas (`src/fraud_scorer/settings.py:885-918`). `MODEL_SAMPLING_CONFIG` deja `temperature/top_p=None` para estos modelos, evitando errores 400 (`src/fraud_scorer/processors/ai/ai_field_extractor.py:563`).
+- **Prompts reforzados**: el bloque de `informe_final_del_ajustador` instruye al LLM a recuperar folio de 14 dígitos, monto total, fecha y ubicación con carretera/km, tipo y bien sin cantidades (`src/fraud_scorer/prompts/extraction_prompts.py:420`). Las denuncias ahora recalcan que hay que leer la narrativa (“pasamos por… kilómetro… entronque…”) en lugar del encabezado (`src/fraud_scorer/prompts/extraction_prompts.py:432`).
+- **Priorización por campo**: `_group_by_field` prefiltra opciones cuando existe un valor del informe final para `monto_reclamacion`, `fecha_ocurrencia` o `lugar_hechos`, de modo que el LLM ya no puede preferir denuncias o cartas por “contexto” (`src/fraud_scorer/processors/ai/ai_consolidator.py:524`).
+- **Normalizaciones**: `_enforce_field_consistency` expulsa folios inválidos y mapea variantes de `tipo_siniestro` a la categoría oficial (`src/fraud_scorer/processors/ai/ai_consolidator.py:734`).
+- **Reglas de fuente**: `FIELD_SOURCE_RULES` y `DOCUMENT_PRIORITIES` ubican al informe final y preliminar del ajustador como máxima prioridad para los campos críticos (`src/fraud_scorer/settings.py:548`, `src/fraud_scorer/settings.py:732`).
+
+> ✅ Resultado: en el caso de QA `CASE-2025-0001`, `numero_siniestro`, `monto_reclamacion`, `fecha_ocurrencia` y `lugar_hechos` ahora se poblan con los valores esperados; el consolidador marca prioridad correcta y la carátula reporta “Carretera Matehuala, San Luis Potosí, kilómetro 57”.
 
 ---
 
@@ -411,6 +464,26 @@ Al ejecutar `DELETE /replay/api/deep-purge/<case_id>` o la acción equivalente d
 
 Con estas garantías, volver a subir los mismos documentos hará que `/api/case/null/check-existing` responda `existing_case: false` y el pipeline procese el caso desde cero sin depender de artefactos previos.
 
+#### Actualización 2026: tokens defensivos y verificación cruzada
+
+Para que la eliminación resista nuevas integraciones (Agente Rick, correlaciones, consolidadores personalizados), todas las rutas de borrado (`clear_cache`, `purge_case`, `deep_purge_case`) generan un conjunto de **tokens sanitizados** a partir de `case_id`, número de siniestro y nombre del asegurado. Estos tokens se usan para:
+
+- Escanear `data/reports`, `data/temp/pipeline_cache`, `data/chroma/` y `data/logs/agent_rick_audit.jsonl` buscando coincidencias parciales en nombres de archivo o contenido JSON; cualquier match deriva en borrado del artefacto completo (familia HTML/PDF/JSON, carpetas de índice, líneas de auditoría).
+- Eliminar shards y carpetas reorganizadas incluso si el índice del caso ya no existe (p. ej. se detecta `GRUPO_ACEROS_OCOTLAN_SA_DE_CV - 20240000001361` solo a partir de los tokens).
+- Reconstruir la tabla `fraud_correlations` incorporando `ON DELETE CASCADE` de forma idempotente para evitar correlaciones huérfanas cuando se eliminan casos desde UI.
+
+Adicionalmente, tras cada purge se ejecuta una **verificación cruzada**:
+
+- Se consulta la base de datos para confirmar que `cases`, `documents`, `ocr_results`, `extracted_data`, `fraud_analyses`, `fraud_correlations`, `runs` y `cache_stats` no conserven filas del caso.
+- Se recorren nuevamente los directorios críticos; si aún quedan coincidencias por token (por permisos u open handles), se registran en log y se intenta una segunda eliminación. El proceso no concluye en “éxito” sin un FS limpio.
+- Se limpian shards hash vacíos bajo `data/ocr_cache/<shard>` para evitar que queden carpetas huérfanas después del purge.
+
+**Recomendaciones operativas**
+
+- Los tests o scripts manuales que simulan un purge deben validar tanto la BD como el FS; si se encuentra cualquier residuo, actualizar los tokens de limpieza o añadir el directorio al barrido defensivo.
+- Si se añade un nuevo subsistema que persista artefactos por caso (logs, índices, caches), debe exponer un helper tipo `_remove_<feature>_artifacts(tokens)` y registrarse en el flujo de purge con verificación posterior.
+- Mantener `PYTHONPYCACHEPREFIX` o limpiar `__pycache__` tras compilar/validar para que los purges no dejen residuos inesperados en la carpeta de trabajo.
+
 ---
 
 ## 7) Estado actual del almacenamiento y caché (2025)
@@ -676,9 +749,18 @@ ORDER BY cnt DESC;
 
 - **Pruebas recomendadas**
   - Crear caso → revisar checkpoint → modificar manualmente → continuar → reprocesar (con y sin reclasificar) y confirmar persistencia de overrides.
-  - Invocar `GET /api/system/document-type-audit` y verificar `{ "missing_document_types": [] }` antes de liberar.
+- Invocar `GET /api/system/document-type-audit` y verificar `{ "missing_document_types": [] }` antes de liberar.
 
 > Estas prácticas mantienen alineados el motor, la UI y los reprocesos, evitando sorpresas cuando se añaden documentos o se ajusta el checkpoint manual.
+
+### Reutilizar tipado en reprocesos (Replay)
+
+- **Síntoma**: Los reprocesos CLI tomaban los OCR `ocr_results_for_*.json` sin el tipo original y la heurística de `AIFieldExtractor` devolvía `expediente_de_cobranza` ante cualquier referencia a “vigencia”, bloqueando campos como `fecha_ocurrencia` o `numero_siniestro`.
+- **Corrección**: `ReplayService._build_case_document_types` (`src/fraud_scorer/services/replay_service.py`) lee `classified_types`, `manual_classifications` y `ai_classifications` del índice (`data/ocr_cache/case_index/*`). Normaliza los nombres (`ocr_results_for_*`) y asigna el tipo canónico (usando `ExtractionConfig.DOCUMENT_TYPE_ALIASES`). El replay injerta ese tipo en cada documento antes de invocar la extracción guiada.
+- **Buenas prácticas**:
+  - Siempre que se añadan nuevos tipos en el clasificador, actualizar alias/canónicos en `ExtractionConfig` para que `_map_case_document_type` los reconozca.
+  - Si se cambian las reglas de renombrado en el reorganizador (`8_3_Tarja_*.pdf` → `8 3 Tarja *.pdf`), mantener la misma normalización en `ReplayService._normalize_case_filename` para evitar perder el enlace.
+  - Tras ajustes, ejecutar `python scripts/replay_case.py --case-id CASE-2025-0001 --list` y revisar el JSON `replay_CASE-XXXX.json` para validar que `extraction_results[].document_type` ya no colapsa a un único valor.
 
 ---
 
@@ -804,6 +886,8 @@ Resultado: las consultas guardan `status: answered`, incluyen fuentes y registra
 
 > Nota: cualquier ajuste futuro de umbral debe documentarse en este archivo y validar que la tasa de respuestas sin contexto se mantiene dentro del rango esperado.
 
+Actualización 2025-02 — Se habilitó el histograma de similitudes en la auditoría de Rick para medir la distribución real por pregunta y se fijó el umbral por defecto en `0.35` con búsqueda híbrida (dense + BM25). Validar semanalmente que la cola `0.30-0.40` sostenga el 85 % de respuestas útiles antes de mover el umbral.
+
 
 ## 10) Editor del Analista — Bootstrap, decisiones y ahorro
 
@@ -912,3 +996,54 @@ La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agent
 - Si una regla falla o faltan datos, el motor degrada a `needs_context`; monitorizar los conteos en el JSON y en la tabla `fraud_correlations` para detectar reglas demasiado restrictivas.
 - Registrar periódicamente las métricas (`statistical_count`, `rag_enabled`, latencias Rick) para descubrir degradaciones. Un pico de `needs_context` suele indicar datos faltantes o tolerancias mal calibradas.
 - Conservar índices (`idx_fcorr_case`, `idx_fcorr_rule`) y limpiar registros antiguos cuando se repite un caso en múltiples iteraciones; evita crecimiento descontrolado de la tabla.
+
+## 13) Análisis de fraude individual — Capa unificada y brechas de evidencia
+
+### Síntoma
+- El análisis dependía solo de los campos extraídos por documento; si un dato existía en el consolidado pero no en el documento actual, el LLM lo trataba como ausente, generando falsos positivos de "datos faltantes".
+- La respuesta mezclaba indicadores de fraude y brechas de evidencia en un mismo JSON, impidiendo distinguir entre señales de riesgo y tareas pendientes.
+- El reporte HTML no mostraba la trazabilidad de brechas ni existía un modelo estructurado para persistirlas en `fraud_analyses`.
+
+### Solución aplicada
+- Se construyó `UnifiedDataLayer` (`src/fraud_scorer/analyzers/unified_data_layer.py`), que prioriza consolidado y extracciones confiables, y solo recurre a OCR/regex cuando falta información. Expone `build_case_context` y `build_document_context` que reutilizamos en todos los pipelines.
+- `FraudPromptBuilder` diferenciá prompts de indicadores (`build_indicator_prompt`) y brechas (`build_evidence_gap_prompt`), ambos alimentados con el contexto unificado.
+- `FraudAnalyzer.analyze_document` ejecuta ambos prompts, fusiona los resultados, calcula un `prompt_hash` combinado y normaliza la salida en `FraudAnalysisResult`, que ahora incorpora `EvidenceGap` (`src/fraud_scorer/models/fraud_analysis.py`). La persistencia añade la columna `evidence_gaps` de forma automática (`src/fraud_scorer/analyzers/fraud_analyzer.py`).
+- El generador de reportes incluye la sección *Brechas de evidencia* con totales y fuentes (`src/fraud_scorer/templates/fraud_report_generator.py`).
+- Las rutas de reproceso y generación inicial invocan la capa unificada antes de llamar al analizador (`src/fraud_scorer/services/fraud_document_service.py`, `src/fraud_scorer/api/endpoints/reports.py`, `scripts/run_report.py`).
+
+### Consideraciones de implementación
+- **Presencia por documento**: `build_document_context` marca un campo como cubierto solo si proviene del mismo documento (extracción u OCR regex). Los valores heredados de consolidado se mantienen en `resolved_fields`, pero el campo aparece en `missing_fields` para solicitar evidencia adicional.
+- **Migración de base**: al primer guardado se ejecuta `ALTER TABLE` para añadir `evidence_gaps` si falta. En entornos con migraciones estrictas conviene forzar un reproceso controlado después del despliegue.
+- **Hash combinado**: cambios en cualquiera de los prompts invalidan el `prompt_hash`; documentar en PRs cuándo se modifiquen para evitar interpretaciones erróneas en auditoría.
+- **Integraciones externas**: cuando se invoque `FraudAnalyzer.analyze_batch` fuera del pipeline estándar, construir el `UnifiedDataLayer` con consolidado, extracciones y clasificaciones manuales como referencia.
+- **Fallbacks**: si la IA falla (timeout, JSON inválido) se registrará en `analysis.evidence` y la brecha permanece vacía para no bloquear la ejecución.
+
+### Observabilidad
+- Revisar `total_brechas` y `brechas_evidencia` en el reporte HTML como indicador temprano de plantillas incompletas o extracción deficiente.
+- Consultar la columna `evidence_gaps` en `fraud_analyses` para identificar patrones recurrentes (por tipo de documento o aseguradora).
+- Incorporar conteos de brechas vs. indicadores en los dashboards existentes para distinguir ausencia de datos de hallazgos de fraude.
+
+### Testing recomendado
+- `python3 -m pytest tests/analyzers/test_unified_data_layer.py` — valida prioridades (estructurado vs OCR), detección de faltantes y regex.
+- `python3 -m pytest tests/correlation -q` — asegura que la nueva estructura de `FraudAnalysisResult` no rompe la fase de correlación.
+- Ejecutar los tests de RAG/fraude que ejercitan el reproceso (`tests/api/test_editor_reprocess_document.py` cuando esté disponible) para confirmar que las brechas se reflejan en la respuesta JSON del editor.
+- Tras despliegue, reprocesar un caso de referencia (p. ej. `CASE-2025-0001`) y verificar manualmente la sección de brechas en el reporte generado.
+
+## 14) Consolidación guiada — Presupuesto de tokens y escalaciones
+
+- **Síntoma**: `python scripts/replay_case.py --case-id …` seguía cayendo al respaldo determinístico porque `gpt-5` agotaba tokens o entregaba JSON incompleto para campos críticos.
+- **Ajustes aplicados**:
+  - `ExtractionConfig.get_openai_params("extraction")` fija `temperature=0.1`, `top_p=0.2` y `max_completion_tokens=1600`; la variante `extraction_escalated` amplía presupuesto/timeout para `gpt-5-thinking` (`src/fraud_scorer/settings.py`).
+  - `AIFieldExtractor.extract_from_document_guided` detecta huecos en `suma_asegurada`, `monto_reclamacion` y `tipo_siniestro` y relanza automáticamente con `gpt-5-thinking`, registrando `models_attempted` en la metadata (`src/fraud_scorer/processors/ai/ai_field_extractor.py`).
+  - `AIConsolidator._resolve_conflict_with_ai` utiliza `gpt-5-mini` y escala a `gpt-5` cuando la confianza en campos de alto riesgo cae por debajo de 0.65 o la fuente proviene de `fallback:`; los modelos usados quedan en `_models_attempted` (`src/fraud_scorer/processors/ai/ai_consolidator.py`).
+  - `_completion_budget` se alimenta ahora de `OPENAI_CONFIG['consolidation']` (1500/2000 tokens) y mantiene el techo en 3500 para evitar nuevos truncamientos.
+- `DOCUMENT_EXTRACTION_ROUTES` mantiene pólizas e informes en OCR, pero la ruta `direct_ai` pasa a usar `gpt-5-vision` para escaneos con bajo texto (`src/fraud_scorer/settings.py`).
+- `_apply_post_consolidation_fallbacks` continúa como red de seguridad, marcando la fuente con `fallback:` y confianza ≈0.55.
+- **Recomendaciones**:
+  - Antes de tocar temperaturas o top_p verificar soporte del proveedor; valores fuera del rango recomendado reintroducen `400 invalid_parameter`.
+  - Monitorizar `consolidation_sources._models_attempted`: si escala a `gpt-5` con frecuencia, revisa prompts y prioridades antes de fijar `complexity="high"` por defecto.
+  - Permitir override de `OPENAI_MAX_COMPLETION_TOKENS` sólo después de auditar `replay_CASE-*.json` para confirmar que el problema es longitud y no formato.
+- **Guía rápida de selección de modelos**:
+  - Extracción (OCR texto): `gpt-5` es la base; `gpt-5-thinking` se reserva para huecos >5 % en campos críticos.
+  - Extracción directa/visión: `gpt-5-vision` es el estándar para escaneos; no requiere escalación adicional.
+  - Consolidación: `gpt-5-mini` + IA guiada cubre la mayoría de conflictos; `gpt-5` sólo cuando la confianza cae o persisten discrepancias entre póliza e informe.

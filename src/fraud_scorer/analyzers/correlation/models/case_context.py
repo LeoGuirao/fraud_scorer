@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence,
 
 from pydantic import Field, PrivateAttr
 
-from fraud_scorer.analyzers.correlation.utils import EntityNormalizer
+from fraud_scorer.analyzers.correlation.utils import (
+    EntityNormalizer,
+    normalize_date,
+    normalize_decimal,
+    normalize_decimal_as_str,
+)
 from fraud_scorer.models.extraction import (
     BaseModelCompat,
     ConsolidatedExtraction,
@@ -31,6 +36,9 @@ def _to_float(value: Any) -> Optional[float]:
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):
+        decimal_value = normalize_decimal(value)
+        if decimal_value is not None:
+            return float(decimal_value)
         stripped = value.strip().replace(",", "")
         try:
             return float(stripped)
@@ -41,22 +49,14 @@ def _to_float(value: Any) -> Optional[float]:
 
 def _normalise_date(value: Any) -> Optional[str]:
     """Intenta normalizar fechas comunes a formato ISO (YYYY-MM-DD)."""
-    if not value:
-        return None
+    normalised = normalize_date(value)
+    if normalised:
+        return normalised
     if isinstance(value, datetime):
         return value.date().isoformat()
     if isinstance(value, str):
         text = value.strip()
-        if not text:
-            return None
-        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
-            try:
-                dt = datetime.strptime(text, fmt)
-                return dt.date().isoformat()
-            except ValueError:
-                continue
-        # Último recurso: devolver la cadena original para trazabilidad
-        return text
+        return text or None
     return None
 
 

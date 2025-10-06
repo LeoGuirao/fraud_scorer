@@ -45,8 +45,13 @@ class RickAgentConfig:
     chunk_size_default: int = 800
     chunk_overlap_default: int = 200
     min_documents: int = 2
-    similarity_threshold: float = 0.20
-    max_results: int = 6
+    similarity_threshold: float = 0.35
+    max_results: int = 15
+    search_type: str = "hybrid"
+    hybrid_alpha: float = 0.65
+    lexical_top_k: int = 20
+    dense_candidate_multiplier: int = 4
+    mmr_lambda: float = 0.5
     cache_ttl_minutes: int = 30
     chroma_base_path: Path = Path("data/chroma")
     audit_log_path: Path = Path("data/logs/agent_rick_audit.jsonl")
@@ -92,6 +97,46 @@ def load_config(overrides: Optional[dict[str, object]] = None) -> RickAgentConfi
         max_results=int(
             overrides.get("max_results")
             or _get_env_int("AGENTE_RICK_MAX_RESULTS", RickAgentConfig.max_results)
+        ),
+        search_type=(
+            str(
+                overrides.get("search_type")
+                or os.getenv("AGENTE_RICK_SEARCH_TYPE", RickAgentConfig.search_type)
+            )
+            .strip()
+            .lower()
+            or RickAgentConfig.search_type
+        ),
+        hybrid_alpha=min(
+            1.0,
+            max(
+                0.0,
+                float(
+                    overrides.get("hybrid_alpha")
+                    or _get_env_float("AGENTE_RICK_HYBRID_ALPHA", RickAgentConfig.hybrid_alpha)
+                ),
+            ),
+        ),
+        lexical_top_k=int(
+            overrides.get("lexical_top_k")
+            or _get_env_int("AGENTE_RICK_LEXICAL_TOP_K", RickAgentConfig.lexical_top_k)
+        ),
+        dense_candidate_multiplier=int(
+            overrides.get("dense_candidate_multiplier")
+            or _get_env_int(
+                "AGENTE_RICK_DENSE_CANDIDATE_MULTIPLIER",
+                RickAgentConfig.dense_candidate_multiplier,
+            )
+        ),
+        mmr_lambda=min(
+            1.0,
+            max(
+                0.0,
+                float(
+                    overrides.get("mmr_lambda")
+                    or _get_env_float("AGENTE_RICK_MMR_LAMBDA", RickAgentConfig.mmr_lambda)
+                ),
+            ),
         ),
         cache_ttl_minutes=int(
             overrides.get("cache_ttl_minutes")

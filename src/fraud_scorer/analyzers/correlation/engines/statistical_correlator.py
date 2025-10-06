@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import math
 from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any, Dict, List, Optional, Tuple
@@ -15,6 +16,11 @@ from fraud_scorer.analyzers.correlation.models import (
     CorrelationFinding,
     FindingSeverity,
     FindingStatus,
+)
+from fraud_scorer.analyzers.correlation.utils import (
+    is_missing,
+    normalize_date,
+    normalize_decimal,
 )
 
 logger = logging.getLogger(__name__)
@@ -73,7 +79,12 @@ class StatisticalCorrelator:
                 values.append((name, numeric))
 
         if len(values) < min_samples:
-            return self._build_needs_context(
+            status = (
+                FindingStatus.NOT_APPLICABLE
+                if len(values) == 0
+                else FindingStatus.INSUFFICIENT_DATA
+            )
+            return self._build_missing_finding(
                 entry,
                 summary="Datos insuficientes para evaluar outliers.",
                 metadata={
@@ -81,6 +92,7 @@ class StatisticalCorrelator:
                     "required_samples": min_samples,
                 },
                 documents=[doc_type] if doc_type else [],
+                status=status,
             )
 
         numbers = [val for _, val in values]
@@ -121,17 +133,32 @@ class StatisticalCorrelator:
         tolerance = float(entry.get("tolerance", 0.0))
         max_ratio = float(entry.get("max_ratio", 1.0))
 
-        src = self._to_float(source_value)
-        ref = self._to_float(reference_value)
-
-        if src is None or ref is None or ref <= 0:
-            return self._build_needs_context(
+        status = self._missing_status(source_value, reference_value)
+        if status:
+            return self._build_missing_finding(
                 entry,
                 summary="No fue posible calcular el ratio comparativo.",
                 metadata={
                     "source_value": source_value,
                     "reference_value": reference_value,
                 },
+                status=status,
+            )
+
+        src = self._to_float(source_value)
+        ref = self._to_float(reference_value)
+
+        if src is None or ref is None or ref <= 0:
+            metadata = {
+                "source_value": source_value,
+                "reference_value": reference_value,
+                "parse_error": True,
+            }
+            return self._build_missing_finding(
+                entry,
+                summary="No fue posible calcular el ratio comparativo.",
+                metadata=metadata,
+                status=FindingStatus.INSUFFICIENT_DATA,
             )
 
         ratio = src / ref
@@ -180,11 +207,22 @@ class StatisticalCorrelator:
         start_date = self._parse_date(start_raw)
         end_date = self._parse_date(end_raw)
 
-        if not start_date or not end_date:
-            return self._build_needs_context(
+        status = self._missing_status(start_raw, end_raw)
+        if status:
+            return self._build_missing_finding(
                 entry,
                 summary="No se pudo calcular la diferencia de días (faltan fechas).",
                 metadata={"start": start_raw, "end": end_raw},
+                status=status,
+            )
+
+        if not start_date or not end_date:
+            metadata = {"start": start_raw, "end": end_raw, "parse_error": True}
+            return self._build_missing_finding(
+                entry,
+                summary="No se pudo calcular la diferencia de días (faltan fechas).",
+                metadata=metadata,
+                status=FindingStatus.INSUFFICIENT_DATA,
             )
 
         delta = (end_date - start_date).days
@@ -236,7 +274,12 @@ class StatisticalCorrelator:
 
         min_samples = int(entry.get("min_samples", 3))
         if len(xs) < min_samples:
-            return self._build_needs_context(
+            status = (
+                FindingStatus.NOT_APPLICABLE
+                if len(xs) == 0
+                else FindingStatus.INSUFFICIENT_DATA
+            )
+            return self._build_missing_finding(
                 entry,
                 summary=entry.get("missing_summary") or "Datos insuficientes para evaluar correlación.",
                 metadata={
@@ -244,18 +287,20 @@ class StatisticalCorrelator:
                     "required_samples": min_samples,
                     "series_preview": points[:3],
                 },
+                status=status,
             )
 
         method = str(entry.get("method") or "pearson").lower()
         coefficient = self._compute_correlation(xs, ys, method)
         if coefficient is None:
-            return self._build_needs_context(
+            return self._build_missing_finding(
                 entry,
                 summary=entry.get("missing_summary") or "No fue posible calcular la correlación.",
                 metadata={
                     "method": method,
                     "series_preview": points[:3],
                 },
+                status=FindingStatus.INSUFFICIENT_DATA,
             )
 
         abs_coeff = abs(coefficient)
@@ -519,28 +564,22 @@ class StatisticalCorrelator:
             return None
         if isinstance(value, (int, float)):
             return float(value)
-        if isinstance(value, str):
-            cleaned = value.strip().replace(",", "")
-            try:
-                return float(cleaned)
-            except ValueError:
-                return None
+        decimal_value = normalize_decimal(value)
+        if isinstance(decimal_value, Decimal):
+            return float(decimal_value)
         return None
 
     @staticmethod
     def _parse_date(value: Any) -> Optional[datetime]:
-        if value is None:
-            return None
         if isinstance(value, datetime):
             return value
-        if isinstance(value, str):
-            text = value.strip()
-            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%Y/%m/%d", "%d-%m-%Y"):
-                try:
-                    return datetime.strptime(text, fmt)
-                except ValueError:
-                    continue
-        return None
+        normalized = normalize_date(value)
+        if not normalized:
+            return None
+        try:
+            return datetime.strptime(normalized, "%Y-%m-%d")
+        except ValueError:
+            return None
 
     def _build_finding(
         self,
@@ -569,17 +608,18 @@ class StatisticalCorrelator:
         )
         return finding
 
-    def _build_needs_context(
+    def _build_missing_finding(
         self,
         entry: Dict[str, Any],
         *,
         summary: str,
         metadata: Dict[str, Any],
+        status: FindingStatus,
         documents: Optional[List[str]] = None,
     ) -> CorrelationFinding:
         finding = self._build_finding(
             entry,
-            status=FindingStatus.NEEDS_CONTEXT,
+            status=status,
             severity=entry.get("severity"),
             summary=summary,
             metadata=metadata,
@@ -601,6 +641,15 @@ class StatisticalCorrelator:
         if value is None:
             return FindingSeverity.MEDIUM
         return mapping.get(str(value).lower(), FindingSeverity.MEDIUM)
+
+    @staticmethod
+    def _missing_status(*values: Any) -> Optional[FindingStatus]:
+        flags = [is_missing(value) for value in values]
+        if all(flags):
+            return FindingStatus.NOT_APPLICABLE
+        if any(flags):
+            return FindingStatus.INSUFFICIENT_DATA
+        return None
 
     @staticmethod
     def _fingerprint(rule_id: str, metadata: Dict[str, Any]) -> str:

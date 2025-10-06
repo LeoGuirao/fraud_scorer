@@ -106,7 +106,7 @@ def load_preview_config(config_path: Optional[Path] = None) -> Dict[str, Any]:
 
     defaults: Dict[str, Any] = {
         "preview": {
-            "llm_model": "gpt-4o",
+            "llm_model": "gpt-5",
             "confidence_threshold": 0.6,
             "max_sample_chars": 2000,
             "supported_extensions": list(SUPPORTED_EXTENSIONS),
@@ -146,7 +146,7 @@ class PreviewSession:
         self.config = config.get("preview", {})
 
         # Inicializar clasificador con modelo de la configuración
-        model_name = self.config.get("llm_model") or "gpt-4o-mini"
+        model_name = self.config.get("llm_model") or "gpt-5-mini"
         self.classifier = DocumentPreviewClassifier(model_name, api_key=api_key)
 
         # UI de terminal

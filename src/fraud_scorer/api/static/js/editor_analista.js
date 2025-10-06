@@ -541,8 +541,10 @@ function renderCorrelationPanel() {
             <p>${summary}</p>
             <p>Docs: ${documents}</p>
           </div>
-          <div><span class="correlation-chip">${statusLabel}</span></div>
-          <div><span class="correlation-chip">${severityLabel}</span></div>
+          <div class="correlation-row__meta">
+            <span class="correlation-chip">${statusLabel}</span>
+            <span class="correlation-chip">${severityLabel}</span>
+          </div>
         </div>
       `;
     });

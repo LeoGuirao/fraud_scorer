@@ -524,9 +524,9 @@ def test_statistical_ratio_requires_context(tmp_path: Path, correlation_inputs):
     cfg_path.write_text(json.dumps(config), encoding="utf-8")
     correlator = StatisticalCorrelator(config_path=cfg_path)
     context, consolidated, extractions, fraud_results = correlation_inputs(100.0, 50.0)
-    # numero_poliza será None por defecto, lo que debe generar NEEDS_CONTEXT
+    # numero_poliza será None por defecto, lo que debe generar INSUFFICIENT_DATA
     findings = correlator.analyze(context)
-    assert any(f.status == FindingStatus.NEEDS_CONTEXT for f in findings)
+    assert any(f.status == FindingStatus.INSUFFICIENT_DATA for f in findings)
 
 def test_statistical_correlation_flags_high_alignment(tmp_path: Path, multiple_invoices_context):
     config = {

@@ -4,7 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-from datetime import datetime
+from decimal import Decimal
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
@@ -16,7 +16,12 @@ from fraud_scorer.analyzers.correlation.models import (
     FindingSeverity,
     FindingStatus,
 )
-from fraud_scorer.analyzers.correlation.utils import EntityNormalizer
+from fraud_scorer.analyzers.correlation.utils import (
+    EntityNormalizer,
+    is_missing,
+    normalize_date,
+    normalize_decimal,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -154,7 +159,8 @@ class RuleEngine:
         }
 
         if source_value is None or target_value is None:
-            return self._build_missing_data_finding(rule, meta)
+            status = self._missing_status(source_value, target_value)
+            return self._build_missing_data_finding(rule, meta, status=status)
 
         src_num = self._to_float(source_value)
         tgt_num = self._to_float(target_value)
@@ -167,6 +173,13 @@ class RuleEngine:
                 limit = base * tol
             diff = abs(src_num - tgt_num)
             passed = diff <= (limit or 0)
+        elif (src_num is None) != (tgt_num is None):
+            meta["parse_error"] = True
+            return self._build_missing_data_finding(
+                rule,
+                meta,
+                status=FindingStatus.INSUFFICIENT_DATA,
+            )
         else:
             passed = self._normalize_str(source_value) == self._normalize_str(target_value)
 
@@ -199,12 +212,18 @@ class RuleEngine:
         }
 
         if earlier is None or later is None:
-            return self._build_missing_data_finding(rule, meta)
+            status = self._missing_status(earlier, later)
+            return self._build_missing_data_finding(rule, meta, status=status)
 
         earlier_date = self._normalise_date(earlier)
         later_date = self._normalise_date(later)
         if not earlier_date or not later_date:
-            return self._build_missing_data_finding(rule, meta)
+            meta["parse_error"] = True
+            return self._build_missing_data_finding(
+                rule,
+                meta,
+                status=FindingStatus.INSUFFICIENT_DATA,
+            )
 
         if allow_equal:
             passed = earlier_date <= later_date
@@ -237,8 +256,9 @@ class RuleEngine:
             "min_overlap": min_overlap,
         }
 
-        if not source_values or not target_values:
-            return self._build_missing_data_finding(rule, meta)
+        status = self._missing_status(source_values, target_values)
+        if status:
+            return self._build_missing_data_finding(rule, meta, status=status)
 
         norm_source = {self._normalize_str(v) for v in source_values if v is not None}
         norm_target = {self._normalize_str(v) for v in target_values if v is not None}
@@ -288,13 +308,19 @@ class RuleEngine:
             "absolute_tolerance": absolute_tolerance,
         }
 
-        if lhs_value is None or rhs_value is None:
-            return self._build_missing_data_finding(rule, meta)
+        status = self._missing_status(lhs_value, rhs_value)
+        if status:
+            return self._build_missing_data_finding(rule, meta, status=status)
 
         lhs_num = self._to_float(lhs_value)
         rhs_num = self._to_float(rhs_value)
         if lhs_num is None or rhs_num is None:
-            return self._build_missing_data_finding(rule, meta)
+            meta["parse_error"] = True
+            return self._build_missing_data_finding(
+                rule,
+                meta,
+                status=FindingStatus.INSUFFICIENT_DATA,
+            )
 
         percent_tol = float(tolerance or 0)
         abs_tol = float(absolute_tolerance) if absolute_tolerance is not None else None
@@ -396,7 +422,10 @@ class RuleEngine:
         return finding
 
     def _build_missing_data_finding(
-        self, rule: Dict[str, Any], metadata: Dict[str, Any]
+        self,
+        rule: Dict[str, Any],
+        metadata: Dict[str, Any],
+        status: FindingStatus = FindingStatus.INSUFFICIENT_DATA,
     ) -> CorrelationFinding:
         summary = (
             rule.get("missing_summary")
@@ -404,7 +433,7 @@ class RuleEngine:
         )
         finding = self._build_finding(
             rule=rule,
-            status=FindingStatus.NEEDS_CONTEXT,
+            status=status,
             severity=self._map_severity(rule),
             summary=summary,
             metadata=metadata,
@@ -480,6 +509,15 @@ class RuleEngine:
         return mapping.get(raw, FindingSeverity.MEDIUM)
 
     @staticmethod
+    def _missing_status(*values: Any) -> Optional[FindingStatus]:
+        flags = [is_missing(value) for value in values]
+        if all(flags):
+            return FindingStatus.NOT_APPLICABLE
+        if any(flags):
+            return FindingStatus.INSUFFICIENT_DATA
+        return None
+
+    @staticmethod
     def _normalize_str(value: Any) -> str:
         if value is None:
             return ""
@@ -497,12 +535,9 @@ class RuleEngine:
             if not value:
                 return None
             return RuleEngine._to_float(value[0])
-        if isinstance(value, str):
-            cleaned = value.strip().replace(",", "")
-            try:
-                return float(cleaned)
-            except ValueError:
-                return None
+        decimal_value = normalize_decimal(value)
+        if isinstance(decimal_value, Decimal):
+            return float(decimal_value)
         return None
 
     @staticmethod
@@ -515,25 +550,7 @@ class RuleEngine:
 
     @staticmethod
     def _normalise_date(value: Any) -> Optional[str]:
-        if value is None:
-            return None
-        if isinstance(value, str):
-            text = value.strip()
-            if not text:
-                return None
-            for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
-                try:
-                    return str(datetime.strptime(text, fmt).date())
-                except ValueError:
-                    continue
-            return text
-        dt = getattr(value, "date", None)
-        if callable(dt):
-            try:
-                return str(dt())
-            except Exception:  # pragma: no cover
-                return None
-        return None
+        return normalize_date(value)
 
     @staticmethod
     def _get_recommendation(rule: Dict[str, Any], on: str) -> Optional[str]:

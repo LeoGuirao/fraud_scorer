@@ -7,7 +7,7 @@ import re
 import shutil
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import json
 import unicodedata
@@ -21,6 +21,7 @@ from ..pipelines.data_flow import build_docs_for_template_from_db
 from ..processors.ai.ai_field_extractor import AIFieldExtractor
 from ..processors.ai.ai_consolidator import AIConsolidator
 from ..templates.ai_report_generator import AIReportGenerator
+from ..settings import ExtractionConfig
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +47,28 @@ class ReplayService:
     """
     def __init__(self):
         self.cache_manager = OCRCacheManager()
+        self._chroma_base_path: Optional[Path] = None
+        self._rick_audit_log: Optional[Path] = None
+
+        try:
+            from ..ai.config import load_config
+
+            config = load_config()
+            self._chroma_base_path = config.chroma_base_path
+            self._rick_audit_log = config.audit_log_path
+        except Exception as exc:  # pragma: no cover - defensivo
+            logger.debug("No se pudo cargar configuración del Agente Rick: %s", exc)
+            chroma_env = os.getenv("AGENTE_RICK_CHROMA_PATH")
+            audit_env = os.getenv("AGENTE_RICK_AUDIT_PATH")
+            if chroma_env:
+                self._chroma_base_path = Path(chroma_env)
+            if audit_env:
+                self._rick_audit_log = Path(audit_env)
+
+        if self._chroma_base_path is None:
+            self._chroma_base_path = Path(os.getenv("AGENTE_RICK_CHROMA_PATH", "data/chroma"))
+        if self._rick_audit_log is None:
+            self._rick_audit_log = Path(os.getenv("AGENTE_RICK_AUDIT_PATH", "data/logs/agent_rick_audit.jsonl"))
 
     @staticmethod
     def _parse_numeric_token(token: str) -> Optional[float]:
@@ -168,6 +191,103 @@ class ReplayService:
 
         return variations
 
+    @staticmethod
+    def _normalize_case_filename(name: str) -> str:
+        """Normaliza nombres de archivo para hacer matching robusto."""
+        if not name:
+            return ""
+
+        candidate = str(name).strip()
+        candidate = candidate.replace("\\", "/").split("/")[-1]
+        if candidate.startswith("ocr_results_for_"):
+            candidate = candidate[len("ocr_results_for_") :]
+        if candidate.endswith(".json"):
+            candidate = candidate[:-5]
+        candidate = candidate.replace("__", "_")
+        candidate = candidate.replace("_", " ")
+        candidate = re.sub(r"\s+\.", ".", candidate)
+        candidate = re.sub(r"\s+", " ", candidate)
+        candidate = candidate.strip()
+        normalized = unicodedata.normalize("NFKD", candidate)
+        normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+        return normalized.lower()
+
+    def _map_case_document_type(self, doc_type: Optional[str]) -> Optional[str]:
+        """Convierte tipos almacenados (AI/manual) a canónicos admitidos por extracción."""
+        if not doc_type:
+            return None
+
+        alias_map = getattr(ExtractionConfig, "DOCUMENT_TYPE_ALIASES", {})
+        normalized = unicodedata.normalize("NFKD", doc_type.strip()).lower()
+        normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+
+        canonical = alias_map.get(normalized, normalized)
+        if canonical in ExtractionConfig.DOCUMENT_FIELD_MAPPING:
+            return canonical
+
+        logger.debug("Tipo de documento no reconocido en cache: %s", doc_type)
+        return None
+
+    def _build_case_document_types(self, case_index: Dict[str, Any]) -> Dict[str, str]:
+        """Construye un mapeo filename → document_type usando clasificaciones previas."""
+
+        doc_types: Dict[str, str] = {}
+
+        def register(name: Optional[str], doc_type: Optional[str]) -> None:
+            canonical = self._map_case_document_type(doc_type)
+            if not name or not canonical:
+                return
+            key = self._normalize_case_filename(name)
+            if key:
+                doc_types[key] = canonical
+                simplified = re.sub(r"[^a-z0-9.]+", "", key)
+                if simplified:
+                    doc_types.setdefault(simplified, canonical)
+
+        for entry in case_index.get("classified_types") or []:
+            register(entry.get("filename"), entry.get("document_type") or entry.get("ai_document_type"))
+
+        for name, doc_type in (case_index.get("manual_classifications") or {}).items():
+            register(name, doc_type)
+
+        for name, doc_type in (case_index.get("ai_classifications") or {}).items():
+            register(name, doc_type)
+
+        return doc_types
+
+    def _build_cleanup_tokens(
+        self,
+        *,
+        case_id: str,
+        insured_name: Optional[str],
+        claim_number: Optional[str],
+    ) -> Set[str]:
+        tokens: Set[str] = set()
+        candidates = {
+            case_id,
+            case_id.lower(),
+            case_id.replace('-', ''),
+            case_id.replace('-', '_'),
+        }
+        if insured_name:
+            candidates.update(self._collect_name_variations(insured_name))
+        if claim_number:
+            candidates.add(str(claim_number))
+            candidates.add(str(claim_number).replace('-', ''))
+        try:
+            candidates.add(self.cache_manager._sanitize_filename(case_id))
+        except Exception:
+            pass
+        for value in (insured_name, claim_number):
+            if not value:
+                continue
+            try:
+                candidates.add(self.cache_manager._sanitize_filename(str(value)))
+            except Exception:
+                pass
+        tokens.update({c.lower() for c in candidates if c})
+        return tokens
+
     def _remove_report_family(self, report_file: Path) -> int:
         """Elimina los artefactos (json/html/pdf) asociados a un reporte."""
         removed = 0
@@ -191,7 +311,7 @@ class ReplayService:
                         pass
         return removed
 
-    def _remove_reports_by_case_id(self, case_id: str) -> int:
+    def _remove_reports_by_case_id(self, case_id: str, tokens: Optional[Set[str]] = None) -> int:
         """Busca reportes por contenido de case_id y elimina la familia completa."""
         if not case_id:
             return 0
@@ -204,10 +324,288 @@ class ReplayService:
                     content = json_file.read_text(encoding='utf-8', errors='ignore')
                 except Exception:
                     continue
-                if case_id not in content:
+                payload = content.lower()
+                match = case_id.lower() in payload
+                if not match and tokens:
+                    match = any(token in payload for token in tokens)
+                if not match:
                     continue
                 total_removed += self._remove_report_family(json_file)
         return total_removed
+    def _remove_report_artifacts(self, tokens: Set[str]) -> int:
+        reports_dir = Path("data/reports")
+        if not reports_dir.exists() or not tokens:
+            return 0
+
+        tokens_lower = {token for token in tokens if token}
+        if not tokens_lower:
+            return 0
+
+        removed = 0
+        processed_stems: Set[str] = set()
+        for report_file in list(reports_dir.iterdir()):
+            if not report_file.is_file():
+                continue
+            stem = report_file.stem
+            name_lower = report_file.name.lower()
+            should_remove = any(token in name_lower for token in tokens_lower)
+
+            if not should_remove and report_file.suffix.lower() == ".json":
+                try:
+                    content = report_file.read_text(encoding="utf-8", errors="ignore").lower()
+                    should_remove = any(token in content for token in tokens_lower)
+                except Exception:
+                    should_remove = False
+
+            if should_remove and stem not in processed_stems:
+                removed += self._remove_report_family(report_file)
+                processed_stems.add(stem)
+
+        if removed:
+            logger.info(f"  ✓ Reportes eliminados (tokens): {removed}")
+        return removed
+
+    def _remove_pipeline_cache_artifacts(self, tokens: Set[str]) -> int:
+        base = Path(os.getenv("FS_DATA_DIR", "data")) / "temp" / "pipeline_cache"
+        if not base.exists():
+            return 0
+
+        tokens_lower = {token for token in tokens if token}
+        if not tokens_lower:
+            return 0
+
+        removed = 0
+        candidates = sorted(base.glob("**/*"), key=lambda p: len(p.parts), reverse=True)
+        for path in candidates:
+            if not path.exists():
+                continue
+            target = path.name.lower()
+            if not any(token in target for token in tokens_lower):
+                continue
+            try:
+                if path.is_dir():
+                    shutil.rmtree(path)
+                else:
+                    path.unlink()
+                removed += 1
+            except Exception as exc:
+                logger.debug("No se pudo eliminar artefacto de pipeline %s: %s", path, exc)
+
+        if removed:
+            logger.info(f"  ✓ Pipeline cache limpiado (tokens): {removed} artefactos")
+        return removed
+
+    def _remove_vector_indexes(self, tokens: Set[str]) -> int:
+        base = self._chroma_base_path
+        if not base or not base.exists():
+            return 0
+
+        tokens_lower = {token for token in tokens if token}
+        if not tokens_lower:
+            return 0
+
+        removed = 0
+        for path in list(base.iterdir()):
+            if not path.is_dir():
+                continue
+            name_lower = path.name.lower()
+            match = any(token in name_lower for token in tokens_lower)
+            if not match:
+                manifest = path / "index_manifest.json"
+                if manifest.exists():
+                    try:
+                        payload = manifest.read_text(encoding="utf-8", errors="ignore").lower()
+                        match = any(token in payload for token in tokens_lower)
+                    except Exception:
+                        match = False
+            if not match:
+                continue
+            try:
+                shutil.rmtree(path)
+                removed += 1
+                logger.info(f"  ✓ Índice vectorial eliminado: {path.name}")
+            except Exception as exc:
+                logger.warning("  ⚠️ No se pudo eliminar índice vectorial %s: %s", path.name, exc)
+        return removed
+
+    def _purge_rick_audit_log(self, tokens: Set[str]) -> int:
+        log_path = self._rick_audit_log
+        if not log_path or not log_path.exists():
+            return 0
+
+        tokens_lower = {token for token in tokens if token}
+        if not tokens_lower:
+            return 0
+
+        tmp_path: Optional[Path] = None
+        removed = 0
+        try:
+            tmp_path = log_path.with_suffix(log_path.suffix + ".tmp")
+            with log_path.open("r", encoding="utf-8", errors="ignore") as src, tmp_path.open("w", encoding="utf-8") as dst:
+                for line in src:
+                    raw_lower = line.lower()
+                    try:
+                        payload = json.loads(line)
+                    except Exception:
+                        payload = None
+
+                    case_match = False
+                    if payload and isinstance(payload, dict):
+                        value = str(payload.get("case_id") or "").lower()
+                        if value:
+                            case_match = any(token in value for token in tokens_lower)
+
+                    if not case_match:
+                        case_match = any(token in raw_lower for token in tokens_lower)
+
+                    if case_match:
+                        removed += 1
+                        continue
+                    dst.write(line)
+
+            tmp_path.replace(log_path)
+            if removed:
+                logger.info(f"  ✓ Bitácora Rick depurada: {removed} eventos")
+        except FileNotFoundError:
+            return 0
+        except Exception as exc:
+            logger.warning("  ⚠️ No se pudo depurar bitácora Rick: %s", exc)
+            if tmp_path and tmp_path.exists():
+                try:
+                    tmp_path.unlink()
+                except Exception:
+                    pass
+            return 0
+
+        return removed
+
+    def _reset_vector_store(self) -> bool:
+        base = self._chroma_base_path
+        if not base:
+            return False
+
+        try:
+            if base.exists():
+                shutil.rmtree(base)
+            base.mkdir(parents=True, exist_ok=True)
+            return True
+        except Exception as exc:
+            logger.warning("  ⚠️ No se pudo reiniciar índices vectoriales: %s", exc)
+            return False
+
+    def _reset_rick_audit_log(self) -> bool:
+        log_path = self._rick_audit_log
+        if not log_path:
+            return False
+        try:
+            if log_path.exists():
+                log_path.unlink()
+            return True
+        except Exception as exc:
+            logger.warning("  ⚠️ No se pudo reiniciar bitácora Rick: %s", exc)
+            return False
+
+    def _collect_db_cleanup_snapshot(self, case_id: str) -> Dict[str, int]:
+        """Registra conteos residuales en tablas dependientes del caso."""
+        checks = {
+            "cases": "SELECT COUNT(*) FROM cases WHERE case_id = ?",
+            "documents": "SELECT COUNT(*) FROM documents WHERE case_id = ?",
+            "fraud_analyses": "SELECT COUNT(*) FROM fraud_analyses WHERE case_id = ?",
+            "fraud_correlations": "SELECT COUNT(*) FROM fraud_correlations WHERE case_id = ?",
+            "runs": "SELECT COUNT(*) FROM runs WHERE case_id = ?",
+            "cache_stats": "SELECT COUNT(*) FROM cache_stats WHERE scope = ?",
+            "ocr_results": "SELECT COUNT(*) FROM ocr_results WHERE document_id IN (SELECT id FROM documents WHERE case_id = ?)",
+            "extracted_data": "SELECT COUNT(*) FROM extracted_data WHERE document_id IN (SELECT id FROM documents WHERE case_id = ?)",
+            "ai_analyses": "SELECT COUNT(*) FROM ai_analyses WHERE document_id IN (SELECT id FROM documents WHERE case_id = ?)"
+        }
+
+        summary: Dict[str, int] = {}
+        with get_conn() as conn:
+            for label, query in checks.items():
+                summary[label] = int(conn.execute(query, (case_id,)).fetchone()[0])
+
+        residual = {k: v for k, v in summary.items() if v}
+        if residual:
+            logger.warning("  ⚠️ Residuos en BD tras eliminar %s: %s", case_id, residual)
+        else:
+            logger.info(f"  ✓ BD verificada sin residuos para {case_id}")
+        return summary
+
+    def _cleanup_empty_cache_shards(self) -> int:
+        cleaned = 0
+        base = self.cache_manager.cache_dir
+        if not base.exists():
+            return cleaned
+
+        for shard in base.iterdir():
+            if shard.name == "case_index" or not shard.is_dir():
+                continue
+            try:
+                next(shard.iterdir())
+            except StopIteration:
+                try:
+                    shard.rmdir()
+                    cleaned += 1
+                except Exception:
+                    pass
+        if cleaned:
+            logger.info(f"  ✓ Shards vacíos eliminados: {cleaned}")
+        return cleaned
+
+    def _verify_filesystem_cleanup(self, tokens: Set[str]) -> Dict[str, List[str]]:
+        tokens_lower = {token for token in tokens if token}
+        residuals: Dict[str, List[str]] = {}
+
+        def _collect_matches(root: Path) -> List[str]:
+            matches: List[str] = []
+            if not root.exists():
+                return matches
+            for item in root.glob("**/*"):
+                if not item.exists() or item.is_dir():
+                    continue
+                name_lower = item.name.lower()
+                if any(token in name_lower for token in tokens_lower):
+                    matches.append(str(item))
+            return matches
+
+        if tokens_lower:
+            reports_dir = Path("data/reports")
+            report_matches = _collect_matches(reports_dir)
+            if report_matches:
+                residuals['reports'] = report_matches
+
+            pipeline_dir = Path(os.getenv("FS_DATA_DIR", "data")) / "temp" / "pipeline_cache"
+            pipeline_matches = _collect_matches(pipeline_dir)
+            if pipeline_matches:
+                residuals['pipeline_cache'] = pipeline_matches
+
+            base = self._chroma_base_path
+            if base and base.exists():
+                chroma_matches = []
+                for path in base.iterdir():
+                    if not path.exists():
+                        continue
+                    name_lower = path.name.lower()
+                    if path.is_dir() and any(token in name_lower for token in tokens_lower):
+                        chroma_matches.append(str(path))
+                if chroma_matches:
+                    residuals['vector_store'] = chroma_matches
+
+            log_path = self._rick_audit_log
+            if log_path and log_path.exists():
+                try:
+                    with log_path.open("r", encoding="utf-8", errors="ignore") as fh:
+                        matches = [line.strip() for line in fh if any(token in line.lower() for token in tokens_lower)]
+                        if matches:
+                            residuals['rick_audit'] = matches[:10]
+                except Exception:
+                    pass
+
+        if residuals:
+            logger.warning("  ⚠️ Verificación FS encontró residuos: %s", {k: len(v) for k, v in residuals.items()})
+        else:
+            logger.info("  ✓ FS verificado sin residuos relevantes")
+        return residuals
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Obtiene estadísticas del caché (FS) y métricas DB complementarias.
@@ -351,10 +749,14 @@ class ReplayService:
             stats['orphan_ocr_before'] = conn.execute(
                 "SELECT COUNT(*) FROM ocr_results WHERE document_id NOT IN (SELECT id FROM documents)"
             ).fetchone()[0]
+            stats['orphan_correlations_before'] = conn.execute(
+                "SELECT COUNT(*) FROM fraud_correlations WHERE case_id NOT IN (SELECT case_id FROM cases)"
+            ).fetchone()[0]
 
             conn.execute("DELETE FROM extracted_data WHERE document_id NOT IN (SELECT id FROM documents)")
             conn.execute("DELETE FROM runs WHERE case_id NOT IN (SELECT case_id FROM cases)")
             conn.execute("DELETE FROM ocr_results WHERE document_id NOT IN (SELECT id FROM documents)")
+            conn.execute("DELETE FROM fraud_correlations WHERE case_id NOT IN (SELECT case_id FROM cases)")
 
             stats['orphan_extracted_after'] = conn.execute(
                 "SELECT COUNT(*) FROM extracted_data WHERE document_id NOT IN (SELECT id FROM documents)"
@@ -364,6 +766,9 @@ class ReplayService:
             ).fetchone()[0]
             stats['orphan_ocr_after'] = conn.execute(
                 "SELECT COUNT(*) FROM ocr_results WHERE document_id NOT IN (SELECT id FROM documents)"
+            ).fetchone()[0]
+            stats['orphan_correlations_after'] = conn.execute(
+                "SELECT COUNT(*) FROM fraud_correlations WHERE case_id NOT IN (SELECT case_id FROM cases)"
             ).fetchone()[0]
 
         return stats
@@ -379,11 +784,24 @@ class ReplayService:
             # 2) Eliminar caso en DB (cascada elimina documentos, ocr_results, extracted_data, runs)
             from ..storage.db import get_conn, get_correlation_findings
             with get_conn() as conn:
-                conn.execute("DELETE FROM cases WHERE case_id = ?", (case_id,))
+                deleted_corr = conn.execute(
+                    "DELETE FROM fraud_correlations WHERE case_id = ?",
+                    (case_id,)
+                ).rowcount
+                deleted_cases = conn.execute(
+                    "DELETE FROM cases WHERE case_id = ?",
+                    (case_id,)
+                ).rowcount
+                conn.commit()
+                if deleted_corr:
+                    logger.info(f"  ✓ Correlaciones eliminadas: {deleted_corr}")
+                logger.info(f"  ✓ Eliminado de BD ({deleted_cases} fila(s) en cases)")
 
             # 3) Limpiar métricas de cache del caso (ya lo hace purge_case, pero reforzamos)
             from ..storage.db import reset_cache_stats
             reset_cache_stats(case_id)
+
+            self._collect_db_cleanup_snapshot(case_id)
 
             logger.info(f"✅ Deep purge completado para {case_id}")
             return True
@@ -418,16 +836,29 @@ class ReplayService:
         if not case_index:
             raise ValueError(f"No se encontró información del caso {case_id}")
 
+        cached_doc_types = self._build_case_document_types(case_index)
+
         # Cargar resultados OCR del cache
         ocr_results = []
         for doc_path in case_index.get('documents', []):
             doc_path = Path(doc_path)
             if self.cache_manager.has_cache(doc_path, case_id=case_id):
                 ocr_result = self.cache_manager.get_cache(doc_path, case_id=case_id)
+                normalized_name = self._normalize_case_filename(doc_path.name)
+                cached_type = cached_doc_types.get(normalized_name)
+                if not cached_type:
+                    simplified = re.sub(r"[^a-z0-9.]+", "", normalized_name)
+                    cached_type = cached_doc_types.get(simplified)
+                if cached_type:
+                    logger.debug(
+                        "Tipo de documento recuperado del cache: %s → %s",
+                        doc_path.name,
+                        cached_type,
+                    )
                 ocr_results.append({
                     'filename': doc_path.name,
                     'ocr_result': ocr_result,
-                    'document_type': None
+                    'document_type': cached_type
                 })
             else:
                 logger.warning(f"No hay cache para {doc_path.name}")
@@ -515,7 +946,7 @@ class ReplayService:
             os.environ["OPENAI_API_KEY"] = api_key
 
         # 2) Resolver config de IA (modelo/temperatura)
-        model = options.get("model") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+        model = options.get("model") or os.getenv("OPENAI_MODEL", "gpt-5")
         try:
             temperature = float(options.get("temperature", 0.1))
         except Exception:
@@ -629,18 +1060,36 @@ class ReplayService:
                 with get_conn() as conn:
                     # Obtener todos los case_ids antes de limpiar
                     all_cases = conn.execute("SELECT case_id FROM cases").fetchall()
+                    deleted_rows = {}
 
-                    # Limpiar todas las tablas
-                    conn.execute("DELETE FROM fraud_analyses")
-                    conn.execute("DELETE FROM ai_analyses")
-                    conn.execute("DELETE FROM extracted_data")
-                    conn.execute("DELETE FROM ocr_results")
-                    conn.execute("DELETE FROM documents")
-                    conn.execute("DELETE FROM cases")
-                    conn.execute("DELETE FROM cache_stats")
-                    conn.execute("DELETE FROM runs")
+                    # Limpiar todas las tablas (ordenado dependencias primero)
+                    deleted_rows['fraud_correlations'] = conn.execute("DELETE FROM fraud_correlations").rowcount
+                    deleted_rows['fraud_analyses'] = conn.execute("DELETE FROM fraud_analyses").rowcount
+                    deleted_rows['ai_analyses'] = conn.execute("DELETE FROM ai_analyses").rowcount
+                    deleted_rows['extracted_data'] = conn.execute("DELETE FROM extracted_data").rowcount
+                    deleted_rows['ocr_results'] = conn.execute("DELETE FROM ocr_results").rowcount
+                    deleted_rows['documents'] = conn.execute("DELETE FROM documents").rowcount
+                    deleted_rows['runs'] = conn.execute("DELETE FROM runs").rowcount
+                    deleted_rows['cases'] = conn.execute("DELETE FROM cases").rowcount
+                    deleted_rows['cache_stats'] = conn.execute("DELETE FROM cache_stats").rowcount
                     conn.commit()
                     logger.info(f"    ✓ {len(all_cases)} casos eliminados de la BD")
+                    for table_name, count in deleted_rows.items():
+                        logger.info(f"    • {table_name}: {count} filas eliminadas")
+
+                    # Recrear registro global en cache_stats para mantener métricas coherentes
+                    conn.execute(
+                        "INSERT OR IGNORE INTO cache_stats(scope, updated_at) VALUES (?, CURRENT_TIMESTAMP)",
+                        ('global',)
+                    )
+                    conn.commit()
+                    remaining_cases = conn.execute("SELECT COUNT(*) FROM cases").fetchone()[0]
+                    remaining_corr = conn.execute("SELECT COUNT(*) FROM fraud_correlations").fetchone()[0]
+                    logger.info(
+                        "    ✓ Verificación post-limpieza: %s casos en BD, %s correlaciones",
+                        remaining_cases,
+                        remaining_corr,
+                    )
 
                 # 2. Limpiar carpeta de cache OCR
                 cache_dir = Path(getattr(self.cache_manager, "cache_dir", "data/ocr_cache"))
@@ -649,6 +1098,15 @@ class ReplayService:
                     shutil.rmtree(cache_dir)
                     cache_dir.mkdir(parents=True, exist_ok=True)
                     logger.info("    ✓ Cache OCR limpiado")
+                self._cleanup_empty_cache_shards()
+
+                logger.info("  → Reiniciando índices vectoriales de Agente Rick...")
+                if self._reset_vector_store():
+                    logger.info("    ✓ Índices vectoriales reiniciados")
+
+                logger.info("  → Reiniciando bitácora del Agente Rick...")
+                if self._reset_rick_audit_log():
+                    logger.info("    ✓ Bitácora limpiada")
 
                 # 3. Limpiar carpetas temporales
                 temp_dir = Path("data/temp")
@@ -718,9 +1176,18 @@ class ReplayService:
 
                 # 2. Eliminar de la base de datos (cascada elimina todo)
                 with get_conn() as conn:
-                    conn.execute("DELETE FROM cases WHERE case_id = ?", (case_id,))
+                    deleted_corr = conn.execute(
+                        "DELETE FROM fraud_correlations WHERE case_id = ?",
+                        (case_id,)
+                    ).rowcount
+                    deleted_cases = conn.execute(
+                        "DELETE FROM cases WHERE case_id = ?",
+                        (case_id,)
+                    ).rowcount
                     conn.commit()
-                    logger.info(f"  ✓ Eliminado de BD")
+                    if deleted_corr:
+                        logger.info(f"  ✓ Correlaciones eliminadas: {deleted_corr}")
+                    logger.info(f"  ✓ Eliminado de BD ({deleted_cases} fila(s) en cases)")
 
                 # 3. Limpiar carpeta base del caso (temp o reorganizada)
                 base_folder_name = ''
@@ -740,6 +1207,12 @@ class ReplayService:
                         insured_name = folder_insured.replace('_', ' ')
                     if folder_claim and not claim_number:
                         claim_number = folder_claim
+
+                cleanup_tokens = self._build_cleanup_tokens(
+                    case_id=case_id,
+                    insured_name=insured_name,
+                    claim_number=claim_number,
+                )
 
                 # 4. Limpiar archivos de cache OCR (shards)
                 if case_index and "cache_files" in case_index:
@@ -815,9 +1288,13 @@ class ReplayService:
                 if deleted_reports:
                     logger.info(f"  ✓ {len(deleted_reports)} reportes eliminados")
 
-                fallback_removed = self._remove_reports_by_case_id(case_id)
+                fallback_removed = self._remove_reports_by_case_id(case_id, cleanup_tokens)
                 if fallback_removed:
                     logger.info(f"  ✓ Reportes eliminados por búsqueda directa: {fallback_removed}")
+
+                residual_reports = self._remove_report_artifacts(cleanup_tokens)
+                if residual_reports:
+                    logger.info(f"  ✓ Reportes eliminados (escaneo): {residual_reports}")
 
                 # 8. Limpiar archivos de pipeline_cache
                 pipeline_cache_dir = Path("data/temp/pipeline_cache")
@@ -841,6 +1318,31 @@ class ReplayService:
 
                     if deleted_pipeline:
                         logger.info(f"  ✓ Pipeline cache limpiado: {len(deleted_pipeline)} archivos")
+
+                extra_pipeline = self._remove_pipeline_cache_artifacts(cleanup_tokens)
+                if extra_pipeline:
+                    logger.info(f"  ✓ Pipeline cache (escaneo) eliminado: {extra_pipeline}")
+
+                self._remove_vector_indexes(cleanup_tokens)
+                self._purge_rick_audit_log(cleanup_tokens)
+                self._cleanup_empty_cache_shards()
+                residuals = self._verify_filesystem_cleanup(cleanup_tokens)
+                if residuals:
+                    for category, items in residuals.items():
+                        if category == 'rick_audit':
+                            self._purge_rick_audit_log(cleanup_tokens)
+                            continue
+                        for item in items:
+                            path = Path(item)
+                            try:
+                                if path.is_dir():
+                                    shutil.rmtree(path)
+                                elif path.exists():
+                                    path.unlink()
+                            except Exception as exc:
+                                logger.debug("No se pudo eliminar residuo %s: %s", path, exc)
+                    self._verify_filesystem_cleanup(cleanup_tokens)
+                self._collect_db_cleanup_snapshot(case_id)
                 logger.info(f"✅ Caso {case_id} completamente eliminado")
                 cleared_cases.append(case_id)
 
@@ -862,6 +1364,15 @@ class ReplayService:
         try:
             # Limpiar archivos del caso en el caché
             case_index = self.cache_manager.get_case_index(case_id)
+            insured = (case_index or {}).get('insured_name') or ""
+            claim = (case_index or {}).get('claim_number') or ""
+            with get_conn() as conn:
+                deleted_corr = conn.execute(
+                    "DELETE FROM fraud_correlations WHERE case_id = ?",
+                    (case_id,)
+                ).rowcount
+                if deleted_corr:
+                    logger.info(f"  ✓ Correlaciones eliminadas (purge): {deleted_corr}")
             if case_index and "cache_files" in case_index:
                 for doc_path_str in case_index["cache_files"]:
                     cache_path = self.cache_manager._get_cache_path(Path(doc_path_str))
@@ -897,6 +1408,30 @@ class ReplayService:
             status_file = Path(base) / "temp" / "pipeline_cache" / f"{case_id}.status.jsonl"
             if status_file.exists():
                 status_file.unlink()
+
+            tokens = self._build_cleanup_tokens(case_id=case_id, insured_name=insured, claim_number=claim)
+            self._remove_report_artifacts(tokens)
+            self._remove_reports_by_case_id(case_id, tokens)
+            self._remove_pipeline_cache_artifacts(tokens)
+            self._remove_vector_indexes(tokens)
+            self._purge_rick_audit_log(tokens)
+            self._cleanup_empty_cache_shards()
+            residuals = self._verify_filesystem_cleanup(tokens)
+            if residuals:
+                for category, items in residuals.items():
+                    if category == 'rick_audit':
+                        self._purge_rick_audit_log(tokens)
+                        continue
+                    for item in items:
+                        path = Path(item)
+                        try:
+                            if path.is_dir():
+                                shutil.rmtree(path)
+                            elif path.exists():
+                                path.unlink()
+                        except Exception as exc:
+                            logger.debug("No se pudo eliminar residuo %s: %s", path, exc)
+                self._verify_filesystem_cleanup(tokens)
 
             # Resetear métricas del caso (pero no las globales)
             from ..storage.db import reset_cache_stats

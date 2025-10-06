@@ -15,6 +15,7 @@ from openai import AsyncOpenAI
 import instructor
 
 from fraud_scorer.models.fraud_analysis import (
+    EvidenceGap,
     FraudAnalysisResult,
     FraudIndicator,
     RiskLevel,
@@ -24,6 +25,7 @@ from fraud_scorer.analyzers.fraud_guide_manager import FraudGuideManager, FraudG
 from fraud_scorer.prompts.fraud_prompts import FraudPromptBuilder
 from fraud_scorer.storage.db import get_conn
 from fraud_scorer.settings import get_model_for_task
+from fraud_scorer.analyzers.unified_data_layer import UnifiedDataLayer
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +51,7 @@ class FraudAnalyzer:
         extraction: DocumentExtraction,
         case_id: str,
         context: Optional[Dict[str, Any]] = None,
+        data_layer: Optional[UnifiedDataLayer] = None,
     ) -> FraudAnalysisResult:
         guide = self.guides.get_guide(document_type)
         if not guide:
@@ -56,23 +59,43 @@ class FraudAnalyzer:
             return await self._generic_analysis(
                 document_id, document_name, document_type, ocr_result, extraction, case_id
             )
+        layer = data_layer
+        case_context = context or {}
+        document_context: Optional[Dict[str, Any]] = None
+        if layer:
+            try:
+                case_snapshot = layer.build_case_context()
+                case_context = {**case_snapshot, **(context or {})}
+                document_context = layer.build_document_context(
+                    extraction=extraction,
+                    ocr_result=ocr_result,
+                )
+            except Exception as exc:  # pragma: no cover - defensivo
+                logger.debug("Fallo construyendo contexto unificado: %s", exc)
+        if document_context is None:
+            document_context = {
+                "document_type": document_type,
+                "document_name": document_name,
+                "resolved_fields": extraction.extracted_fields,
+            }
 
-        prompt = self.prompts.build_fraud_analysis_prompt(
+        indicator_prompt = self.prompts.build_indicator_prompt(
             document_type=document_type,
             document_name=document_name,
             ocr_content=ocr_result,
             extracted_fields=extraction.extracted_fields,
             guide=guide._data,  # type: ignore[attr-defined]
-            context=context or {},
+            case_context=case_context,
+            document_context=document_context,
         )
 
         start = datetime.now()
         try:
-            response_text, model_used = await self._call_ai_with_retry(
-                prompt, context_name=document_name
+            indicator_response, model_used = await self._call_ai_with_retry(
+                indicator_prompt, context_name=document_name
             )
             analysis = self._parse_analysis_response(
-                response_text,
+                indicator_response,
                 analysis_model=model_used,
                 document_id=document_id,
                 document_name=document_name,
@@ -82,9 +105,31 @@ class FraudAnalyzer:
             )
             # Trazabilidad
             analysis.analysis_id = str(uuid.uuid4())
-            analysis.prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
             analysis = await self._enrich_analysis(analysis, extraction, guide)
+
+            gap_prompt = self.prompts.build_evidence_gap_prompt(
+                document_type=document_type,
+                document_name=document_name,
+                ocr_content=ocr_result,
+                extracted_fields=extraction.extracted_fields,
+                guide=guide._data,  # type: ignore[attr-defined]
+                case_context=case_context,
+                document_context=document_context,
+            )
+            combined_prompt = f"{indicator_prompt}\n\n---\n\n{gap_prompt}"
+            analysis.prompt_hash = hashlib.sha256(combined_prompt.encode("utf-8")).hexdigest()
+            try:
+                gap_response, gap_model = await self._call_ai_with_retry(
+                    gap_prompt, context_name=f"{document_name}_gaps"
+                )
+                gaps = self._parse_evidence_gap_response(gap_response)
+                analysis.evidence_gaps = gaps
+                if gap_model != model_used:
+                    analysis.analysis_model = f"{model_used}|gaps:{gap_model}"
+            except Exception as gap_exc:  # pragma: no cover - fallo tolerable
+                logger.warning("No fue posible obtener brechas de evidencia para %s: %s", document_name, gap_exc)
+
             analysis.processing_time_ms = int((datetime.now() - start).total_seconds() * 1000)
 
             await self._save_analysis_to_db(analysis)
@@ -102,6 +147,7 @@ class FraudAnalyzer:
         case_id: str,
         parallel_limit: int = 3,
         context: Optional[Dict[str, Any]] = None,
+        data_layer: Optional[UnifiedDataLayer] = None,
     ) -> List[FraudAnalysisResult]:
         docs_with_guides: List[Dict[str, Any]] = []
         for doc in documents:
@@ -131,6 +177,7 @@ class FraudAnalyzer:
                     extraction=doc["extraction"],
                     case_id=case_id,
                     context=context,
+                    data_layer=data_layer,
                 )
 
         results = await asyncio.gather(*[_run(d) for d in docs_with_guides], return_exceptions=True)
@@ -197,7 +244,7 @@ class FraudAnalyzer:
 
         # Indicadores (aceptar lista de dicts o strings)
         indicators: List[FraudIndicator] = []
-        ind_list = data.get("indicators", []) or []
+        ind_list = data.get("fraud_indicators") or data.get("indicators") or []
         if not isinstance(ind_list, list):
             ind_list = [ind_list]
         for ind in ind_list:
@@ -237,7 +284,7 @@ class FraudAnalyzer:
         risk_level = RiskLevel(derived)
 
         # Evidencia y recomendaciones (a listas de strings)
-        evidence = data.get("evidence", []) or []
+        evidence = data.get("supporting_evidence") or data.get("evidence") or []
         if not isinstance(evidence, list):
             evidence = [str(evidence)]
         evidence = [str(e) for e in evidence]
@@ -252,6 +299,13 @@ class FraudAnalyzer:
                 f"Riesgo ajustado de '{provided_risk}' a '{derived}' (score={score:.2f})"
             )
 
+        summary = str(
+            data.get("analysis_summary")
+            or data.get("analisis_completo")
+            or data.get("analysis")
+            or ""
+        ).strip()
+
         return FraudAnalysisResult(
             document_id=document_id,
             document_name=document_name,
@@ -260,7 +314,7 @@ class FraudAnalyzer:
             risk_level=risk_level,
             fraud_score=score,
             confidence=_to_float(data.get("confidence", 0.7), 0.7),
-            analisis_completo=str(data.get("analisis_completo", "")).strip(),
+            analisis_completo=summary,
             indicators=indicators,
             evidence=evidence,
             recommendations=recommendations,
@@ -268,6 +322,45 @@ class FraudAnalyzer:
             guide_version=guide.version,
             processing_time_ms=0,
         )
+
+    def _parse_evidence_gap_response(self, response_text: str) -> List[EvidenceGap]:
+        raw = response_text or "{}"
+        try:
+            data = json.loads(raw)
+        except Exception:
+            cleaned = raw.replace("```json", "").replace("```", "").strip()
+            data = json.loads(cleaned or "{}")
+
+        gaps: List[EvidenceGap] = []
+        entries = data.get("evidence_gaps") or []
+        if not isinstance(entries, list):
+            entries = [entries]
+        for entry in entries:
+            if isinstance(entry, EvidenceGap):
+                gaps.append(entry)
+            elif isinstance(entry, dict):
+                try:
+                    gaps.append(EvidenceGap(**entry))
+                except Exception:
+                    gap_text = str(entry)
+                    gaps.append(EvidenceGap(gap=gap_text))
+            elif isinstance(entry, str):
+                gaps.append(EvidenceGap(gap=entry))
+
+        follow_ups = data.get("follow_up_questions") or []
+        if isinstance(follow_ups, list):
+            for question in follow_ups:
+                text = str(question).strip()
+                if text:
+                    gaps.append(EvidenceGap(gap=text, priority="media", suggested_action="Resolver pregunta al asegurado"))
+
+        missing_docs = data.get("missing_documents") or []
+        if isinstance(missing_docs, list) and missing_docs and gaps:
+            # Añadir documentos faltantes a la primera entrada para referencia
+            first_gap = gaps[0]
+            first_gap.missing_documents.extend(str(doc) for doc in missing_docs)
+
+        return gaps
 
     async def _enrich_analysis(
         self,
@@ -337,12 +430,12 @@ class FraudAnalyzer:
                     """
                     INSERT OR REPLACE INTO fraud_analyses (
                         id, document_id, case_id, document_type,
-                        risk_level, fraud_score, analisis_completo, indicators, evidence,
+                        risk_level, fraud_score, analisis_completo, indicators, evidence, evidence_gaps,
                         recommendations, confidence, analysis_model,
                         guide_version, analysis_uuid, prompt_hash,
                         include_in_report,
                         created_at, updated_at
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         f"{analysis.document_id}_fraud",
@@ -354,6 +447,7 @@ class FraudAnalyzer:
                         analysis.analisis_completo,
                         json.dumps([i.dict() for i in analysis.indicators], ensure_ascii=False),
                         json.dumps(analysis.evidence, ensure_ascii=False),
+                        json.dumps([gap.model_dump() for gap in analysis.evidence_gaps], ensure_ascii=False),
                         json.dumps(analysis.recommendations, ensure_ascii=False),
                         analysis.confidence,
                         analysis.analysis_model,
@@ -370,7 +464,8 @@ class FraudAnalyzer:
             logger.error(f"Error guardando análisis: {e}")
             # Intento de autocorrección si la tabla no existe
             try:
-                if "no such table" in str(e).lower():
+                error_text = str(e).lower()
+                if "no such table" in error_text:
                     with get_conn() as conn:
                         conn.execute(
                             """
@@ -384,6 +479,7 @@ class FraudAnalyzer:
                                 analisis_completo TEXT,
                                 indicators      TEXT,
                                 evidence        TEXT,
+                                evidence_gaps   TEXT,
                                 recommendations TEXT,
                                 confidence      REAL,
                                 analysis_model  TEXT,
@@ -399,6 +495,11 @@ class FraudAnalyzer:
                         conn.commit()
                         logger.info("Tabla fraud_analyses creada dinámicamente. Reintentando persistencia...")
                     # reintentar una vez
+                    await self._save_analysis_to_db(analysis)
+                elif "no column named evidence_gaps" in error_text:
+                    with get_conn() as conn:
+                        conn.execute("ALTER TABLE fraud_analyses ADD COLUMN evidence_gaps TEXT DEFAULT '[]';")
+                        conn.commit()
                     await self._save_analysis_to_db(analysis)
             except Exception as e2:  # pragma: no cover
                 logger.error(f"No fue posible autocorregir DB: {e2}")
@@ -460,6 +561,7 @@ class FraudAnalyzer:
             ),
             indicators=indicators,
             evidence=evidence,
+            evidence_gaps=[],
             recommendations=[
                 "Análisis genérico aplicado - considerar crear guía específica",
                 "Revisión manual recomendada",
@@ -491,6 +593,7 @@ class FraudAnalyzer:
             ),
             indicators=[],
             evidence=[f"Error en análisis: {error_message}"],
+            evidence_gaps=[],
             recommendations=["Revisar manualmente el documento", "Reintentar análisis"],
             analysis_model="error",
             guide_version="N/A",

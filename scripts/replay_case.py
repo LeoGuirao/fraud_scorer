@@ -178,15 +178,15 @@ Ejemplos de uso:
     # Configuración de IA
     p.add_argument(
         '--model',
-        default='gpt-4o-mini',
-        choices=['gpt-4o', 'gpt-4o-mini', 'gpt-3.5-turbo'],
-        help='Modelo de IA a usar'
+        default='gpt-5',
+        choices=['gpt-5', 'gpt-5-thinking', 'gpt-5-mini', 'gpt-5-vision'],
+        help='Modelo de IA a usar (default: gpt-5)'
     )
     p.add_argument(
         '--temperature',
         type=float,
         default=0.1,
-        help='Temperatura del modelo (0.0-1.0)'
+        help='Temperatura del modelo (0.0-1.0, default recomendado para gpt-5)'
     )
     p.add_argument(
         '--api-key',

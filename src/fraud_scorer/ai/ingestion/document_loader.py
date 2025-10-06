@@ -4,7 +4,11 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List
+from typing import Any, Dict, Iterable, List, Sequence
+from decimal import Decimal, InvalidOperation
+import os
+import re
+import unicodedata
 import json
 import logging
 
@@ -16,6 +20,10 @@ from ..config import RickAgentConfig, load_config
 from .normalizer import deduplicate_documents
 from .splitters import get_default_splitter, get_splitter_for_type
 from .transformers import clean_text, combine_metadata, safe_json_dumps
+from fraud_scorer.analyzers.correlation.utils.normalization import (
+    normalize_date,
+    normalize_decimal_as_str,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +60,14 @@ class FraudCaseDocumentLoader:
         raw_documents.extend(
             self._build_ocr_documents(case_id, case_index, document_type_map, document_hashes, base_metadata)
         )
-        raw_documents.extend(self._build_consolidated_fields(case_index, base_metadata))
+
+        consolidated_documents = self._build_consolidated_fields(case_index, base_metadata)
+        raw_documents.extend(consolidated_documents)
+
+        structured_card = self._build_structured_card(case_id, case_index, base_metadata)
+        if structured_card:
+            raw_documents.append(structured_card)
+
         raw_documents.extend(self._build_extraction_results(case_index, base_metadata))
         raw_documents.extend(self._build_fraud_analyses(case_index, base_metadata))
 
@@ -125,6 +140,7 @@ class FraudCaseDocumentLoader:
                     "origin": "ocr_cache",
                 },
             )
+            metadata = self._augment_source_metadata(metadata, filename)
 
             documents.append(Document(page_content=text, metadata=metadata))
 
@@ -141,19 +157,15 @@ class FraudCaseDocumentLoader:
 
         payload = safe_json_dumps(consolidated)
 
-        return [
-            Document(
-                page_content=payload,
-                metadata=combine_metadata(
-                    base_metadata,
-                    {
-                        "source": "consolidated_fields",
-                        "document_type": "consolidated_fields",
-                        "origin": "analysis_pipeline",
-                    },
-                ),
-            )
-        ]
+        metadata = combine_metadata(
+            base_metadata,
+            {
+                "source": "consolidated_fields",
+                "document_type": "consolidated_fields",
+                "origin": "analysis_pipeline",
+            },
+        )
+        return [Document(page_content=payload, metadata=metadata)]
 
     def _build_extraction_results(
         self,
@@ -177,20 +189,18 @@ class FraudCaseDocumentLoader:
 
             content = safe_json_dumps(extracted)
 
-            documents.append(
-                Document(
-                    page_content=content,
-                    metadata=combine_metadata(
-                        base_metadata,
-                        {
-                            "source": "extraction",
-                            "origin": "analysis_pipeline",
-                            "source_document": source_doc,
-                            "document_type": doc_type,
-                        },
-                    ),
-                )
+            metadata = combine_metadata(
+                base_metadata,
+                {
+                    "source": "extraction",
+                    "origin": "analysis_pipeline",
+                    "source_document": source_doc,
+                    "document_type": doc_type,
+                },
             )
+            metadata = self._augment_source_metadata(metadata, source_doc)
+
+            documents.append(Document(page_content=content, metadata=metadata))
 
         return documents
 
@@ -216,22 +226,252 @@ class FraudCaseDocumentLoader:
             if not text:
                 continue
 
-            documents.append(
-                Document(
-                    page_content=text,
-                    metadata=combine_metadata(
-                        base_metadata,
-                        {
-                            "source": "fraud_analysis",
-                            "origin": "fraud_stage",
-                            "document_type": doc_type,
-                            "source_document": source_doc,
-                        },
-                    ),
-                )
+            metadata = combine_metadata(
+                base_metadata,
+                {
+                    "source": "fraud_analysis",
+                    "origin": "fraud_stage",
+                    "document_type": doc_type,
+                    "source_document": source_doc,
+                },
             )
+            metadata = self._augment_source_metadata(metadata, source_doc)
+
+            documents.append(Document(page_content=text, metadata=metadata))
 
         return documents
+
+    def _build_structured_card(
+        self,
+        case_id: str,
+        case_index: Dict[str, Any],
+        base_metadata: Dict[str, Any],
+    ) -> Document | None:
+        entries = self._collect_structured_entries(case_id, case_index)
+        if not any(entries.get(key) for key in _STRUCTURED_CARD_FIELDS):
+            return None
+
+        sections: list[tuple[str, list[str]]] = [
+            ("DATOS GENERALES", [
+                "case_id",
+                "insured_name",
+                "claim_number",
+                "numero_siniestro",
+                "numero_poliza",
+                "tipo_siniestro",
+                "bien_reclamado",
+            ]),
+            ("MONTOS Y COBERTURAS", [
+                "monto_reclamacion",
+                "suma_asegurada",
+                "deducible",
+                "coberturas",
+            ]),
+            ("CRONOLOGÍA", [
+                "fecha_ocurrencia",
+                "fecha_reclamacion",
+                "fecha_timbrado",
+            ]),
+            ("LOGÍSTICA Y FISCALES", [
+                "placas_vehiculo",
+                "operador_nombre",
+                "operador_identificacion",
+                "peso_bruto_kg",
+                "uuid_fiscal",
+            ]),
+        ]
+
+        lines: list[str] = [f"TARJETA DE DATOS ESTRUCTURADOS - CASO {case_id}", ""]
+
+        for title, keys in sections:
+            section_lines = []
+            for key in keys:
+                config = _STRUCTURED_CARD_FIELDS.get(key)
+                data = entries.get(key) or []
+                if not config or not data:
+                    continue
+                formatted = self._format_structured_line(config, data)
+                if formatted:
+                    section_lines.append(f"- {formatted}")
+            if section_lines:
+                lines.append(f"{title}:")
+                lines.extend(section_lines)
+                lines.append("")
+
+        payload = "\n".join(line for line in lines if line is not None).strip()
+        if not payload:
+            return None
+
+        metadata = combine_metadata(
+            base_metadata,
+            {
+                "source": "structured_card",
+                "document_type": "structured_card",
+                "origin": "analysis_pipeline",
+                "source_document": f"structured_card_{case_id}.txt",
+                "card_fields": [key for key, items in entries.items() if items],
+            },
+        )
+        metadata = self._augment_source_metadata(metadata, metadata.get("source_document"))
+
+        return Document(page_content=payload, metadata=metadata)
+
+    def _collect_structured_entries(
+        self,
+        case_id: str,
+        case_index: Dict[str, Any],
+    ) -> Dict[str, List[Dict[str, Any]]]:
+        entries: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+
+        consolidated = (case_index.get("consolidated_data") or {}).get("consolidated_fields") or {}
+        for field, value in consolidated.items():
+            if value is None:
+                continue
+            values = _flatten_values(value)
+            for item in values:
+                entries[field].append({
+                    "value": item,
+                    "source": "consolidated_fields",
+                    "document_type": None,
+                })
+
+        for result in case_index.get("extraction_results") or []:
+            if not isinstance(result, dict):
+                continue
+            source_document = result.get("source_document")
+            document_type = result.get("document_type")
+            extracted = result.get("extracted_fields") or result.get("fields") or {}
+            for field, value in extracted.items():
+                if value is None:
+                    continue
+                for item in _flatten_values(value):
+                    entries[field].append(
+                        {
+                            "value": item,
+                            "source": source_document,
+                            "document_type": document_type,
+                        }
+                    )
+
+        if case_index.get("insured_name"):
+            entries["insured_name"].append({
+                "value": case_index["insured_name"],
+                "source": "case_index",
+                "document_type": None,
+            })
+        if case_index.get("claim_number"):
+            entries["claim_number"].append({
+                "value": case_index["claim_number"],
+                "source": "case_index",
+                "document_type": None,
+            })
+
+        entries["case_id"].append({
+            "value": case_id,
+            "source": "case_id",
+            "document_type": None,
+        })
+
+        return entries
+
+    def _format_structured_line(self, config: Dict[str, Any], items: List[Dict[str, Any]]) -> str:
+        raw_values = [str(entry["value"]).strip() for entry in items if str(entry.get("value", "")).strip()]
+        if not raw_values:
+            return ""
+
+        unique_values = list(dict.fromkeys(raw_values))
+        main_value = "; ".join(unique_values)
+
+        annotations: list[str] = []
+        if config.get("normalize_date"):
+            normalized_dates = [normalize_date(value) for value in unique_values]
+            normalized_dates = [date for date in normalized_dates if date and date not in unique_values]
+            if normalized_dates:
+                annotations.append(" fechas normalizadas: " + ", ".join(dict.fromkeys(normalized_dates)))
+
+        if config.get("normalize_amount"):
+            normalized_amounts = [normalize_decimal_as_str(value) for value in unique_values]
+            normalized_amounts = [amount for amount in normalized_amounts if amount]
+            if normalized_amounts:
+                annotations.append(" montos normalizados: " + ", ".join(dict.fromkeys(normalized_amounts)))
+
+        if config.get("normalize_weight"):
+            normalized = [normalize_decimal_as_str(value) for value in unique_values]
+            normalized = [value for value in normalized if value]
+            if normalized:
+                tons: list[str] = []
+                for amount in dict.fromkeys(normalized):
+                    try:
+                        kg = Decimal(amount)
+                        tons_value = kg / Decimal("1000")
+                        tons.append(format(tons_value.normalize(), "f").rstrip("0").rstrip("."))
+                    except (InvalidOperation, ZeroDivisionError):
+                        continue
+                tons = [value for value in tons if value]
+                if tons:
+                    annotations.append(" toneladas aproximadas: " + ", ".join(tons))
+
+        if config.get("aliases"):
+            alias_values: list[str] = []
+            for value in unique_values:
+                alias_values.extend(self._generate_aliases(value))
+            alias_values = [alias for alias in dict.fromkeys(alias_values) if alias]
+            if alias_values:
+                annotations.append(" alias: " + ", ".join(alias_values))
+
+        sources = [entry.get("source") for entry in items if entry.get("source")]
+        sources = [self.cache_manager._sanitize_filename(str(src)) for src in sources]
+        sources = [src for src in dict.fromkeys(sources) if src]
+        source_text = f" (fuentes: {', '.join(sources)})" if sources else ""
+
+        annotation_text = "".join(annotations)
+        label = config.get("label") or "Campo"
+        return f"{label}: {main_value}{annotation_text}{source_text}".strip()
+
+    def _augment_source_metadata(self, metadata: Dict[str, Any], source_document: str | None) -> Dict[str, Any]:
+        if not source_document:
+            return metadata
+
+        result = dict(metadata)
+        sanitized = self.cache_manager._sanitize_filename(str(source_document))
+        result["source_document_normalized"] = sanitized
+
+        base_name, ext = os.path.splitext(str(source_document))
+        alias_candidates = [
+            str(source_document),
+            sanitized,
+            sanitized.lower(),
+            base_name,
+            base_name.replace(" ", "_"),
+            base_name.replace(" ", "-"),
+            sanitized.replace("_", ""),
+            sanitized.replace("_", "-"),
+        ]
+        alias_values = [alias.upper() for alias in alias_candidates if alias]
+        alias_values = [alias for alias in dict.fromkeys(alias_values) if alias and alias != str(source_document).upper()]
+        if alias_values:
+            result["source_document_aliases"] = alias_values
+        return result
+
+    def _generate_aliases(self, value: str) -> List[str]:
+        cleaned = unicodedata.normalize("NFKD", value)
+        cleaned = "".join(ch for ch in cleaned if not unicodedata.combining(ch))
+        normalized = re.sub(r"[^A-Za-z0-9]", "", cleaned).upper()
+        if not normalized:
+            return []
+
+        aliases = {
+            normalized,
+            normalized.replace("O", "0"),
+        }
+        if len(normalized) == 6:
+            aliases.add(f"{normalized[:2]}-{normalized[2:4]}-{normalized[4:]}")
+            aliases.add(f"{normalized[:3]}-{normalized[3:]}")
+        if len(normalized) == 7:
+            aliases.add(f"{normalized[:3]}-{normalized[3:5]}-{normalized[5:]}")
+
+        aliases.discard(normalized)
+        return list(dict.fromkeys(aliases))
 
     # ------------------------------------------------------------------
     # Split y post-procesamiento
@@ -289,6 +529,40 @@ class FraudCaseDocumentLoader:
 def _normalize(value: str) -> str:
     simplified = value.lower().replace("-", " ").replace("_", " ")
     return "".join(ch for ch in simplified if ch.isalnum())
+
+
+_STRUCTURED_CARD_FIELDS: Dict[str, Dict[str, Any]] = {
+    "case_id": {"label": "Caso"},
+    "insured_name": {"label": "Asegurado"},
+    "claim_number": {"label": "Número de reclamación", "aliases": True},
+    "numero_siniestro": {"label": "Número de siniestro", "aliases": True},
+    "numero_poliza": {"label": "Número de póliza", "aliases": True},
+    "tipo_siniestro": {"label": "Tipo de siniestro"},
+    "bien_reclamado": {"label": "Bien reclamado"},
+    "monto_reclamacion": {"label": "Monto reclamado", "normalize_amount": True},
+    "suma_asegurada": {"label": "Suma asegurada", "normalize_amount": True},
+    "deducible": {"label": "Deducible", "normalize_amount": True},
+    "coberturas": {"label": "Coberturas"},
+    "fecha_ocurrencia": {"label": "Fecha del siniestro", "normalize_date": True},
+    "fecha_reclamacion": {"label": "Fecha de reclamación", "normalize_date": True},
+    "fecha_timbrado": {"label": "Fecha de timbrado", "normalize_date": True},
+    "placas_vehiculo": {"label": "Placas del vehículo", "aliases": True},
+    "operador_nombre": {"label": "Operador"},
+    "operador_identificacion": {"label": "Identificación del operador", "aliases": True},
+    "peso_bruto_kg": {"label": "Peso bruto (kg)", "normalize_weight": True},
+    "uuid_fiscal": {"label": "UUID fiscal", "aliases": True},
+}
+
+
+def _flatten_values(values: Any) -> Sequence[str]:
+    if values is None:
+        return []
+    if isinstance(values, (list, tuple, set)):
+        flattened: List[str] = []
+        for value in values:
+            flattened.extend(_flatten_values(value))
+        return flattened
+    return [str(values)]
 
 
 __all__ = ["FraudCaseDocumentLoader"]

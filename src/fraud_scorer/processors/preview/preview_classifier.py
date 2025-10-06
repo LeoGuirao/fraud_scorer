@@ -55,10 +55,10 @@ class DocumentPreviewClassifier:
             )
             self.client = None
 
-        # Modelo textual por defecto (económico)
-        self.model_name = model_name or "gpt-4o-mini"
-        # Modelo para visión: preferir gpt-4o completo para mejor OCR interno
-        self.vision_model = "gpt-4o" if (not self.model_name or "mini" in self.model_name) else self.model_name
+        # Modelo textual por defecto (balance costo/calidad)
+        self.model_name = model_name or "gpt-5-mini"
+        # Modelo para visión: usar variante multimodal dedicada
+        self.vision_model = "gpt-5-vision" if (not self.model_name or "mini" in self.model_name) else self.model_name
 
         # Historial solo en memoria
         self.classification_history: List[Dict[str, Any]] = []

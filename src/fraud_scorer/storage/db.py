@@ -1,6 +1,6 @@
 # src/fraud_scorer/storage/db.py
 from __future__ import annotations
-import sqlite3, json, hashlib, os, datetime, uuid
+import sqlite3, json, hashlib, os, datetime, uuid, logging
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple, List, Sequence
 
@@ -9,6 +9,9 @@ DB_PATH = Path(os.getenv("FRAUD_DB_PATH", "data/cases.db"))
 if DB_PATH.name.lower() == "fraud_scorer.db":
     # Redirigir a la ruta canónica
     DB_PATH = Path("data/cases.db")
+
+
+logger = logging.getLogger(__name__)
 
 def _now() -> str:
     return datetime.datetime.now().isoformat(timespec="seconds")
@@ -21,6 +24,7 @@ def get_conn() -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys=ON;")
     try:
         ensure_fraud_visibility_column(conn)
+        ensure_fraud_correlations_cascade(conn)
     except Exception:
         # Modo defensivo: en escenarios de migración antigua preferimos no bloquear la conexión
         pass
@@ -255,6 +259,7 @@ def init_db() -> None:
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_case ON fraud_correlations(case_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_rule ON fraud_correlations(rule_id);")
+        ensure_fraud_correlations_cascade(conn)
 
         # (Tabla 'feedback' eliminada del esquema)
         
@@ -464,6 +469,76 @@ def get_extracted_by_document_id(document_id: str) -> Optional[sqlite3.Row]:
 
 # --- FRAUD CORRELATIONS HELPERS ---
 
+def ensure_fraud_correlations_cascade(conn: sqlite3.Connection) -> None:
+    """Garantiza que fraud_correlations tenga ON DELETE CASCADE (idempotente)."""
+    rows = conn.execute("PRAGMA table_info(fraud_correlations)").fetchall()
+    if not rows:
+        return
+
+    fk_rows = conn.execute("PRAGMA foreign_key_list('fraud_correlations')").fetchall()
+    has_cascade = any(
+        str(row["from"]).lower() == "case_id" and str(row["on_delete"]).upper() == "CASCADE"
+        for row in fk_rows
+    )
+    if has_cascade:
+        return
+
+    logger.warning(
+        "Actualizando esquema de fraud_correlations para habilitar ON DELETE CASCADE"
+    )
+
+    # Reconstruir la tabla preservando los datos existentes.
+    rebuild_sql = (
+        """
+        CREATE TABLE __fraud_correlations_new (
+            id              TEXT PRIMARY KEY,
+            case_id         TEXT NOT NULL,
+            rule_id         TEXT NOT NULL,
+            rule_version    TEXT,
+            status          TEXT CHECK(status IN ('pass','fail','needs_context')),
+            severity        TEXT,
+            summary         TEXT,
+            documents       TEXT,
+            entities        TEXT,
+            metadata        TEXT,
+            evidence        TEXT,
+            tags            TEXT,
+            finding_type    TEXT,
+            prompt_hash     TEXT,
+            created_at      TEXT NOT NULL,
+            updated_at      TEXT NOT NULL,
+            FOREIGN KEY(case_id) REFERENCES cases(case_id) ON DELETE CASCADE
+        );
+        """
+    )
+
+    columns = (
+        "id", "case_id", "rule_id", "rule_version", "status", "severity", "summary",
+        "documents", "entities", "metadata", "evidence", "tags", "finding_type",
+        "prompt_hash", "created_at", "updated_at"
+    )
+
+    conn.execute("PRAGMA foreign_keys=OFF;")
+    try:
+        conn.execute("BEGIN")
+        conn.execute("DROP TABLE IF EXISTS __fraud_correlations_new;")
+        conn.execute(rebuild_sql)
+        conn.execute(
+            f"INSERT INTO __fraud_correlations_new ({', '.join(columns)}) "
+            f"SELECT {', '.join(columns)} FROM fraud_correlations;"
+        )
+        conn.execute("DROP TABLE fraud_correlations;")
+        conn.execute("ALTER TABLE __fraud_correlations_new RENAME TO fraud_correlations;")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_case ON fraud_correlations(case_id);")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_rule ON fraud_correlations(rule_id);")
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.execute("PRAGMA foreign_keys=ON;")
+
+
 def ensure_correlation_table(conn: Optional[sqlite3.Connection] = None) -> None:
     owns_conn = False
     if conn is None:
@@ -495,6 +570,7 @@ def ensure_correlation_table(conn: Optional[sqlite3.Connection] = None) -> None:
         )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_case ON fraud_correlations(case_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fcorr_rule ON fraud_correlations(rule_id);")
+        ensure_fraud_correlations_cascade(conn)
         conn.commit()
     finally:
         if owns_conn:

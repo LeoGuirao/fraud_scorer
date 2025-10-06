@@ -24,6 +24,27 @@
           <span id="reprocessLabel">Preparando reproceso…</span>
           <button class="ghost-btn" id="reprocessAbort" type="button" hidden>Cancelar tarea</button>
         </div>
+        <section class="correlation-panel" id="correlationPanel">
+          <header class="correlation-header">
+            <h2>Correlaciones</h2>
+            <span class="correlation-badge" id="correlationSummaryBadge">—</span>
+          </header>
+          <div class="correlation-panel-body">
+            <div class="correlation-summary" id="correlationSummary"></div>
+            <div class="correlation-filters">
+              <label for="correlationStatusFilter">Estado</label>
+              <select id="correlationStatusFilter">
+                <option value="all">Todos</option>
+              </select>
+              <label for="correlationSeverityFilter">Severidad</label>
+              <select id="correlationSeverityFilter">
+                <option value="all">Todas</option>
+              </select>
+            </div>
+            <div class="correlation-table" id="correlationTable"></div>
+            <div class="correlation-empty" id="correlationEmpty" hidden>Sin hallazgos para mostrar.</div>
+          </div>
+        </section>
       </div>
       <section class="reprocess-panel-footer case-meta" id="caseMeta"></section>
     </aside>
@@ -81,25 +102,6 @@
 
     <aside class="right-rail" id="rightRail">
       <div id="rickPanel" class="rick-panel"></div>
-      <section class="correlation-panel" id="correlationPanel">
-        <header class="correlation-header">
-          <h2>Correlaciones</h2>
-          <span class="correlation-badge" id="correlationSummaryBadge">—</span>
-        </header>
-        <div class="correlation-summary" id="correlationSummary"></div>
-        <div class="correlation-filters">
-          <label for="correlationStatusFilter">Estado</label>
-          <select id="correlationStatusFilter">
-            <option value="all">Todos</option>
-          </select>
-          <label for="correlationSeverityFilter">Severidad</label>
-          <select id="correlationSeverityFilter">
-            <option value="all">Todas</option>
-          </select>
-        </div>
-        <div class="correlation-table" id="correlationTable"></div>
-        <div class="correlation-empty" id="correlationEmpty" hidden>Sin hallazgos para mostrar.</div>
-      </section>
       <section class="case-actions">
         <button class="danger" id="btnDeleteCase" type="button">Eliminar siniestro</button>
         <div class="decision-group">

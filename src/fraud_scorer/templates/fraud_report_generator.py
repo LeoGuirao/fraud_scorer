@@ -126,7 +126,12 @@ class FraudReportGenerator(AIReportGenerator):
                         "indicadores": self._format_indicators(a.indicators),
                         "evidencia": a.evidence,
                         "recomendaciones": a.recommendations,
+                        "brechas_evidencia": [
+                            gap.model_dump() if hasattr(gap, "model_dump") else gap
+                            for gap in a.evidence_gaps
+                        ],
                         "total_indicadores": len(a.indicators),
+                        "total_brechas": len(a.evidence_gaps),
                     },
                 }
             )

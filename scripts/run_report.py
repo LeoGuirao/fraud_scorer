@@ -41,6 +41,7 @@ from fraud_scorer.processors.ai.ai_field_extractor import AIFieldExtractor
 from fraud_scorer.processors.ai.ai_consolidator import AIConsolidator
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
+from fraud_scorer.analyzers.unified_data_layer import UnifiedDataLayer
 from fraud_scorer.analyzers.correlation import CorrelationEngine
 from fraud_scorer.analyzers.fraud_guide_manager import FraudGuideManager
 from fraud_scorer.templates.fraud_report_generator import FraudReportGenerator
@@ -1735,14 +1736,34 @@ class FraudAnalysisSystemV2:
                     logger.warning(f"⚠️ Documentos omitidos por colisión de nombre en otros casos: {skipped_name_collision}")
 
                 if docs_for_analysis:
+                    # Preparar capa de datos unificada con la información más reciente
+                    snapshot = dict(case_data)
+                    snapshot.setdefault("case_id", case_id)
+                    snapshot.setdefault("claim_number", claim_number_from_data)
+                    snapshot.setdefault("insured_name", insured_name_from_data)
+                    consolidated_dump = (
+                        consolidated.fields.model_dump()  # type: ignore[attr-defined]
+                        if hasattr(consolidated.fields, "model_dump")
+                        else getattr(consolidated.fields, "__dict__", {})
+                    )
+                    snapshot["consolidated_data"] = {"consolidated_fields": consolidated_dump}
+                    snapshot["extraction_results"] = [
+                        ext.model_dump() if hasattr(ext, "model_dump") else (
+                            ext.dict() if hasattr(ext, "dict") else {
+                                "source_document": getattr(ext, "source_document", None),
+                                "document_type": getattr(ext, "document_type", None),
+                                "extracted_fields": getattr(ext, "extracted_fields", {}),
+                            }
+                        )
+                        for ext in extractions
+                    ]
+                    data_layer = UnifiedDataLayer(snapshot, extractions=extractions)
                     fraud_analyses = await analyzer.analyze_batch(
                         documents=docs_for_analysis,
                         case_id=case_id,
                         parallel_limit=3,
-                        context={
-                            "claim_number": claim_number_from_data,
-                            "insured_name": insured_name_from_data,
-                        },
+                        context=data_layer.build_case_context(),
+                        data_layer=data_layer,
                     )
                     logger.info(f"✓ Análisis de fraude completado: {len(fraud_analyses)} documentos analizados (elegibles: {eligible_count})")
                 else:

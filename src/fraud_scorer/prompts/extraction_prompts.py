@@ -382,16 +382,25 @@ DETALLES POR CAMPO PERMITIDO:
    Regla especial: Convertir ENE→01, FEB→02, etc."""
         elif field == "bien_reclamado":
             guide += """
-   Regla especial: Máximo 5 palabras, sin artículos"""
+   Regla especial: Describe el bien de forma concisa (hasta ~15 palabras) y sin cantidades ni unidades.
+   Ejemplo correcto: "placas de acero". Ejemplos incorrectos: "187.104 toneladas de placas de acero"."""
         elif field == "monto_reclamacion":
             guide += """
    Regla especial: Solo el monto total, sin desglose"""
         elif field == "tipo_siniestro":
             guide += f"""
-   Valores permitidos: {', '.join([item for sublist in self.siniestro_types.values() for item in sublist][:5])}..."""
+   Valores permitidos: {', '.join([item for sublist in self.siniestro_types.values() for item in sublist][:5])}.
+   Si encuentras una variante (ej. "robo total"), mapea al valor del catálogo (ej. "Robo de Bulto por Entero")."""
+        elif field == "lugar_hechos":
+            guide += """
+   Regla especial: Extrae la ubicación más específica del siniestro.
+   Prioriza descripciones con carretera, kilómetro, entronques y municipio.
+   Ejemplo correcto: "Carretera Matehuala, San Luis Potosí, kilómetro 57".
+   Ejemplo incorrecto: "San Luis Potosí" (demasiado genérico)."""
         elif field == "ajuste":
             guide += f"""
-   Ajustadores válidos: {', '.join(self.config.RECOGNIZED_ADJUSTERS)}"""
+   Ajustadores válidos: {', '.join(self.config.RECOGNIZED_ADJUSTERS)}
+   Regla especial: Extrae el NOMBRE de la persona o empresa ajustadora, nunca montos ni porcentajes."""
         
         guide += "\n"
         return guide
@@ -413,6 +422,54 @@ DETALLES POR CAMPO PERMITIDO:
 - La vigencia aparece como "Desde... Hasta..."
 - El domicilio fiscal es la dirección completa del asegurado
 - El número de póliza puede tener guiones o espacios
+- La suma asegurada suele mencionarse como "Límite máximo por embarque" o "Límite de responsabilidad"
+"""
+        elif document_type == "informe_final_del_ajustador":
+            instructions += """
+INSTRUCCIONES ESPECÍFICAS PARA INFORME FINAL DEL AJUSTADOR:
+
+1. NUMERO_SINIESTRO:
+   - Busca en la portada/encabezado expresiones como "Siniestro:", "No. de siniestro:", "Su referencia:".
+   - DEBE contener exactamente 14 dígitos (formato 20XXXXXXXXXXXX). Si ves números más cortos (ej. FED/SLP/SLP/0000231/2024), no son el folio.
+
+2. MONTO_RECLAMACION:
+   - Revisa la sección "RECLAMACIÓN Y AJUSTE" o párrafos donde menciona "Recibimos del Asegurado... por la cantidad de MXN$...".
+   - Esta información suele estar en las últimas páginas del informe.
+   - Extrae el monto TOTAL reclamado por la mercancía (no gastos de transporte, subrogaciones ni deducibles).
+   - Puede estar escrito en número y en letra; conserva el valor numérico completo (ej. MXN$3,145,997.60).
+
+3. FECHA_OCURRENCIA:
+   - Busca "Fecha de siniestro", "Fecha del evento" o similar.
+   - Normaliza a formato DD/MM/AAAA.
+   - No confundas la fecha de emisión del informe ni la fecha de la denuncia.
+
+4. LUGAR_HECHOS:
+   - Debe incluir carretera, kilómetro y municipio/estado cuando estén disponibles.
+   - Frases clave: "al circular sobre...", "en el km...". Evita respuestas generales como "San Luis Potosí".
+   - Si el texto menciona varios tramos, captura el más específico.
+
+5. AJUSTE:
+   - Debe ser el nombre de la empresa/persona ajustadora (ej. "PARK PERALES", "SINIESCA").
+   - Ignora montos y porcentajes asociados al ajuste.
+
+6. TIPO_SINIESTRO:
+   - Prioriza la cobertura listada en "Riesgos cubiertos" o "Riesgos amparados" (ej. "Robo de Bulto por Entero").
+   - Si no está explícita, usa la narrativa de "Causa y circunstancia" y mapea la frase resultante a la categoría oficial.
+
+7. BIEN_RECLAMADO:
+   - Extrae únicamente el nombre o tipo del bien (ej. "placas de acero", "varilla de acero").
+   - Elimina cantidades, pesos y unidades si aparecen en el texto.
+"""
+        elif document_type == "denuncia_de_los_hechos":
+            instructions += """
+- El encabezado contiene datos de la comparecencia (lugar/fecha de denuncia) y la carpeta de investigación. NO los confundas con el siniestro.
+- Para NUMERO_SINIESTRO busca etiquetas como "SINIESTRO", "No. de siniestro", "SINIESTRO:". Ignora números de carpeta (p.ej. FED/XXX/0001234/2024).
+- La FECHA_OCURRENCIA debe salir de la narrativa donde se describe cuándo sucedió el evento ("el día...", "aproximadamente a las...").
+- El LUGAR_HECHOS también se encuentra en la narrativa (carreteras, kilometrajes, ubicaciones). Evita usar "En la ciudad de..." del encabezado.
+- Incluye detalles específicos como carretera, kilómetro y municipio cuando estén disponibles.
+- Si el encabezado no tiene la información correcta, recorre toda la narrativa.
+- Para lugar_hechos busca frases como "pasamos por", "en el kilómetro", "entronque", "carretera".
+- Ejemplo correcto: "Carretera Matehuala, San Luis Potosí, kilómetro 57"; ejemplo incorrecto: "San Luis Potosí".
 """
         elif document_type == "carta_de_reclamacion_formal_a_la_aseguradora":
             instructions += """

@@ -46,6 +46,11 @@ _CORRELATION_NEEDS_CONTEXT_RATIO = Gauge(
     "Proporción de hallazgos que requieren contexto adicional",
 )
 
+_CORRELATION_INSUFFICIENT_DATA_RATIO = Gauge(
+    "fraud_correlation_insufficient_data_ratio",
+    "Proporción de hallazgos con datos insuficientes",
+)
+
 _CORRELATION_RAG_LATENCY_MS = Histogram(
     "fraud_correlation_rag_latency_ms",
     "Latencia del Agente Rick para consultas de correlación (ms)",
@@ -70,10 +75,13 @@ def record_report(report: CorrelationReport) -> None:
     total_findings = len(report.findings or [])
     needs_context = report.status_counts.get(FindingStatus.NEEDS_CONTEXT, 0)
     fails = report.status_counts.get(FindingStatus.FAIL, 0)
+    insufficient = report.status_counts.get(FindingStatus.INSUFFICIENT_DATA, 0)
+    not_applicable = report.status_counts.get(FindingStatus.NOT_APPLICABLE, 0)
 
     _CORRELATION_REPORTS_TOTAL.inc()
     _CORRELATION_FINDINGS_PER_REPORT.observe(float(total_findings))
     _CORRELATION_NEEDS_CONTEXT_RATIO.set(_safe_ratio(needs_context, total_findings))
+    _CORRELATION_INSUFFICIENT_DATA_RATIO.set(_safe_ratio(insufficient, total_findings))
 
     report.metadata.setdefault("metrics", {})
     report.metadata["metrics"].update(
@@ -81,6 +89,8 @@ def record_report(report: CorrelationReport) -> None:
             "total_findings": total_findings,
             "needs_context_ratio": _safe_ratio(needs_context, total_findings),
             "fail_ratio": _safe_ratio(fails, total_findings),
+            "insufficient_data_ratio": _safe_ratio(insufficient, total_findings),
+            "not_applicable_ratio": _safe_ratio(not_applicable, total_findings),
         }
     )
 

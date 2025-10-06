@@ -13,13 +13,14 @@ from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tupl
 from fraud_scorer.analyzers.correlation.orchestrator import CorrelationEngine
 from fraud_scorer.analyzers.correlation.models.correlation_result import CorrelationReport
 from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
+from fraud_scorer.analyzers.unified_data_layer import UnifiedDataLayer
 from fraud_scorer.analyzers.fraud_guide_manager import FraudGuideManager
 from fraud_scorer.models.extraction import (
     ConsolidatedExtraction,
     ConsolidatedFields,
     DocumentExtraction,
 )
-from fraud_scorer.models.fraud_analysis import FraudAnalysisResult, RiskLevel
+from fraud_scorer.models.fraud_analysis import EvidenceGap, FraudAnalysisResult, RiskLevel
 from fraud_scorer.storage.db import get_conn, save_correlation_findings
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.templates.fraud_report_generator import FraudReportGenerator
@@ -238,6 +239,7 @@ class FraudDocumentCatalog:
                        fa.analisis_completo,
                        fa.indicators,
                        fa.evidence,
+                       fa.evidence_gaps,
                        fa.recommendations,
                        fa.confidence,
                        fa.analysis_model,
@@ -261,6 +263,18 @@ class FraudDocumentCatalog:
                 risk_enum = RiskLevel(risk_value) if risk_value in RiskLevel._value2member_map_ else RiskLevel.MEDIO
                 indicators = _jload(row["indicators"], [])
                 evidence = _jload(row["evidence"], [])
+                evidence_gaps_raw = _jload(row.get("evidence_gaps"), []) if "evidence_gaps" in row.keys() else []
+                gaps: List[EvidenceGap] = []
+                for gap in evidence_gaps_raw:
+                    if isinstance(gap, EvidenceGap):
+                        gaps.append(gap)
+                    elif isinstance(gap, dict):
+                        try:
+                            gaps.append(EvidenceGap(**gap))
+                        except Exception:
+                            gaps.append(EvidenceGap(gap=str(gap)))
+                    elif isinstance(gap, str):
+                        gaps.append(EvidenceGap(gap=gap))
                 recommendations = _jload(row["recommendations"], [])
                 timestamp = _parse_timestamp(row["updated_at"]) or _parse_timestamp(row["created_at"]) or datetime.now()
                 include_raw = row["include_in_report"]
@@ -279,6 +293,7 @@ class FraudDocumentCatalog:
                     analisis_completo=row["analisis_completo"] or "",
                     indicators=indicators,
                     evidence=evidence,
+                    evidence_gaps=gaps,
                     recommendations=recommendations,
                     analysis_model=row["analysis_model"] or "unknown",
                     guide_version=row["guide_version"] or "N/A",
@@ -358,6 +373,7 @@ class FraudDocumentReprocessService:
             progress_callback("re-analyzing", "Reanalizando documento…", 35)
 
         analyzer = FraudAnalyzer()
+        data_layer = UnifiedDataLayer.from_case_index(case_index)
         analysis = await analyzer.analyze_document(
             document_id=context.document_id,
             document_name=context.document_name,
@@ -365,7 +381,8 @@ class FraudDocumentReprocessService:
             ocr_result=context.ocr_result,
             extraction=context.extraction,
             case_id=case_id,
-            context=self._build_analysis_context(case_index),
+            context=self._build_analysis_context(case_index, data_layer=data_layer),
+            data_layer=data_layer,
         )
 
         if include_flag is not None:
@@ -593,12 +610,14 @@ class FraudDocumentReprocessService:
         self._docless_system = system
         return self._docless_system
 
-    def _build_analysis_context(self, case_index: Dict[str, Any]) -> Dict[str, Any]:
-        consolidated = (case_index.get("consolidated_data") or {}).get("consolidated_fields") or {}
-        return {
-            "claim_number": consolidated.get("numero_siniestro") or case_index.get("claim_number"),
-            "insured_name": consolidated.get("nombre_asegurado") or case_index.get("insured_name"),
-        }
+    def _build_analysis_context(
+        self,
+        case_index: Dict[str, Any],
+        *,
+        data_layer: Optional[UnifiedDataLayer] = None,
+    ) -> Dict[str, Any]:
+        layer = data_layer or UnifiedDataLayer.from_case_index(case_index)
+        return layer.build_case_context()
 
     def _refresh_correlations(
         self,

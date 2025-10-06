@@ -14,6 +14,7 @@ from pathlib import Path
 import asyncio
 from datetime import datetime
 
+import httpx
 from openai import AsyncOpenAI
 import instructor
 from pydantic import ValidationError
@@ -21,7 +22,12 @@ from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_excep
 import random
 import time
 
-from fraud_scorer.settings import ExtractionConfig, ExtractionRoute, get_model_for_task
+from fraud_scorer.settings import (
+    ExtractionConfig,
+    ExtractionRoute,
+    get_model_for_task,
+    MODEL_SAMPLING_CONFIG,
+)
 from fraud_scorer.models.extraction import DocumentExtraction
 from fraud_scorer.prompts.extraction_prompts import ExtractionPromptBuilder
 from fraud_scorer.utils.validators import FieldValidator
@@ -176,7 +182,12 @@ class AIFieldExtractor:
 
         # Determinar la ruta de procesamiento
         route = self._determine_route(document_name, prepared_content, document_type)
-        
+        allowed_fields_for_mask = self._get_allowed_fields(document_type)
+        if allowed_fields_for_mask:
+            expected_fields = sorted(allowed_fields_for_mask)
+        else:
+            expected_fields = sorted(self.config.REQUIRED_FIELDS)
+
         # Construir prompt con guías si el tipo es conocido
         if document_type in self.field_mapping:
             # Usar prompt guiado
@@ -196,13 +207,16 @@ class AIFieldExtractor:
             )
 
         # Llamar IA con reintentos (ahora acepta que el LLM responda solo con el JSON de campos)
+        text_snippet = (prepared_content.get("text") or "")[:8000]
         extraction = await self._call_ai_with_retry(
             prompt=prompt,
             document_name=document_name,
             document_type=document_type or "otro",
-            route=route
+            route=route,
+            ocr_text_snippet=text_snippet,
+            expected_fields=expected_fields,
         )
-        
+
         # Aplicar máscara de campos permitidos
         extraction = self._apply_field_mask(extraction, document_type)
 
@@ -240,10 +254,28 @@ class AIFieldExtractor:
         async def _extract(doc: Dict[str, Any]) -> Union[DocumentExtraction, Exception]:
             async with sem:
                 try:
+                    document_type = doc.get("document_type")
+                    if not document_type:
+                        detected = self._detect_document_type(
+                            self._ocr_to_dict_safe(doc.get("ocr_result", {})),
+                            doc.get("filename", "desconocido"),
+                        )
+                        document_type = detected
+
+                    if document_type and document_type in self.field_mapping:
+                        route_value = doc.get("route") or "ocr_text"
+                        return await self.extract_from_document_guided(
+                            content=doc["ocr_result"],
+                            document_name=doc["filename"],
+                            document_type=document_type,
+                            route=route_value,
+                        )
+
+                    # Fallback al flujo legacy si no hay guías disponibles
                     return await self.extract_from_document(
                         ocr_result=doc["ocr_result"],
                         document_name=doc["filename"],
-                        document_type=doc.get("document_type"),
+                        document_type=document_type,
                     )
                 except Exception as e:
                     logger.error(f"Error procesando {doc.get('filename', 'desconocido')}: {e}")
@@ -271,6 +303,11 @@ class AIFieldExtractor:
         document_name: str,
         document_type: str,
         route: Optional[str] = None,
+        ocr_text_snippet: Optional[str] = None,
+        *,
+        complexity: str = "normal",
+        model_override: Optional[str] = None,
+        expected_fields: Optional[List[str]] = None,
     ) -> DocumentExtraction:
         """
         Llama a la API de OpenAI con reintentos inteligentes.
@@ -278,14 +315,28 @@ class AIFieldExtractor:
         - Reintenta 429 con backoff exponencial + jitter
         - Reintenta 500+ con backoff
         """
-        max_retries = 3
+        escalated = (complexity or "normal").lower() == "high"
+        openai_params = self.config.get_openai_params("extraction", escalated=escalated)
+        max_retries = int(openai_params.get("max_retries", 3))
         base_delay = 2  # segundos
-        
+
+        if expected_fields is not None:
+            allowed_fields: List[str] = sorted(set(expected_fields))
+        else:
+            allowed_fields_set = set(self.config.REQUIRED_FIELDS)
+            if document_type in self.field_mapping:
+                allowed_fields_set.update(self.field_mapping.get(document_type, []) or [])
+            allowed_fields = sorted(allowed_fields_set)
+
         for attempt in range(max_retries):
             try:
-                response = await self.client.chat.completions.create(
-                    model=get_model_for_task("extraction", route or "ocr_text"),
-                    messages=[
+                model_name = model_override or get_model_for_task(
+                    "extraction", route or "ocr_text", complexity=complexity
+                )
+                supports_sampling = self._supports_custom_sampling(model_name)
+                request_kwargs: Dict[str, Any] = {
+                    "model": model_name,
+                    "messages": [
                         {
                             "role": "system",
                             "content": (
@@ -295,59 +346,69 @@ class AIFieldExtractor:
                         },
                         {"role": "user", "content": prompt},
                     ],
-                    temperature=self.config.OPENAI_CONFIG.get("temperature", 0.1),
-                    max_completion_tokens=self.config.OPENAI_CONFIG.get("max_completion_tokens", 1200),
-                )
-                
+                    "max_completion_tokens": openai_params.get("max_completion_tokens", 1600),
+                }
+                if supports_sampling and "temperature" in openai_params:
+                    request_kwargs["temperature"] = openai_params["temperature"]
+                if supports_sampling and "top_p" in openai_params:
+                    request_kwargs["top_p"] = openai_params["top_p"]
+                if "timeout" in openai_params:
+                    request_kwargs["timeout"] = openai_params["timeout"]
+
+                response = await self.client.chat.completions.create(**request_kwargs)
+
                 # Éxito - procesar respuesta
-                content = ""
-                if response and response.choices:
-                    content = response.choices[0].message.content or ""
-
-                # Quitar fences si vienen con ```json
-                content = content.strip()
-                if content.startswith("```"):
-                    content = content.strip("`")
-                    brace_pos = content.find("{")
-                    if brace_pos != -1:
-                        content = content[brace_pos:]
-
-                # Intentar parsear JSON
+                message = response.choices[0].message if response and response.choices else None
+                raw_content = ""
                 fields_dict: Dict[str, Any] = {}
-                try:
-                    fields_dict = json.loads(content)
-                    if not isinstance(fields_dict, dict):
-                        raise ValueError("La respuesta no es un objeto JSON")
-                except Exception as pe:
-                    logger.error(f"No se pudo parsear JSON para {document_name}: {pe}")
-                    fields_dict = {}
+                if message is not None:
+                    raw_content = self._stringify_message_content(message)
+                    fields_dict = self._parse_json_payload(
+                        raw_content,
+                        document_name=document_name,
+                        model_name=model_name,
+                        route=route,
+                    )
 
-                # Normalizar campos
+                if not raw_content:
+                    raw_content = "{}"
+
+                # Normalizar campos alineados con el tipo de documento
                 normalized_fields: Dict[str, Optional[Any]] = {
-                    field: fields_dict.get(field, None) for field in self.config.REQUIRED_FIELDS
+                    field: fields_dict.get(field, None) for field in allowed_fields
                 }
 
-                return DocumentExtraction(
+                extraction = DocumentExtraction(
                     source_document=document_name,
                     document_type=document_type or "otro",
                     extracted_fields=normalized_fields,
                     extraction_metadata={
-                        "raw_response_len": len(content),
+                        "raw_response_len": len(raw_content),
                         "parsed_ok": bool(fields_dict),
                         "route_used": route or "ocr_text",
-                        "model_used": get_model_for_task("extraction", route or "ocr_text"),
+                        "model_used": model_name,
                     },
                 )
+                self._record_model_attempt(extraction, model_name)
+                if ocr_text_snippet:
+                    try:
+                        snippet = (ocr_text_snippet or "")[:4000]
+                        metadata = extraction.extraction_metadata
+                        metadata.setdefault("raw_text_snippet", snippet)
+                        metadata.setdefault("raw_text", snippet)
+                    except Exception:
+                        logger.debug("No se pudo adjuntar raw_text_snippet", exc_info=True)
+                return extraction
                 
             except Exception as e:
                 error_code = getattr(e, 'status_code', None) or getattr(e, 'http_status', None)
                 error_type = getattr(e, 'error_type', None) or type(e).__name__
-                
+
                 # No reintentar errores 400 (parámetros inválidos)
                 if error_code == 400 or "invalid_request_error" in str(e):
                     logger.error(f"Error 400 - Parámetros inválidos para {document_name}: {e}")
                     # Retornar extracción vacía sin reintentar
-                    return DocumentExtraction(
+                    extraction = DocumentExtraction(
                         source_document=document_name,
                         document_type=document_type or "otro",
                         extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
@@ -357,7 +418,16 @@ class AIFieldExtractor:
                             "route_used": route or "ocr_text",
                         },
                     )
-                
+                    if ocr_text_snippet:
+                        try:
+                            snippet = (ocr_text_snippet or "")[:8000]
+                            metadata = extraction.extraction_metadata
+                            metadata.setdefault("raw_text_snippet", snippet)
+                            metadata.setdefault("raw_text", snippet)
+                        except Exception:
+                            logger.debug("No se pudo adjuntar raw_text_snippet", exc_info=True)
+                    return extraction
+
                 # Para 429 (rate limit), esperar con backoff + jitter
                 if error_code == 429 or "rate_limit" in str(e).lower():
                     retry_after = getattr(e, 'retry_after', None)
@@ -365,17 +435,18 @@ class AIFieldExtractor:
                         delay = float(retry_after)
                     else:
                         delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
-                    
+
                     logger.warning(f"Rate limit hit para {document_name}. Esperando {delay:.1f}s...")
                     await asyncio.sleep(delay)
-                    
-                    # Cambiar a modelo más económico si es posible
-                    if attempt >= 1 and route != "direct_ai":
-                        logger.info("Cambiando a gpt-4o-mini para reducir TPM...")
-                        # Forzar modelo económico en siguiente intento
-                        # (necesitaríamos modificar get_model_for_task o usar override)
                     continue  # Reintentar
-                
+
+                # Para errores de conexión/timeouts, reintentar con backoff moderado
+                if isinstance(e, (httpx.RequestError, asyncio.TimeoutError)) or "connection error" in str(e).lower():
+                    delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"Connection issue para {document_name}. Reintentando en {delay:.1f}s... ({e})")
+                    await asyncio.sleep(delay)
+                    continue
+
                 # Para errores 500+, reintentar con backoff
                 if error_code and error_code >= 500:
                     delay = base_delay * (2 ** attempt)
@@ -386,7 +457,7 @@ class AIFieldExtractor:
                 # Para otros errores en el último intento
                 if attempt == max_retries - 1:
                     logger.error(f"Fallo tras {max_retries} intentos para {document_name}: {e}")
-                    return DocumentExtraction(
+                    extraction = DocumentExtraction(
                         source_document=document_name,
                         document_type=document_type or "otro",
                         extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
@@ -396,13 +467,22 @@ class AIFieldExtractor:
                             "route_used": route or "ocr_text",
                         },
                     )
+                    if ocr_text_snippet:
+                        try:
+                            snippet = (ocr_text_snippet or "")[:8000]
+                            metadata = extraction.extraction_metadata
+                            metadata.setdefault("raw_text_snippet", snippet)
+                            metadata.setdefault("raw_text", snippet)
+                        except Exception:
+                            logger.debug("No se pudo adjuntar raw_text_snippet", exc_info=True)
+                    return extraction
                 
                 # Reintentar otros errores
                 await asyncio.sleep(base_delay * (2 ** attempt))
         
         # Si llegamos aquí, fallaron todos los intentos
         logger.error(f"No se pudo procesar {document_name} tras {max_retries} intentos")
-        return DocumentExtraction(
+        extraction = DocumentExtraction(
             source_document=document_name,
             document_type=document_type or "otro",
             extracted_fields={field: None for field in self.config.REQUIRED_FIELDS},
@@ -411,6 +491,15 @@ class AIFieldExtractor:
                 "route_used": route or "ocr_text",
             },
         )
+        if ocr_text_snippet:
+            try:
+                snippet = (ocr_text_snippet or "")[:8000]
+                metadata = extraction.extraction_metadata
+                metadata.setdefault("raw_text_snippet", snippet)
+                metadata.setdefault("raw_text", snippet)
+            except Exception:
+                logger.debug("No se pudo adjuntar raw_text_snippet", exc_info=True)
+        return extraction
 
     # -------------------------------
     # Helpers de pre/post-procesado
@@ -420,15 +509,17 @@ class AIFieldExtractor:
         """
         Prepara y limpia el contenido del OCR/Parser para la IA.
         """
+        raw_text = ocr_result.get("text") or ""
+        max_length = 6000
+
         prepared = {
-            # Reducir la longitud para bajar TPM
-            "text": (ocr_result.get("text") or "")[:3000],
+            "text": raw_text[:max_length],
             "key_value_pairs": ocr_result.get("key_value_pairs") or {},
             "tables": self._simplify_tables(ocr_result.get("tables") or []),
         }
 
-        if len(prepared["text"]) > 2500:
-            prepared["text"] = self._extract_relevant_sections(prepared["text"])
+        if len(raw_text) > max_length:
+            prepared["text"] = self._extract_relevant_sections(raw_text, max_items=max_length)
 
         return prepared
 
@@ -446,7 +537,7 @@ class AIFieldExtractor:
             )
         return simplified
 
-    def _extract_relevant_sections(self, text: str) -> str:
+    def _extract_relevant_sections(self, text: str, *, max_items: int = 6000) -> str:
         """
         Extrae secciones relevantes del texto basándose en palabras clave.
         """
@@ -464,22 +555,32 @@ class AIFieldExtractor:
         ]
         lines = text.split("\n")
         relevant = [ln for ln in lines if any(kw in ln.lower() for kw in keywords)]
-        if len(relevant) > 10:
-            return "\n".join(relevant[:120])
-        return "\n".join(lines[:120])
 
-    def _supports_temperature(self, model: str) -> bool:
-        """Algunos modelos gpt-5 no aceptan temperature distinto al default."""
-        return not (model or "").startswith("gpt-5")
+        selected_lines: List[str]
+        if relevant:
+            selected_lines = relevant[:200]
+        else:
+            selected_lines = lines[:200]
 
-    async def _chat_with_retry(self, *, model: str, messages: List[Dict[str, Any]], max_tokens: int = 2000) -> Any:
+        snippet = "\n".join(selected_lines)
+        return snippet[:max_items]
+
+    async def _chat_with_retry(
+        self,
+        *,
+        model: str,
+        messages: List[Dict[str, Any]],
+        max_tokens: int = 2000,
+        temperature: Optional[float] = None,
+        top_p: Optional[float] = None,
+        max_retries: int = 3,
+        timeout: Optional[int] = None,
+    ) -> Any:
         """
         Llamada a chat.completions con backoff y compatibilidad de parámetros.
-        - Omite temperature para modelos gpt-5 (evita 400 unsupported_value)
         - Reintenta 429/5xx con backoff exponencial + jitter
         - No reintenta 400 invalid_request
         """
-        max_retries = 3
         base_delay = 2
         for attempt in range(max_retries):
             try:
@@ -488,8 +589,15 @@ class AIFieldExtractor:
                     "messages": messages,
                     "max_completion_tokens": max_tokens,
                 }
-                if self._supports_temperature(model):
-                    kwargs["temperature"] = self.config.OPENAI_CONFIG.get("temperature", 0.1)
+                sampling_overrides = MODEL_SAMPLING_CONFIG.get(model, {})
+                temp_override = sampling_overrides.get("temperature", temperature)
+                top_p_override = sampling_overrides.get("top_p", top_p)
+                if temp_override is not None and self._supports_custom_sampling(model):
+                    kwargs["temperature"] = temp_override
+                if top_p_override is not None and self._supports_custom_sampling(model):
+                    kwargs["top_p"] = top_p_override
+                if timeout is not None:
+                    kwargs["timeout"] = timeout
                 # Llamada
                 return await self.client.chat.completions.create(**kwargs)
             except Exception as e:
@@ -503,6 +611,12 @@ class AIFieldExtractor:
                 if code == 429 or "rate limit" in msg:
                     delay = base_delay * (2 ** attempt) + (0.5)
                     logger.warning(f"Rate limit 429, esperando {delay:.1f}s...")
+                    await asyncio.sleep(delay)
+                    continue
+                # Errores de conexión/timeouts → reintentar
+                if isinstance(e, (httpx.RequestError, asyncio.TimeoutError)) or "connection error" in msg:
+                    delay = base_delay * (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(f"Connection error en chat, reintento en {delay:.1f}s ({e})")
                     await asyncio.sleep(delay)
                     continue
                 # 5xx backoff
@@ -812,7 +926,7 @@ Responde SOLO con el JSON de los campos extraídos.
         if document_type not in self.field_mapping:
             logger.info(f"No hay restricciones de campos para tipo: {document_type}")
             return extraction
-        
+
         # Obtener campos permitidos
         allowed_fields = set(self.field_mapping[document_type])
         
@@ -837,6 +951,12 @@ Responde SOLO con el JSON de los campos extraídos.
         extraction.extraction_metadata["allowed_fields"] = list(allowed_fields)
         
         return extraction
+
+    def _get_allowed_fields(self, document_type: Optional[str]) -> Optional[set[str]]:
+        if not document_type:
+            return None
+        allowed = self.field_mapping.get(document_type)
+        return set(allowed or []) if allowed is not None else None
     
     async def extract_from_document_guided(
         self,
@@ -844,128 +964,216 @@ Responde SOLO con el JSON de los campos extraídos.
         document_name: str,
         document_type: str,
         route: str = "ocr_text",
-        model: str = None,
-        use_cache: bool = True
+        model: Optional[str] = None,
+        use_cache: bool = True,
+        allow_escalation: bool = True,
     ) -> DocumentExtraction:
-        """
-        Extracción guiada con doble ruta y validación estricta
-        
-        Args:
-            content: OCR dict, bytes de imagen, o Path al archivo
-            document_name: Nombre del documento
-            document_type: Tipo detectado (informe_preliminar_del_ajustador, etc.)
-            route: "direct_ai" o "ocr_text"
-            model: Modelo a usar (si None, usa el default)
-        """
-        from pathlib import Path
-        
-        # Usar modelo default si no se especifica
-        if model is None:
-            model = get_model_for_task("extraction", route)
-        
-        # Cache key considerando la ruta y tipo
-        cache_key = f"{document_name}_{document_type}_{route}"
+        """Extracción guiada con validaciones y escalación opcional."""
+
+        route_value = route.value if hasattr(route, "value") else (route or "ocr_text")
+        selected_model = model or get_model_for_task("extraction", route_value, complexity="normal")
+        cache_key = f"{document_name}_{document_type}_{route_value}_{selected_model}"
+
+        result: Optional[DocumentExtraction] = None
         if use_cache and cache_key in self.extraction_cache:
-            logger.info(f"Usando cache de extracción guiada para {document_name}")
-            return self.extraction_cache[cache_key]
-        
-        logger.info(
-            f"Extracción guiada iniciada:\n"
-            f"  Documento: {document_name}\n"
-            f"  Tipo: {document_type}\n"
-            f"  Ruta: {route}\n"
-            f"  Modelo: {model}"
-        )
-        if (self.policy_context or "") == "HDI_EN_MI_CASA":
-            logger.info("HDI_EXTRACTION: contexto activo para extracción guiada")
-        
-        # 1. Obtener campos permitidos para este documento (con ajuste por contexto HDI)
-        allowed_fields = list(self.field_mapping.get(document_type, []) or [])
-        if (self.policy_context or "") == "HDI_EN_MI_CASA" and document_type == "poliza_de_la_aseguradora":
-            # Permitir 'lugar_hechos' desde póliza específicamente para HDI
-            if "lugar_hechos" not in allowed_fields:
-                allowed_fields.append("lugar_hechos")
-        
-        if not allowed_fields:
-            logger.warning(
-                f"Documento tipo '{document_type}' no tiene campos permitidos. "
-                f"Retornando todos los campos como null."
+            logger.info(f"Usando cache de extracción guiada para {document_name} ({selected_model})")
+            result = self.extraction_cache[cache_key]
+
+        if result is None:
+            logger.info(
+                "Extracción guiada iniciada:\n"
+                f"  Documento: {document_name}\n"
+                f"  Tipo: {document_type}\n"
+                f"  Ruta: {route_value}\n"
+                f"  Modelo: {selected_model}"
             )
-            return self._create_null_extraction(document_name, document_type)
-        
-        # 2. Construir prompt con guía (inyectar contexto si aplica)
-        prompt = self.prompt_builder.build_guided_extraction_prompt(
-            document_name=document_name,
-            document_type=document_type,
-            content=content if route == "ocr_text" else None,
-            route=route,
-            policy_type=self.policy_context
-        )
-        
-        # 3. Ejecutar extracción según ruta
-        try:
-            if route == "direct_ai":
-                raw_extraction = await self._extract_direct_ai(
-                    content=content,
-                    prompt=prompt,
-                    model=model
+            if (self.policy_context or "") == "HDI_EN_MI_CASA":
+                logger.info("HDI_EXTRACTION: contexto activo para extracción guiada")
+
+            allowed_fields = list(self.field_mapping.get(document_type, []) or [])
+            if (self.policy_context or "") == "HDI_EN_MI_CASA" and document_type == "poliza_de_la_aseguradora":
+                if "lugar_hechos" not in allowed_fields:
+                    allowed_fields.append("lugar_hechos")
+
+            if not allowed_fields:
+                logger.warning(
+                    "Documento tipo '%s' no tiene campos permitidos; devolviendo extracción nula",
+                    document_type,
                 )
-            else:
-                raw_extraction = await self._extract_ocr_text(
-                    prompt=prompt,
-                    model=model,
-                    ocr_content=content
-                )
-        except Exception as e:
-            logger.error(f"Error en extracción: {e}")
-            raw_extraction = {}
-        
-        # 4. Aplicar máscara y validaciones
-        extraction = self._apply_field_mask_dict(raw_extraction, allowed_fields)
-        # Configurar validador con contexto si aplica (HDI)
-        if self.policy_context:
+                return self._create_null_extraction(document_name, document_type)
+
+            prompt = self.prompt_builder.build_guided_extraction_prompt(
+                document_name=document_name,
+                document_type=document_type,
+                content=content if route_value == "ocr_text" else None,
+                route=route_value,
+                policy_type=self.policy_context,
+            )
+
             try:
-                self.validator.set_policy_type(self.policy_context)
+                if route_value == "direct_ai":
+                    raw_extraction = await self._extract_direct_ai(
+                        content=content,
+                        prompt=prompt,
+                        model=selected_model,
+                        document_name=document_name,
+                        route=route_value,
+                    )
+                else:
+                    raw_extraction = await self._extract_ocr_text(
+                        prompt=prompt,
+                        model=selected_model,
+                        document_name=document_name,
+                        route=route_value,
+                        ocr_content=content,
+                    )
+            except Exception as exc:
+                logger.error("Error en extracción: %s", exc)
+                raw_extraction = {}
+
+            sanitized = self._apply_field_mask_dict(raw_extraction, allowed_fields)
+            if self.policy_context:
+                try:
+                    self.validator.set_policy_type(self.policy_context)
+                except Exception:
+                    pass
+            sanitized = self._validate_and_transform_dict(sanitized, document_type)
+
+            result = DocumentExtraction(
+                source_document=document_name,
+                document_type=document_type,
+                extracted_fields=sanitized,
+                extraction_metadata={
+                    "route": route_value,
+                    "model_used": selected_model,
+                    "guide_applied": True,
+                    "allowed_fields": allowed_fields,
+                    "timestamp": datetime.now().isoformat(),
+                },
+            )
+
+            if isinstance(content, dict):
+                try:
+                    snippet = (content.get("text") or "")[:4000]
+                    if snippet:
+                        meta = result.extraction_metadata
+                        meta.setdefault("raw_text_snippet", snippet)
+                        meta.setdefault("raw_text", snippet)
+                except Exception:
+                    logger.debug("No se pudo adjuntar raw_text_snippet en modo guiado", exc_info=True)
+
+            self._record_model_attempt(result, selected_model)
+
+            try:
+                if (
+                    (self.policy_context or "") == "HDI_EN_MI_CASA"
+                    and document_type == "informe_final_del_ajustador"
+                    and (result.extracted_fields.get("tipo_siniestro") in (None, "", "N/A"))
+                    and isinstance(content, dict)
+                ):
+                    text = (content.get("text") or "")
+                    inferred = self._fallback_tipo_siniestro(text)
+                    if inferred:
+                        result.extracted_fields["tipo_siniestro"] = inferred
+                        result.extraction_metadata["fallback_tipo_siniestro"] = True
+                        logger.info("TIPO_SINIESTRO_FALLBACK: '%s'", inferred)
+            except Exception as exc:
+                logger.warning("Fallback tipo_siniestro falló: %s", exc)
+
+        final_result = result
+
+        allowed_field_set = set(allowed_fields or []) if allowed_fields else None
+
+        if final_result and use_cache:
+            self.extraction_cache[cache_key] = final_result
+
+        return final_result
+
+    @staticmethod
+    def _supports_custom_sampling(model_name: Optional[str]) -> bool:
+        """Todos los modelos actuales soportan temperature/top_p."""
+        return True
+
+    @staticmethod
+    def _stringify_message_content(message: Any) -> str:
+        """Devuelve contenido textual utilizable desde un mensaje de OpenAI."""
+        raw_content = (getattr(message, "content", None) or "").strip()
+        if raw_content:
+            return raw_content
+        if hasattr(message, "parsed") and message.parsed is not None:
+            try:
+                return json.dumps(message.parsed, ensure_ascii=False)
             except Exception:
-                pass
-        extraction = self._validate_and_transform_dict(extraction, document_type)
-        
-        # 5. Crear resultado
-        result = DocumentExtraction(
-            source_document=document_name,
-            document_type=document_type,
-            extracted_fields=extraction,
-            extraction_metadata={
-                "route": route,
-                "model_used": model,
-                "guide_applied": True,
-                "allowed_fields": allowed_fields,
-                "timestamp": datetime.now().isoformat()
-            }
-        )
-        
-        # 5.1 Fallback específico: tipo_siniestro en Informe Final (HDI)
+                return ""
+        return ""
+
+    def _parse_json_payload(
+        self,
+        content: str,
+        *,
+        document_name: str,
+        model_name: str,
+        route: Optional[str],
+    ) -> Dict[str, Any]:
+        """Intenta parsear JSON robustamente y reporta fallos con contexto útil."""
+        cleaned = (content or "").strip()
+        if not cleaned:
+            logger.error(
+                "❌ Respuesta vacía del modelo %s para %s (ruta %s)",
+                model_name,
+                document_name,
+                route or "ocr_text",
+            )
+            return {}
+
+        if cleaned.startswith("```"):
+            cleaned = cleaned.strip("`")
+            newline_pos = cleaned.find("\n")
+            if newline_pos != -1:
+                fence_header = cleaned[:newline_pos].lower()
+                if fence_header.startswith("json"):
+                    cleaned = cleaned[newline_pos + 1 :]
+            brace_pos = cleaned.find("{")
+            if brace_pos != -1:
+                cleaned = cleaned[brace_pos:]
+            cleaned = cleaned.rstrip("`")
+
         try:
-            if (
-                (self.policy_context or "") == "HDI_EN_MI_CASA"
-                and document_type == "informe_final_del_ajustador"
-                and (result.extracted_fields.get("tipo_siniestro") in (None, "", "N/A"))
-                and isinstance(content, dict)
-            ):
-                text = (content.get("text") or "")
-                inferred = self._fallback_tipo_siniestro(text)
-                if inferred:
-                    result.extracted_fields["tipo_siniestro"] = inferred
-                    result.extraction_metadata["fallback_tipo_siniestro"] = True
-                    logger.info(f"TIPO_SINIESTRO_FALLBACK: '{inferred}'")
-        except Exception as e:
-            logger.warning(f"Fallback tipo_siniestro falló: {e}")
-        
-        # Guardar en cache
-        if use_cache:
-            self.extraction_cache[cache_key] = result
-        
-        return result
+            parsed = json.loads(cleaned)
+        except Exception as exc:  # noqa: BLE001 - queremos detalles
+            logger.error(
+                "❌ No se pudo parsear JSON para %s: %s",
+                document_name,
+                exc,
+            )
+            logger.error("📄 Contenido (primeros 500 chars): %s", cleaned[:500])
+            logger.error("📄 Contenido (últimos 200 chars): %s", cleaned[-200:])
+            logger.error("🔧 Modelo: %s | Ruta: %s", model_name, route or "ocr_text")
+            return {}
+
+        if not isinstance(parsed, dict):
+            logger.error(
+                "❌ Respuesta del modelo %s no es un objeto JSON para %s (ruta %s)",
+                model_name,
+                document_name,
+                route or "ocr_text",
+            )
+            return {}
+
+        return parsed
+
+    def _record_model_attempt(
+        self,
+        extraction: DocumentExtraction,
+        model_name: str,
+    ) -> None:
+        """Mantiene trazabilidad de modelos utilizados o intentados."""
+        if not extraction.extraction_metadata:
+            extraction.extraction_metadata = {}
+        attempted: List[str] = list(extraction.extraction_metadata.get("models_attempted") or [])
+        if model_name and model_name not in attempted:
+            attempted.append(model_name)
+        extraction.extraction_metadata["models_attempted"] = attempted
 
     def _fallback_tipo_siniestro(self, text: str) -> Optional[str]:
         """
@@ -1004,17 +1212,20 @@ Responde SOLO con el JSON de los campos extraídos.
         return None
     
     async def _extract_direct_ai(
-        self, 
+        self,
+        *,
         content: Union[bytes, Path],
         prompt: str,
-        model: str
+        model: str,
+        document_name: str,
+        route: str,
     ) -> Dict[str, Any]:
         """
-        Extracción usando visión directa con GPT-4V
+        Extracción usando visión directa con modelos multimodales GPT-5.
         """
         from pathlib import Path
         logger.info(f"Iniciando extracción Direct AI con modelo {model}")
-        
+
         # Preparar imagen
         if isinstance(content, Path):
             with open(content, 'rb') as f:
@@ -1043,11 +1254,27 @@ Responde SOLO con el JSON de los campos extraídos.
                     ]
                 }
             ]
-            response = await self._chat_with_retry(model=model, messages=messages, max_tokens=2000)
-            
-            # Parsear respuesta
-            content = response.choices[0].message.content or "{}"
-            result = json.loads(content)
+            params = self.config.get_openai_params("extraction", escalated=model.endswith("thinking"))
+            supports_sampling = self._supports_custom_sampling(model)
+            response = await self._chat_with_retry(
+                model=model,
+                messages=messages,
+                max_tokens=params.get("max_completion_tokens", 2000),
+                temperature=params.get("temperature") if supports_sampling else None,
+                top_p=params.get("top_p") if supports_sampling else None,
+                max_retries=int(params.get("max_retries", 3)),
+                timeout=params.get("timeout"),
+            )
+
+            # Parsear respuesta manualmente
+            message = response.choices[0].message if response and response.choices else None
+            raw_content = self._stringify_message_content(message) if message else ""
+            result = self._parse_json_payload(
+                raw_content,
+                document_name=document_name,
+                model_name=model,
+                route=route,
+            )
             logger.info(f"Direct AI extracción exitosa")
             return result
             
@@ -1056,24 +1283,43 @@ Responde SOLO con el JSON de los campos extraídos.
             return {}
     
     async def _extract_ocr_text(
-        self, 
+        self,
+        *,
         prompt: str,
         model: str,
-        ocr_content: Optional[Dict] = None
+        document_name: str,
+        route: str,
+        ocr_content: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Extracción usando OCR + texto con IA
         """
         logger.info(f"Iniciando extracción OCR + texto con modelo {model}")
-        
+
         try:
             # Llamada a la API (usa helper con compatibilidad de temperature)
             messages = [{"role": "user", "content": prompt}]
-            response = await self._chat_with_retry(model=model, messages=messages, max_tokens=2000)
-            
-            # Parsear respuesta
-            content = response.choices[0].message.content or "{}"
-            result = json.loads(content)
+            params = self.config.get_openai_params("extraction", escalated=model.endswith("thinking"))
+            supports_sampling = self._supports_custom_sampling(model)
+            response = await self._chat_with_retry(
+                model=model,
+                messages=messages,
+                max_tokens=params.get("max_completion_tokens", 2000),
+                temperature=params.get("temperature") if supports_sampling else None,
+                top_p=params.get("top_p") if supports_sampling else None,
+                max_retries=int(params.get("max_retries", 3)),
+                timeout=params.get("timeout"),
+            )
+
+            # Parsear respuesta manualmente
+            message = response.choices[0].message if response and response.choices else None
+            raw_content = self._stringify_message_content(message) if message else ""
+            result = self._parse_json_payload(
+                raw_content,
+                document_name=document_name,
+                model_name=model,
+                route=route,
+            )
             logger.info(f"OCR + texto extracción exitosa")
             return result
             

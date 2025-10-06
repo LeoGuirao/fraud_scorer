@@ -35,7 +35,7 @@ class ClassifierEngine:
         api_key: Optional[str] = None,
         base_classifier: Optional[Any] = None,
     ) -> None:
-        self.model_name = model_name or "gpt-4o-mini"
+        self.model_name = model_name or "gpt-5-mini"
         self.base_classifier = base_classifier  # Para fallback heurístico y definiciones
 
         try:
@@ -93,7 +93,7 @@ Responde SOLO con JSON válido:
             raise RuntimeError("Cliente OpenAI no disponible")
 
         from fraud_scorer.settings import CLASSIFICATION_CONFIG
-        model = self.model_name or CLASSIFICATION_CONFIG.get("llm_model", "gpt-4o-mini")
+        model = self.model_name or CLASSIFICATION_CONFIG.get("llm_model", "gpt-5-mini")
         temperature = float(CLASSIFICATION_CONFIG.get("llm_temperature", 0.1))
         max_tokens = int(CLASSIFICATION_CONFIG.get("llm_max_completion_tokens", 200))
 
@@ -178,7 +178,11 @@ Responde SOLO con JSON válido:
 
         # Usar el mismo modelo textual (4o-mini/4o) para visión multimodal
         from fraud_scorer.settings import CLASSIFICATION_CONFIG
-        model = self.model_name or CLASSIFICATION_CONFIG.get("llm_model", "gpt-4o-mini")
+        model = self.model_name or CLASSIFICATION_CONFIG.get("llm_model", "gpt-5-mini")
+        if parts and "vision" not in model:
+            # Asegurar compatibilidad con entradas multimodales
+            from fraud_scorer.settings import ModelType
+            model = ModelType.GPT5.value
         temperature = float(CLASSIFICATION_CONFIG.get("llm_temperature", 0.1))
 
         response = await self.client.chat.completions.create(
@@ -243,4 +247,3 @@ Responde SOLO con JSON válido:
             except Exception as e:
                 logger.error(f"Heurística también falló: {e}")
         return "otro", 0.0, ["No se pudo clasificar"]
-

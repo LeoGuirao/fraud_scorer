@@ -51,7 +51,7 @@ AZURE_OCR_KEY=tu-clave-azure
 
 # OpenAI
 OPENAI_API_KEY=sk-tu-api-key
-OPENAI_MODEL=gpt-4o-mini
+OPENAI_MODEL=gpt-5
 
 # Base de datos
 POSTGRES_USER=fraud_user
@@ -120,7 +120,7 @@ fraud_scorer/
 │   ├── parsers/          # Procesamiento de documentos
 │   ├── processors/       
 │   │   ├── ocr/          # Azure OCR
-│   │   └── ai/           # GPT-4 extractors
+│   │   └── ai/           # GPT-5 extractors
 │   ├── storage/          # Cache y base de datos
 │   ├── templates/        # Generación de reportes
 │   ├── analyzers/
@@ -135,7 +135,7 @@ fraud_scorer/
 ### Flujo de Procesamiento
 1. 📄 **Ingesta** → Carga de documentos  
 2. 🔍 **OCR** → Extracción de texto  
-3. 🧠 **Extracción IA** → GPT-4 identifica campos clave  
+3. 🧠 **Extracción IA** → GPT-5 identifica campos clave  
 4. 🔄 **Consolidación** → Resolución de conflictos  
 5. 📊 **Reporte** → Informe HTML/PDF  
 
@@ -143,9 +143,10 @@ fraud_scorer/
 
 ## 🔧 Configuración Avanzada
 ### Modelos IA
-- `gpt-4o`: Precisión máxima  
-- `gpt-4o-mini`: Más rápido y económico  
-- `gpt-3.5-turbo`: Legacy (no recomendado)  
+- `gpt-5`: Precisión máxima (default)  
+- `gpt-5-thinking`: Escalación para casos complejos  
+- `gpt-5-mini`: Balance costo/velocidad  
+- `gpt-5-vision`: Documentos escaneados o con poco texto  
 
 ### Clasificación con visión (opcional)
 - Pipeline (`run_report.py`) puede usar visión para PDF/imagenes si `CLASSIFICATION_ENGINE.use_vision=true` en `src/fraud_scorer/settings.py`.

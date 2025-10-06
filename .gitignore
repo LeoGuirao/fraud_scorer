@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .dist-info/
+.pytest_cache/
 
 # Envs
 .env
@@ -43,8 +44,10 @@ data/**
 # Carpetas y documentos ignorados por solicitud
 mcp-server/
 real_cases/
-GUIA_CREACION_GUIAS_FRAUDE.md
-GUIA_IMPLEMENTACION_SISTEMA_FRAUDES.md
-GUIA_NUEVAS_CATEGORIAS.md
-FIGMA_MCP_SETUP.md
-GUIA_IMPLEMENTACION_ANALISIS_INDIVIDUAL_DOCUMENTOS.md
+vision/
+tests/
+
+# Ignorar todos los .md en la raíz salvo README.md y BETTER_PRACTICES.md
+/*.md
+!/README.md
+!/BETTER_PRACTICES.md

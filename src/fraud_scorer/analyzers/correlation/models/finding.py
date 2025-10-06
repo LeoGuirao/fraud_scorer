@@ -12,6 +12,8 @@ from fraud_scorer.models.extraction import BaseModelCompat
 class FindingStatus(str, Enum):
     PASS = "pass"
     FAIL = "fail"
+    INSUFFICIENT_DATA = "insufficient_data"
+    NOT_APPLICABLE = "not_applicable"
     NEEDS_CONTEXT = "needs_context"
 
 

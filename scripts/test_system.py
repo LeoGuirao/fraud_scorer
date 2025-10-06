@@ -119,7 +119,7 @@ async def test_openai_connection():
         from openai import AsyncOpenAI
         client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"), max_retries=1, timeout=10)
         await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-5",
             messages=[{"role": "user", "content": "Test"}],
             max_tokens=5,
         )

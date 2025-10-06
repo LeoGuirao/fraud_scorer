@@ -70,6 +70,13 @@ class RickVectorStoreManager:
             original_batch = docs[start:end]
             original_ids = [self._build_document_id(case_id, doc) for doc in original_batch]
 
+            for doc, doc_id in zip(original_batch, original_ids):
+                if not isinstance(doc.metadata, dict):
+                    doc.metadata = {}
+                else:
+                    doc.metadata = dict(doc.metadata)
+                doc.metadata.setdefault("vector_id", doc_id)
+
             batch, ids = self._filter_new_records(store, original_batch, original_ids)
 
             if not ids:

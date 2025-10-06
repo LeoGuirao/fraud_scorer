@@ -24,6 +24,15 @@ class FraudIndicator(BaseModel):
     location: Optional[Dict[str, Any]] = None  # página, bbox, sección, etc.
 
 
+class EvidenceGap(BaseModel):
+    gap: str
+    impact: Optional[str] = None
+    priority: Optional[str] = Field(default=None, description="alta | media | baja")
+    suggested_action: Optional[str] = None
+    missing_documents: List[str] = Field(default_factory=list)
+    follow_up_questions: List[str] = Field(default_factory=list)
+
+
 class FraudAnalysisResult(BaseModel):
     # Identificación
     document_id: str
@@ -47,6 +56,7 @@ class FraudAnalysisResult(BaseModel):
     # Detalles estructurados
     indicators: List[FraudIndicator] = Field(default_factory=list)
     evidence: List[str] = Field(default_factory=list)
+    evidence_gaps: List[EvidenceGap] = Field(default_factory=list)
     recommendations: List[str] = Field(default_factory=list)
 
     # Metadata
@@ -71,6 +81,17 @@ class FraudAnalysisResult(BaseModel):
             raise ValueError(f"Score {score} fuera de rango para riesgo alto (0.60–0.84)")
         if risk == RiskLevel.CRITICO and score < 0.85:
             raise ValueError(f"Score {score} muy bajo para riesgo crítico (>= 0.85)")
+
+        # Normalización defensiva de evidence_gaps
+        normalized_gaps: List[EvidenceGap] = []
+        for item in self.evidence_gaps:
+            if isinstance(item, EvidenceGap):
+                normalized_gaps.append(item)
+            elif isinstance(item, dict):
+                normalized_gaps.append(EvidenceGap(**item))
+            elif isinstance(item, str):
+                normalized_gaps.append(EvidenceGap(gap=item))
+        self.evidence_gaps = normalized_gaps
         return self
 
 

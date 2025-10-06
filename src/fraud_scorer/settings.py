@@ -6,24 +6,32 @@ Incluye mapeos de documentos y guías de extracción
 """
 import os
 from enum import Enum
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 from pathlib import Path
+
+
+MODEL_SAMPLING_CONFIG: Dict[str, Dict[str, Optional[float]]] = {
+    "gpt-5-nano": {"temperature": None, "top_p": None},
+    "gpt-5-mini": {"temperature": None, "top_p": None},
+    "gpt-4o": {"temperature": 0.1, "top_p": 0.9},
+    "gpt-4o-mini": {"temperature": 0.1, "top_p": 0.9},
+}
+
+
+def normalize_numero_siniestro(value: Any) -> Optional[str]:
+    """Normaliza el folio de siniestro asegurando 14 dígitos exactos."""
+    digits = ''.join(filter(str.isdigit, str(value or "")))
+    if len(digits) == 14:
+        return digits
+    return None
 
 class ModelType(Enum):
     """Modelos disponibles para cada tarea"""
-    # Modelos para Direct AI (visión)
-    GPT5_VISION = "gpt-5"
-    GPT5_VISION_MINI = "gpt-5-mini"
-    GPT5_VISION_NANO = "gpt-5-nano"
-    
-    # Modelos para texto
+    GPT4O = "gpt-4o"
+    GPT4O_MINI = "gpt-4o-mini"
     GPT5 = "gpt-5"
     GPT5_MINI = "gpt-5-mini"
-    
-    # Fallback (mantener compatibilidad)
-    EXTRACTOR = "gpt-4o-mini"  # Más barato para extracción simple
-    CONSOLIDATOR = "gpt-4o"     # Más potente para razonamiento
-    GENERATOR = "gpt-4o-mini"   # Para generación de reportes
+    GPT5_NANO = "gpt-5-nano"
 
 class ExtractionRoute(Enum):
     """Rutas de procesamiento"""
@@ -62,6 +70,22 @@ class ExtractionConfig:
         "ajuste",
         "conclusiones"
     ]
+
+    # Campos críticos para evaluar escalación en extracción/consolidación
+    CRITICAL_EXTRACTION_FIELDS = {
+        "suma_asegurada",
+        "monto_reclamacion",
+        "tipo_siniestro",
+    }
+    HIGH_RISK_CONSOLIDATION_FIELDS = {
+        "suma_asegurada",
+        "monto_reclamacion",
+        "ajuste",
+        "nombre_asegurado",
+        "fecha_reclamacion",
+        "tipo_siniestro",
+    }
+    CONSOLIDATION_CONFIDENCE_THRESHOLD = 0.65
     
     # ========== NUEVA SECCIÓN: GUÍAS DE EXTRACCIÓN ==========
     
@@ -81,6 +105,7 @@ class ExtractionConfig:
             "numero_siniestro",
             "nombre_asegurado",
             "bien_reclamado",
+            "monto_reclamacion",
             "fecha_ocurrencia",
             "fecha_reclamacion",
             "lugar_hechos",
@@ -95,7 +120,10 @@ class ExtractionConfig:
             "nombre_asegurado",
             "vigencia_inicio",
             "vigencia_fin",
-            "domicilio_poliza"
+            "domicilio_poliza",
+            "suma_asegurada",
+            "coberturas",
+            "deducible",
         ],
         "expediente_de_cobranza": [
             "numero_poliza",
@@ -119,13 +147,19 @@ class ExtractionConfig:
             "numero_siniestro",
             "tipo_siniestro",
             "fecha_ocurrencia",
-            "lugar_hechos"
+            "lugar_hechos",
+            "fecha_apertura",
+            "placas",
+            "vin",
         ],
         "denuncia_de_los_hechos": [
             "numero_siniestro",
             "tipo_siniestro",
             "fecha_ocurrencia",
-            "lugar_hechos"
+            "lugar_hechos",
+            "fecha_denuncia",
+            "placas",
+            "vin",
         ],
         "acreditacion_de_propiedad_y_representacion": [],
         "narracion_de_hechos": ["tipo_siniestro"],
@@ -134,14 +168,34 @@ class ExtractionConfig:
         # Documentos de transporte
         "guias_y_facturas": [
             "bien_reclamado",
-            "monto_reclamacion"
+            "monto_reclamacion",
+            "monto_total",
+            "fecha_emision",
+            "valor_mercancia",
         ],
-        "guias_y_facturas_consolidadas": [],
+        "guias_y_facturas_consolidadas": [
+            "monto_total",
+            "valor_mercancia",
+        ],
         "salida_de_almacen": [
             "bien_reclamado",
             "monto_reclamacion"
         ],
-        "carta_porte": [],
+        "carta_porte": [
+            "uuid_fiscal",
+            "fecha_emision",
+            "fecha_timbrado",
+            "placas",
+            "vin",
+            "operador_nombre",
+            "licencia_operador",
+            "peso_bruto",
+            "valor_mercancia",
+            "monto_total",
+            "ruta_planeada",
+            "origen",
+            "destino",
+        ],
         
         # Documentos vehiculares
         "tarjeta_de_circulacion_vehiculo": [],
@@ -154,7 +208,11 @@ class ExtractionConfig:
             "lugar_hechos",
             "tipo_siniestro"
         ],
-        "reporte_gps": [],
+        "reporte_gps": [
+            "fecha_inicio",
+            "fecha_fin",
+            "trayecto",
+        ],
 
         # Otros
         "otro": []  # Documentos no reconocidos no pueden proveer campos
@@ -175,24 +233,61 @@ class ExtractionConfig:
         "dictamen_tecnico": [],
         "comprobante_de_domicilio": [],
         # Tipos adicionales solicitados (no aportan cabecera)
-        "cfdi_carta_porte": [],
+        "cfdi_carta_porte": DOCUMENT_FIELD_MAPPING["carta_porte"],
         "constancia_imss_del_operador": [],
-        "factura_comercial_cfdi": [],
+        "factura_comercial_cfdi": [
+            "numero_factura",
+            "monto_total",
+            "valor_mercancia",
+            "fecha_emision",
+            "moneda",
+        ],
         "pedido_por_correo": [],
         "reporte_de_costos_y_rendimientos": [],
-        "facturas_comerciales_internacionales": [],
-        "pedimento_importacion": [],
-        "pedimentos_aduanales": [],
-        "protocolo_de_accion_y_reaccion": [],
-        "conocimiento_de_embarque": [],
-        "contrato_prestacion_servicio_transportista": [],
+        "facturas_comerciales_internacionales": [
+            "numero_factura",
+            "monto_total",
+            "valor_mercancia",
+            "fecha_emision",
+            "moneda",
+        ],
+        "pedimento_importacion": [
+            "numero_pedimento",
+            "fecha_emision",
+            "valor_mercancia",
+        ],
+        "pedimentos_aduanales": [
+            "numero_pedimento",
+            "fecha_emision",
+            "valor_mercancia",
+        ],
+        "protocolo_de_accion_y_reaccion": [
+            "tipo_siniestro",
+            "lugar_hechos"
+        ],
+        "conocimiento_de_embarque": [
+            "bien_reclamado",
+            "valor_mercancia",
+            "monto_reclamacion"
+        ],
+        "contrato_prestacion_servicio_transportista": [
+            "nombre_asegurado",
+            "domicilio_poliza",
+            "tipo_siniestro"
+        ],
         "oficio_de_desaduanado": [],
-        "oficio_denuncia": [],
+        "oficio_denuncia": [
+            "numero_siniestro",
+            "fecha_ocurrencia",
+            "lugar_hechos",
+            "tipo_siniestro"
+        ],
         "carta_aclatoria_comprobantes_peaje": [],
-        "carta_porte_simple": [],
+        "carta_porte_simple": DOCUMENT_FIELD_MAPPING["carta_porte"],
         "declaracion_universal_de_accidente": [],
         "ficha_tecnica_de_vehiculo": [],
         "determinacion_de_perdida": [],
+        "reporte_gps": DOCUMENT_FIELD_MAPPING["reporte_gps"],
     })
 
     # Tipos de documento en los que SÍ se debe ejecutar extracción de campos
@@ -205,6 +300,14 @@ class ExtractionConfig:
         "denuncia_de_los_hechos",
         "narracion_de_hechos",
         "declaracion_del_asegurado",
+        "guias_y_facturas",
+        "facturas_comerciales_internacionales",
+        "factura_comercial_cfdi",
+        "cfdi_carta_porte",
+        "carta_porte",
+        "carta_porte_simple",
+        "reporte_gps",
+        "pedimento_importacion",
     ]
     
     # Sinónimos y etiquetas para búsqueda
@@ -260,7 +363,16 @@ class ExtractionConfig:
         ],
         "ajuste": [
             "Ajustador", "Despacho ajustador", "Empresa ajustadora",
-            "Firma ajustadora", "Ajuste realizado por"
+            "Firma ajustadora", "Ajuste realizado por",
+            "Nombre del ajustador", "Firma de ajustadores",
+            "Compañía ajustadora"
+        ],
+        "suma_asegurada": [
+            "Suma asegurada", "Límite máximo por embarque",
+            "Límite máximo de responsabilidad", "Límite de responsabilidad"
+        ],
+        "conclusiones": [
+            "Conclusión", "Conclusiones", "Resumen de conclusiones"
         ]
     }
     
@@ -269,7 +381,7 @@ class ExtractionConfig:
         "numero_siniestro": {
             "regex": r"^\d{14}$",
             "format": "14 dígitos exactos",
-            "transform": lambda x: ''.join(filter(str.isdigit, str(x)))[:14]
+            "transform": normalize_numero_siniestro
         },
         "nombre_asegurado": {
             "min_length": 3,
@@ -289,8 +401,8 @@ class ExtractionConfig:
             "type": "date"
         },
         "bien_reclamado": {
-            "max_words": 5,
-            "format": "Máximo 5 palabras"
+            "max_words": 20,
+            "format": "Descripción breve del bien sin cantidades"
         },
         "monto_reclamacion": {
             "type": "float",
@@ -304,6 +416,10 @@ class ExtractionConfig:
         "fecha_reclamacion": {
             "format": "DD/MM/YYYY",
             "type": "date"
+        },
+        "lugar_hechos": {
+            "max_length": 200,
+            "format": "Carretera, kilómetro, municipio y estado"
         }
     }
     
@@ -330,7 +446,9 @@ class ExtractionConfig:
             "Riesgos Ordinarios de Tránsito (ROT)",
             "Robo de Bulto por Entero",
             "Riesgos por Maniobras",
-            "Rapiña o Saqueo"
+            "Rapiña o Saqueo",
+            "Robo total",
+            "Robo total del embarque"
         ]
     }
     
@@ -395,9 +513,9 @@ class ExtractionConfig:
         "determinacion_de_perdida": ExtractionRoute.OCR_TEXT,
         
         # AI Directo
-        "poliza_de_la_aseguradora": ExtractionRoute.DIRECT_AI,
-        "informe_preliminar_del_ajustador": ExtractionRoute.DIRECT_AI,
-        "informe_final_del_ajustador": ExtractionRoute.DIRECT_AI,
+        "poliza_de_la_aseguradora": ExtractionRoute.OCR_TEXT,
+        "informe_preliminar_del_ajustador": ExtractionRoute.OCR_TEXT,
+        "informe_final_del_ajustador": ExtractionRoute.OCR_TEXT,
     }
     
     # Mapeo de tipos de documento a prioridades (actualizado)
@@ -430,29 +548,104 @@ class ExtractionConfig:
     
     # Reglas de fuente de datos por campo
     FIELD_SOURCE_RULES = {
-        "numero_siniestro": ["denuncia", "poliza"],
-        "nombre_asegurado": ["poliza", "denuncia"],
+        "numero_siniestro": [
+            "informe_final_del_ajustador",
+            "denuncia",
+            "poliza"
+        ],
+        "nombre_asegurado": [
+            "poliza_de_la_aseguradora",
+            "poliza",
+            "informe_final_del_ajustador",
+            "informe_preliminar_del_ajustador",
+            "denuncia_de_los_hechos",
+            "denuncia"
+        ],
         "numero_poliza": ["poliza", "denuncia"],
         "vigencia_inicio": ["poliza"],
         "vigencia_fin": ["poliza"],
         "domicilio_poliza": ["poliza", "denuncia"],
-        "bien_reclamado": ["denuncia", "factura"],
-        "monto_reclamacion": ["denuncia", "factura", "peritaje"],
-        "tipo_siniestro": ["denuncia", "poliza"],
-        "fecha_ocurrencia": ["denuncia", "peritaje"],
+        "bien_reclamado": [
+            "informe_final_del_ajustador",
+            "denuncia",
+            "factura"
+        ],
+        "monto_reclamacion": [
+            "informe_final_del_ajustador",
+            "carta_de_reclamacion_formal_a_la_aseguradora",
+            "denuncia",
+            "factura",
+            "peritaje"
+        ],
+        "tipo_siniestro": [
+            "informe_final_del_ajustador",
+            "denuncia",
+            "poliza"
+        ],
+        "fecha_ocurrencia": [
+            "informe_final_del_ajustador",
+            "denuncia",
+            "peritaje"
+        ],
         "fecha_reclamacion": ["denuncia"],
-        "lugar_hechos": ["denuncia", "peritaje"],
+        "lugar_hechos": [
+            "informe_final_del_ajustador",
+            "peritaje",
+            "denuncia_de_los_hechos",
+            "denuncia"
+        ],
         "ajuste": ["peritaje"],
         "conclusiones": ["peritaje", "denuncia"]
     }
     
     # Configuración de OpenAI
     OPENAI_CONFIG = {
-        "temperature": 0.1,  # Muy bajo para consistencia
-        "max_completion_tokens": 2000,
-        "timeout": 30,
-        "max_retries": 3
+        "extraction": {
+            "temperature": 0.1,
+            "top_p": 0.2,
+            "max_completion_tokens": 2200,
+            "max_retries": 3,
+            "timeout": 30,
+        },
+        "extraction_escalated": {
+            "temperature": 0.1,
+            "top_p": 0.2,
+            "max_completion_tokens": 2400,
+            "max_retries": 3,
+            "timeout": 45,
+        },
+        "consolidation": {
+            "temperature": 0.05,
+            "top_p": 0.15,
+            "max_completion_tokens": 2000,
+            "max_retries": 3,
+            "timeout": 45,
+        },
+        "consolidation_escalated": {
+            "temperature": 0.05,
+            "top_p": 0.15,
+            "max_completion_tokens": 2600,
+            "max_retries": 4,
+            "timeout": 60,
+        },
+        "generation": {
+            "temperature": 0.2,
+            "top_p": 0.3,
+            "max_completion_tokens": 1400,
+            "max_retries": 2,
+            "timeout": 30,
+        },
     }
+
+    @classmethod
+    def get_openai_params(cls, task: str, escalated: bool = False) -> Dict[str, Any]:
+        """Recupera los parámetros de inferencia para una tarea."""
+        key = f"{task.strip().lower()}"
+        if escalated:
+            key = f"{key}_escalated"
+        params = cls.OPENAI_CONFIG.get(key, {})
+        # Evitar que el sistema comparta referencias mutables
+        return dict(params)
     
     # Rutas
     PROMPTS_DIR = Path(__file__).parent / "prompts"
@@ -574,13 +767,13 @@ class ExtractionConfig:
 
 # Acceso directo para compatibilidad con tests  
 DOCUMENT_PRIORITIES = {
-    "carpeta_de_investigacion": 1,
-    "denuncia_de_los_hechos": 1,
-    "oficio_denuncia": 1,
-    "poliza_de_la_aseguradora": 2,
-    "guias_y_facturas": 3,
-    "informe_preliminar_del_ajustador": 4,
-    "informe_final_del_ajustador": 5,
+    "informe_final_del_ajustador": 1,
+    "informe_preliminar_del_ajustador": 2,
+    "carpeta_de_investigacion": 3,
+    "denuncia_de_los_hechos": 3,
+    "oficio_denuncia": 3,
+    "poliza_de_la_aseguradora": 4,
+    "guias_y_facturas": 5,
     "carta_de_reclamacion_formal_a_la_aseguradora": 6,
     "carta_de_reclamacion_formal_al_transportista": 7,
     "acreditacion_de_propiedad_y_representacion": 8,
@@ -614,9 +807,9 @@ DOCUMENT_PRIORITIES = {
 CLASSIFICATION_CONFIG = {
     "min_confidence_threshold": 0.6,  # Umbral para usar LLM
     "sample_text_length": 1500,       # Caracteres para clasificación
-    "llm_model": "gpt-4o-mini",       # Modelo económico para clasificación
+    "llm_model": "gpt-5-mini",       # Modelo base para clasificación textual
     "llm_temperature": 0.1,           # Baja temperatura para consistencia
-    "llm_max_completion_tokens": 200             # Límite de tokens para respuesta
+    "llm_max_completion_tokens": 200  # Límite de tokens para respuesta
 }
 
 # Configuración del motor de clasificación (engine)
@@ -718,33 +911,33 @@ FILE_NAMING_CONFIG = {
     }
 }
 
-# Función para obtener el modelo óptimo según investigación 2025
-def get_model_for_task(task: str, route: str = "ocr_text") -> str:
-    """
-    Obtiene el modelo óptimo para cada tarea según investigación 2025
-    
+# Función para obtener el modelo óptimo
+def get_model_for_task(task: str, route: str = "ocr_text", complexity: str = "normal") -> str:
+    """Devuelve el modelo recomendado por tarea y complejidad.
+
     Args:
-        task: Tipo de tarea ("extraction", "consolidation", "generation")
-        route: Ruta de procesamiento ("ocr_text" o "direct_ai")
-        
-    Returns:
-        Nombre del modelo óptimo para la tarea
+        task: "extraction", "consolidation" o "generation".
+        route: Ruta de procesamiento ("ocr_text" o "direct_ai").
+        complexity: "normal" para el flujo estándar o "high" cuando se requiere escalación.
     """
-    if task == "extraction":
-        if route == "direct_ai":
-            # Para visión: GPT-5 Mini (95% más económico)
-            return ModelType.GPT5_VISION_MINI.value
-        else:
-            # Para OCR + texto: usar GPT-5 Mini para reducir TPM y costos
-            return ModelType.GPT5_MINI.value
-            
-    elif task == "consolidation":
-        # Para razonamiento complejo: GPT-5 completo
-        return ModelType.GPT5.value
-        
-    elif task == "generation":
-        # Para generación: GPT-5 Mini es eficiente
-        return ModelType.GPT5_MINI.value
-        
-    # Fallback por compatibilidad
-    return ModelType.EXTRACTOR.value
+    if hasattr(route, "value"):
+        route = route.value  # normalizar Enum ExtractionRoute
+
+    normalized_task = (task or "").lower()
+    normalized_route = getattr(route, "value", route) if route else "ocr_text"
+    normalized_complexity = (complexity or "normal").lower()
+
+    if normalized_task == "extraction":
+        if normalized_route == "direct_ai":
+            return ModelType.GPT4O.value
+        return ModelType.GPT4O_MINI.value
+
+    if normalized_task == "consolidation":
+        if normalized_complexity == "high":
+            return ModelType.GPT4O.value
+        return ModelType.GPT4O_MINI.value
+
+    if normalized_task == "generation":
+        return ModelType.GPT4O_MINI.value
+
+    return ModelType.GPT4O_MINI.value

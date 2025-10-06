@@ -14,6 +14,7 @@ import logging
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.templates.ai_report_generator import AIReportGenerator
 from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
+from fraud_scorer.analyzers.unified_data_layer import UnifiedDataLayer
 from fraud_scorer.templates.fraud_report_generator import FraudReportGenerator
 from fraud_scorer.storage.cases import get_case_by_id
 from fraud_scorer.storage.db import get_conn
@@ -428,11 +429,49 @@ async def _process_documents_and_generate_report(
                         'ocr': ocr,
                         'extraction': ext,
                     })
+                consolidated_fields_dump = (
+                    consolidated.fields.model_dump()  # type: ignore[attr-defined]
+                    if hasattr(consolidated.fields, "model_dump")
+                    else getattr(consolidated.fields, "__dict__", {})
+                )
+                extraction_payloads = []
+                for ext in extractions:
+                    if hasattr(ext, "model_dump"):
+                        extraction_payloads.append(ext.model_dump())
+                    elif hasattr(ext, "dict"):
+                        extraction_payloads.append(ext.dict())
+                    else:
+                        extraction_payloads.append(
+                            {
+                                "source_document": getattr(ext, "source_document", None),
+                                "document_type": getattr(ext, "document_type", None),
+                                "extracted_fields": getattr(ext, "extracted_fields", {}),
+                            }
+                        )
+
+                case_index_runtime = {
+                    "case_id": process_id,
+                    "claim_number": claim_number,
+                    "insured_name": insured_name,
+                    "consolidated_data": {
+                        "consolidated_fields": consolidated_fields_dump,
+                    },
+                    "extraction_results": extraction_payloads,
+                    "classified_types": [
+                        {
+                            "filename": doc.get("file_name"),
+                            "document_type": doc.get("document_type"),
+                        }
+                        for doc in ocr_results
+                    ],
+                }
+                data_layer = UnifiedDataLayer(case_index_runtime, extractions=extractions)
                 fraud_analyses = await analyzer.analyze_batch(
                     documents=docs_for_analysis,
                     case_id=process_id,
                     parallel_limit=3,
-                    context={'claim_number': claim_number},
+                    context=data_layer.build_case_context(),
+                    data_layer=data_layer,
                 )
                 fraud_gen = FraudReportGenerator()
                 report_data = fraud_gen.prepare_fraud_report_data(

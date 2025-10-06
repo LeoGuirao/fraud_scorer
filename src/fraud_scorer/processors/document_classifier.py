@@ -172,7 +172,7 @@ class DocumentClassifier:
             from fraud_scorer.classification.engine import ClassifierEngine
             from fraud_scorer.settings import CLASSIFICATION_CONFIG
             self._engine = ClassifierEngine(
-                model_name=CLASSIFICATION_CONFIG.get("llm_model", "gpt-4o-mini"),
+                model_name=CLASSIFICATION_CONFIG.get("llm_model", "gpt-5-mini"),
                 base_classifier=self,
             )
         except Exception as e:
@@ -809,7 +809,7 @@ Responde SOLO con JSON válido:
 
         try:
             from fraud_scorer.settings import CLASSIFICATION_CONFIG
-            model = CLASSIFICATION_CONFIG.get("llm_model", "gpt-4o-mini")
+            model = CLASSIFICATION_CONFIG.get("llm_model", "gpt-5-mini")
             temperature = float(CLASSIFICATION_CONFIG.get("llm_temperature", 0.1))
             max_tokens = int(CLASSIFICATION_CONFIG.get("llm_max_completion_tokens", 200))
 

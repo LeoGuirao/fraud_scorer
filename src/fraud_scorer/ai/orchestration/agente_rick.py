@@ -6,7 +6,8 @@ from dataclasses import dataclass
 from datetime import datetime
 import json
 import time
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Sequence
+import math
 import logging
 
 from langchain_openai import ChatOpenAI
@@ -109,6 +110,8 @@ class AgenteRickService:
             return result
 
         context_segments = [self._format_context_segment(item) for item in documents]
+        score_breakdown = self._build_score_breakdown(documents)
+        similarity_histogram = self._build_similarity_histogram([doc.similarity for doc in documents])
         messages = build_messages(context_segments, question)
 
         try:
@@ -150,6 +153,8 @@ class AgenteRickService:
             metadata={
                 "similarity_top": best_similarity,
                 "retrieved": len(documents),
+                "similarity_histogram": similarity_histogram,
+                "score_breakdown": score_breakdown,
             },
         )
 
@@ -165,6 +170,8 @@ class AgenteRickService:
             retrieved_documents=documents,
             latency_ms=latency_ms,
             token_usage=token_usage,
+            similarity_histogram=similarity_histogram,
+            score_breakdown=score_breakdown,
         )
         return result
 
@@ -174,28 +181,77 @@ class AgenteRickService:
     def _build_sources(self, documents: list[RetrievedDocument]) -> list[dict[str, Any]]:
         sources: list[dict[str, Any]] = []
         for item in documents:
-            meta = item.document.metadata
-            sources.append(
-                {
-                    "source_document": meta.get("source_document") or meta.get("case_path"),
-                    "source": meta.get("source"),
-                    "document_type": meta.get("document_type"),
-                    "chunk_index": meta.get("chunk_index"),
-                    "similarity": round(item.similarity, 4),
-                }
-            )
+            meta = item.document.metadata if isinstance(item.document.metadata, dict) else {}
+            entry = {
+                "source_document": meta.get("source_document") or meta.get("case_path"),
+                "source": meta.get("source"),
+                "document_type": meta.get("document_type"),
+                "chunk_index": meta.get("chunk_index"),
+                "similarity": _safe_round(item.similarity),
+                "dense_similarity": _safe_round(meta.get("dense_similarity")),
+                "lexical_score": _safe_round(meta.get("lexical_score")),
+                "lexical_score_normalized": _safe_round(meta.get("lexical_score_normalized")),
+                "hybrid_score": _safe_round(meta.get("hybrid_score")),
+                "retrieval_rank": meta.get("retrieval_rank"),
+                "search_strategy": meta.get("search_strategy"),
+            }
+            sources.append({key: value for key, value in entry.items() if value is not None})
         return sources
 
     def _format_context_segment(self, item: RetrievedDocument) -> str:
-        meta = item.document.metadata
+        meta = item.document.metadata if isinstance(item.document.metadata, dict) else {}
         header_parts = [
             meta.get("source_document") or meta.get("case_path"),
             f"tipo: {meta.get('document_type')}" if meta.get("document_type") else None,
             f"fase: {meta.get('source')}" if meta.get("source") else None,
             f"similitud: {item.similarity:.2f}",
         ]
+        dense_score = _safe_round(meta.get("dense_similarity"), digits=2)
+        lexical_score = _safe_round(meta.get("lexical_score_normalized"), digits=2)
+        if dense_score is not None:
+            header_parts.append(f"denso: {dense_score:.2f}")
+        if lexical_score is not None and lexical_score > 0:
+            header_parts.append(f"lexical: {lexical_score:.2f}")
         header = " | ".join(part for part in header_parts if part)
         return f"[{header}]\n{item.document.page_content.strip()}"
+
+    def _build_score_breakdown(self, documents: Sequence[RetrievedDocument]) -> list[dict[str, Any]]:
+        breakdown: list[dict[str, Any]] = []
+        for item in documents:
+            meta = item.document.metadata if isinstance(item.document.metadata, dict) else {}
+            entry = {
+                "rank": meta.get("retrieval_rank"),
+                "hybrid": _safe_round(meta.get("hybrid_score") or item.similarity),
+                "dense": _safe_round(meta.get("dense_similarity")),
+                "lexical": _safe_round(meta.get("lexical_score_normalized")),
+                "lexical_raw": _safe_round(meta.get("lexical_score")),
+            }
+            breakdown.append({key: value for key, value in entry.items() if value is not None})
+        return breakdown
+
+    def _build_similarity_histogram(self, values: Sequence[float]) -> Dict[str, int]:
+        bins = [round(step * 0.1, 1) for step in range(11)]
+        histogram: Dict[str, int] = {f"{bins[idx]:.1f}-{bins[idx + 1]:.1f}": 0 for idx in range(len(bins) - 1)}
+        histogram["1.0"] = 0
+
+        for raw in values:
+            try:
+                score = float(raw)
+            except (TypeError, ValueError):
+                continue
+            if not math.isfinite(score):
+                continue
+            score = max(0.0, min(1.0, score))
+            placed = False
+            for idx in range(len(bins) - 1):
+                start, end = bins[idx], bins[idx + 1]
+                if start <= score < end:
+                    histogram[f"{start:.1f}-{end:.1f}"] += 1
+                    placed = True
+                    break
+            if not placed:
+                histogram["1.0"] += 1
+        return histogram
 
     def _write_audit_entry(
         self,
@@ -211,16 +267,14 @@ class AgenteRickService:
         retrieved_documents: list[RetrievedDocument],
         latency_ms: Optional[int] = None,
         token_usage: Optional[dict] = None,
+        similarity_histogram: Optional[Dict[str, int]] = None,
+        score_breakdown: Optional[Sequence[dict[str, Any]]] = None,
     ) -> None:
-        sources_payload = [
-            {
-                "source_document": doc.document.metadata.get("source_document")
-                or doc.document.metadata.get("case_path"),
-                "document_type": doc.document.metadata.get("document_type"),
-                "similarity": round(doc.similarity, 4),
-            }
-            for doc in retrieved_documents
-        ]
+        sources_payload = self._build_sources(retrieved_documents)
+        histogram = similarity_histogram or self._build_similarity_histogram(
+            [doc.similarity for doc in retrieved_documents]
+        )
+        breakdown = list(score_breakdown or self._build_score_breakdown(retrieved_documents))
         entry = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "case_id": case_id,
@@ -235,6 +289,9 @@ class AgenteRickService:
             "sources": sources_payload,
             "token_usage": token_usage,
             "retrieved": sources_payload,
+            "retrieved_count": len(retrieved_documents),
+            "similarity_histogram": histogram,
+            "score_breakdown": breakdown,
         }
         try:
             self.config.audit_log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -246,6 +303,16 @@ class AgenteRickService:
 
 def _elapsed(start: float) -> int:
     return int((time.perf_counter() - start) * 1000)
+
+
+def _safe_round(value: Any, *, digits: int = 4) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(number):
+        return None
+    return round(number, digits)
 
 
 __all__ = ["AgenteRickService", "RickQueryResult"]
