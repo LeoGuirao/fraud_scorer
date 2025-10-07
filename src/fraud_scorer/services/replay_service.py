@@ -428,6 +428,60 @@ class ReplayService:
                 logger.warning("  ⚠️ No se pudo eliminar índice vectorial %s: %s", path.name, exc)
         return removed
 
+    def _remove_gps_artifacts(self, tokens: Set[str]) -> int:
+        gps_dir = Path("data/gps")
+        if not gps_dir.exists():
+            return 0
+
+        tokens_lower = {token for token in tokens if token}
+        if not tokens_lower:
+            return 0
+
+        removed = 0
+        for case_folder in gps_dir.iterdir():
+            if not case_folder.is_dir():
+                continue
+            name_lower = case_folder.name.lower()
+            match = any(token in name_lower for token in tokens_lower)
+
+            if not match:
+                metadata_candidates = [
+                    case_folder / "_metadata.json",
+                    case_folder / "_manifest.json",
+                ]
+                for metadata_file in metadata_candidates:
+                    if not metadata_file.exists():
+                        continue
+                    try:
+                        content = metadata_file.read_text(encoding="utf-8", errors="ignore").lower()
+                    except Exception:
+                        continue
+                    if any(token in content for token in tokens_lower):
+                        match = True
+                        break
+
+            if not match:
+                # Buscamos _metadata.json dentro de subcarpetas específicas
+                for nested_meta in case_folder.glob("*/_metadata.json"):
+                    try:
+                        content = nested_meta.read_text(encoding="utf-8", errors="ignore").lower()
+                        if any(token in content for token in tokens_lower):
+                            match = True
+                            break
+                    except Exception:
+                        continue
+
+            if not match:
+                continue
+
+            try:
+                shutil.rmtree(case_folder)
+                removed += 1
+                logger.info(f"  ✓ Artefactos GPS eliminados: {case_folder.name}")
+            except Exception as exc:
+                logger.warning(f"  ⚠️ No se pudo eliminar GPS {case_folder.name}: {exc}")
+        return removed
+
     def _purge_rick_audit_log(self, tokens: Set[str]) -> int:
         log_path = self._rick_audit_log
         if not log_path or not log_path.exists():
@@ -498,8 +552,10 @@ class ReplayService:
         if not log_path:
             return False
         try:
+            log_path.parent.mkdir(parents=True, exist_ok=True)
             if log_path.exists():
                 log_path.unlink()
+            log_path.touch()
             return True
         except Exception as exc:
             logger.warning("  ⚠️ No se pudo reiniciar bitácora Rick: %s", exc)
@@ -561,7 +617,7 @@ class ReplayService:
             if not root.exists():
                 return matches
             for item in root.glob("**/*"):
-                if not item.exists() or item.is_dir():
+                if not item.exists():
                     continue
                 name_lower = item.name.lower()
                 if any(token in name_lower for token in tokens_lower):
@@ -573,6 +629,11 @@ class ReplayService:
             report_matches = _collect_matches(reports_dir)
             if report_matches:
                 residuals['reports'] = report_matches
+
+            gps_dir = Path("data/gps")
+            gps_matches = _collect_matches(gps_dir)
+            if gps_matches:
+                residuals['gps'] = gps_matches
 
             pipeline_dir = Path(os.getenv("FS_DATA_DIR", "data")) / "temp" / "pipeline_cache"
             pipeline_matches = _collect_matches(pipeline_dir)
@@ -606,6 +667,87 @@ class ReplayService:
         else:
             logger.info("  ✓ FS verificado sin residuos relevantes")
         return residuals
+
+    def _comprehensive_cleanup_verification(self, case_id: str, tokens: Set[str]) -> Dict[str, List[str]]:
+        tokens_lower = {token for token in tokens if token}
+        residuals: Dict[str, List[str]] = {}
+
+        def _collect(root: Path, include_dirs: bool = False) -> List[str]:
+            matches: List[str] = []
+            if not root.exists() or not tokens_lower:
+                return matches
+            for item in root.rglob("*"):
+                if not item.exists():
+                    continue
+                if item.is_dir() and not include_dirs:
+                    continue
+                name_lower = item.name.lower()
+                if any(token in name_lower for token in tokens_lower):
+                    matches.append(str(item))
+            return matches
+
+        scan_dirs = {
+            "reports": Path("data/reports"),
+            "pipeline_cache": Path(os.getenv("FS_DATA_DIR", "data")) / "temp" / "pipeline_cache",
+            "gps": Path("data/gps"),
+            "ocr_cache": Path("data/ocr_cache"),
+            "uploads": Path("data/uploads"),
+            "temp": Path("data/temp"),
+        }
+
+        for label, directory in scan_dirs.items():
+            include_dirs = label in {"gps", "ocr_cache", "temp"}
+            matches = _collect(directory, include_dirs=include_dirs)
+            if matches:
+                residuals[label] = matches
+
+        base = self._chroma_base_path
+        if base and base.exists():
+            chroma_matches = _collect(base, include_dirs=True)
+            if chroma_matches:
+                residuals["vector_store"] = chroma_matches
+
+        log_path = self._rick_audit_log
+        if log_path and log_path.exists():
+            try:
+                with log_path.open("r", encoding="utf-8", errors="ignore") as fh:
+                    lines = [
+                        line.strip()
+                        for line in fh
+                        if any(token in line.lower() for token in tokens_lower)
+                    ]
+                if lines:
+                    residuals["rick_audit"] = lines[:25]
+            except Exception:
+                pass
+
+        return residuals
+
+    def verify_complete_deletion(self, case_id: str) -> Dict[str, Any]:
+        issues: List[Dict[str, Any]] = []
+
+        db_snapshot = self._collect_db_cleanup_snapshot(case_id)
+        if any(db_snapshot.values()):
+            issues.append({"type": "database", "details": db_snapshot})
+
+        index_path = self.cache_manager.index_dir / f"{case_id}.json"
+        if index_path.exists():
+            issues.append({"type": "case_index", "path": str(index_path)})
+
+        case_index = self.cache_manager.get_case_index(case_id)
+        insured = (case_index or {}).get("insured_name")
+        claim = (case_index or {}).get("claim_number")
+        tokens = self._build_cleanup_tokens(case_id=case_id, insured_name=insured, claim_number=claim)
+
+        fs_residuals = self._comprehensive_cleanup_verification(case_id, tokens)
+        if fs_residuals:
+            issues.append({"type": "filesystem", "details": fs_residuals})
+
+        return {
+            "case_id": case_id,
+            "clean": len(issues) == 0,
+            "issues": issues,
+        }
 
     def get_cache_stats(self) -> Dict[str, Any]:
         """Obtiene estadísticas del caché (FS) y métricas DB complementarias.
@@ -1324,6 +1466,7 @@ class ReplayService:
                     logger.info(f"  ✓ Pipeline cache (escaneo) eliminado: {extra_pipeline}")
 
                 self._remove_vector_indexes(cleanup_tokens)
+                self._remove_gps_artifacts(cleanup_tokens)
                 self._purge_rick_audit_log(cleanup_tokens)
                 self._cleanup_empty_cache_shards()
                 residuals = self._verify_filesystem_cleanup(cleanup_tokens)
@@ -1414,6 +1557,7 @@ class ReplayService:
             self._remove_reports_by_case_id(case_id, tokens)
             self._remove_pipeline_cache_artifacts(tokens)
             self._remove_vector_indexes(tokens)
+            self._remove_gps_artifacts(tokens)
             self._purge_rick_audit_log(tokens)
             self._cleanup_empty_cache_shards()
             residuals = self._verify_filesystem_cleanup(tokens)

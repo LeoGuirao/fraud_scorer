@@ -147,7 +147,7 @@
             border: 1px solid #000000;
             position: relative;
             display: grid;
-            grid-template-rows: auto clamp(320px, 60vh, 620px) minmax(320px, 1fr);
+            grid-template-rows: auto minmax(420px, 65vh) minmax(280px, 1fr);
             gap: 32px;
             overflow: hidden;
         }
@@ -306,11 +306,12 @@
             background-color: rgba(0, 0, 0, 0.15);
             border: 1px solid rgba(255, 255, 255, 0.25);
             border-radius: 0;
-            padding: 24px 32px 32px;
+            padding: 20px 28px 28px;
             overflow-x: hidden;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            gap: 12px;
             min-height: 0;
             --file-count: 0;
             scrollbar-width: thin;
@@ -394,13 +395,15 @@
             display: flex;
             flex-direction: column;
             gap: 8px;
-            min-height: 120px;
-            max-height: clamp(220px, calc(var(--file-count) * 3rem), 420px);
+            min-height: 180px;
+            max-height: 550px;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.1);
             scrollbar-gutter: stable both-edges;
-            padding-right: 4px;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 4px;
         }
 
         .file-item {
@@ -631,6 +634,288 @@
             font-style: italic;
         }
 
+        /* ========================================
+           GPS FILTER COMPONENTS
+           ======================================== */
+
+        .file-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            width: 100%;
+            gap: 12px;
+        }
+
+        .file-icon-name {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex: 1;
+            min-width: 0;
+        }
+
+        .file-name {
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .size-warning {
+            font-size: 14px;
+            margin-left: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .auto-detect-badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 2px 6px;
+            background: rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(34, 197, 94, 0.5);
+            border-radius: 3px;
+            color: #22c55e;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            margin-left: 6px;
+        }
+
+        .gps-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 8px;
+            background: rgba(47, 136, 255, 0.1);
+            border: 1px solid rgba(47, 136, 255, 0.3);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            flex-shrink: 0;
+        }
+
+        .gps-tag:hover {
+            background: rgba(47, 136, 255, 0.2);
+        }
+
+        .gps-checkbox-individual {
+            width: 14px;
+            height: 14px;
+            margin: 0;
+            cursor: pointer;
+        }
+
+        .gps-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #2F88FF;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .gps-tag.gps-active {
+            background: #2F88FF;
+            border-color: #2F88FF;
+        }
+
+        .gps-tag.gps-active .gps-label {
+            color: #ffffff;
+        }
+
+        .gps-global-filter {
+            margin: 12px 0;
+            padding: 12px;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 6px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .gps-global-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            color: #ffffff;
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .gps-global-checkbox input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .gps-global-checkbox i {
+            font-size: 18px;
+            color: #2F88FF;
+        }
+
+        .gps-global-checkbox input[type="checkbox"]:indeterminate {
+            opacity: 0.7;
+        }
+
+        .gps-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 8px;
+            padding: 8px 12px;
+            background: rgba(47, 136, 255, 0.15);
+            border-left: 3px solid #2F88FF;
+            border-radius: 4px;
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.9);
+            animation: slideIn 0.3s ease;
+        }
+
+        .gps-hint i {
+            font-size: 16px;
+            color: #2F88FF;
+        }
+
+        .gps-hint strong {
+            color: #2F88FF;
+            font-weight: 700;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        #gpsAutoDetectHint {
+            border-left-color: #22c55e;
+        }
+
+        #gpsAutoDetectHint i {
+            color: #22c55e;
+        }
+
+        #gpsAutoDetectHint strong {
+            color: #22c55e;
+        }
+
+        .gps-dashboard {
+            margin-top: 16px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .gps-dashboard-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: rgba(255, 255, 255, 0.85);
+        }
+
+        .gps-dashboard-title {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .gps-dashboard-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+        }
+
+        .gps-dashboard-card {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 12px 14px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .gps-dashboard-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: rgba(255, 255, 255, 0.65);
+        }
+
+        .gps-dashboard-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: #ffffff;
+        }
+
+        .gps-dashboard-value.small {
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .gps-dashboard-lists {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .gps-dashboard-list {
+            background: rgba(0, 0, 0, 0.12);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 12px;
+        }
+
+        .gps-dashboard-list h4 {
+            margin: 0 0 8px 0;
+            font-size: 12px;
+            font-weight: 700;
+            color: rgba(255, 255, 255, 0.85);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .gps-dashboard-item {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            padding: 6px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .gps-dashboard-item:last-child {
+            border-bottom: none;
+        }
+
+        .gps-dashboard-item span {
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 12px;
+        }
+
+        .gps-dashboard-empty {
+            color: rgba(255, 255, 255, 0.7);
+            font-style: italic;
+            font-size: 12px;
+        }
+
         @media (max-width: 1200px) {
             body {
                 padding: 16px;
@@ -801,6 +1086,19 @@
                         <div class="upload-subtext">o haz clic para seleccionar archivos</div>
                     </div>
                     <div class="upload-hint">Formatos soportados: PDF, JPG, PNG, DOCX, XLSX, CSV</div>
+                    <div class="gps-global-filter">
+                        <label class="gps-global-checkbox">
+                            <input
+                                type="checkbox"
+                                id="gpsGlobalToggle"
+                                onchange="toggleAllGPS(this.checked)"
+                            >
+                            <i class="ri-map-pin-line"></i>
+                            <span>Marcar todos como reportes GPS (evita OCR automático)</span>
+                        </label>
+                        <div class="gps-hint" id="gpsAutoDetectHint" style="display: none;"></div>
+                        <div class="gps-hint" id="gpsMarkedHint" style="display: none;"></div>
+                    </div>
                     <div class="file-list" id="fileList"></div>
                     <div class="file-count" id="fileCount">Sin archivos seleccionados</div>
                     <div class="button-row">
@@ -812,6 +1110,12 @@
                             <i class="ri-scan-line"></i>
                             Analizar caso
                         </button>
+                    </div>
+                    <div class="gps-dashboard" id="gpsDashboard">
+                        <div class="gps-dashboard-header">
+                            <span class="gps-dashboard-title">Monitoreo GPS</span>
+                        </div>
+                        <div class="gps-dashboard-empty">Cargando métricas GPS…</div>
                     </div>
                 </div>
             </section>
@@ -879,11 +1183,114 @@
             selectedFiles: [],
             uploadInProgress: false,
             cases: [],
-            correlationFilter: 'all'
+            correlationFilter: 'all',
+            gpsMetrics: null
         };
 
         const averageFormatter = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
         const currencyFormatter = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+        const integerFormatter = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 });
+
+        // Palabras clave y pesos para detección ligera de reportes GPS
+        const GPS_KEYWORDS = [
+            { term: 'gps', weight: 10, primary: true },
+            { term: 'monitoreo', weight: 10, primary: true },
+            { term: 'rastreo', weight: 10, primary: true },
+            { term: 'satelital', weight: 10, primary: true },
+            { term: 'tracking', weight: 5 },
+            { term: 'tracker', weight: 5 },
+            { term: 'localizacion', weight: 5 },
+            { term: 'localización', weight: 5 },
+            { term: 'ubicacion', weight: 5 },
+            { term: 'ubicación', weight: 5 },
+            { term: 'posicionamiento', weight: 5 },
+            { term: 'reporte de ruta', weight: 5 },
+            { term: 'ruta gps', weight: 5 },
+            { term: 'ruta satelital', weight: 5 },
+            { term: 'bitacora', weight: 5 },
+            { term: 'bitácora', weight: 5 },
+            { term: 'trazabilidad', weight: 5 },
+            { term: 'georreferenciacion', weight: 5 },
+            { term: 'georreferenciación', weight: 5 },
+            { term: 'omnitracs', weight: 8 },
+            { term: 'geotab', weight: 8 },
+            { term: 'samsara', weight: 8 },
+            { term: 'zonar', weight: 8 },
+            { term: 'garmin', weight: 8 },
+            { term: 'fleetmatics', weight: 8 },
+            { term: 'verizon connect', weight: 8 },
+            { term: 'teletrac', weight: 8 },
+            { term: 'coordenadas', weight: 5 },
+            { term: 'waypoint', weight: 5 },
+            { term: 'geocerca', weight: 5 },
+            { term: 'geofence', weight: 5 },
+            { term: 'telemetria', weight: 5 },
+            { term: 'telemetría', weight: 5 },
+            { term: 'odometro', weight: 5 },
+            { term: 'odómetro', weight: 5 },
+            { term: 'latitude', weight: 5 },
+            { term: 'latitud', weight: 5 },
+            { term: 'longitude', weight: 5 },
+            { term: 'longitud', weight: 5 }
+        ];
+
+        function evaluateGPSMetadata(filename) {
+            const lowerName = (filename || '').toLowerCase();
+            const matches = GPS_KEYWORDS.filter(({ term }) => lowerName.includes(term));
+            const score = matches.reduce((total, { weight }) => total + weight, 0);
+
+            return {
+                isGPS: matches.length > 0,
+                score,
+                matchedTerms: matches.map(({ term }) => term)
+            };
+        }
+
+        function attachGPSMetadata(file, evaluation) {
+            if (!file || !evaluation) {
+                return file;
+            }
+
+            const { isGPS, score, matchedTerms } = evaluation;
+            const descriptors = {
+                isGPS: { value: Boolean(isGPS), writable: true, configurable: true },
+                gpsScore: { value: isGPS ? score : 0, writable: true, configurable: true },
+                gpsOriginalScore: { value: score, writable: false, configurable: true },
+                gpsDetectedFromName: { value: Boolean(isGPS), writable: true, configurable: true },
+                gpsMatchedKeywords: { value: matchedTerms, writable: true, configurable: true }
+            };
+
+            Object.entries(descriptors).forEach(([key, descriptor]) => {
+                if (Object.prototype.hasOwnProperty.call(file, key)) {
+                    if (key !== 'gpsOriginalScore') {
+                        file[key] = descriptor.value;
+                    }
+                } else {
+                    Object.defineProperty(file, key, descriptor);
+                }
+            });
+
+            return file;
+        }
+
+        function compareFilesForDisplay(a, b) {
+            const aIsGPS = Boolean(a?.isGPS);
+            const bIsGPS = Boolean(b?.isGPS);
+
+            if (aIsGPS && !bIsGPS) return -1;
+            if (!aIsGPS && bIsGPS) return 1;
+
+            if (aIsGPS && bIsGPS) {
+                const scoreDiff = (b?.gpsScore || 0) - (a?.gpsScore || 0);
+                if (scoreDiff !== 0) {
+                    return scoreDiff;
+                }
+            }
+
+            const nameA = (a?.name || '').toLowerCase();
+            const nameB = (b?.name || '').toLowerCase();
+            return nameA.localeCompare(nameB);
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
             initializeUserProfile();
@@ -976,17 +1383,32 @@
                 return;
             }
 
-            const newFiles = Array.from(fileList);
+            const incoming = Array.from(fileList);
             const existingNames = new Set(dashboardState.selectedFiles.map((file) => file.name));
+            const appended = [];
 
-            newFiles.forEach((file) => {
-                if (!existingNames.has(file.name)) {
-                    dashboardState.selectedFiles.push(file);
+            incoming.forEach((file) => {
+                if (existingNames.has(file.name)) {
+                    return;
                 }
+                const evaluation = evaluateGPSMetadata(file.name);
+                attachGPSMetadata(file, evaluation);
+                dashboardState.selectedFiles.push(file);
+                appended.push(file);
             });
 
+            if (!appended.length) {
+                return;
+            }
+
+            dashboardState.selectedFiles.sort(compareFilesForDisplay);
             renderFileList();
             updateAnalyzeButtonState();
+
+            const autoDetectedCount = appended.filter((file) => file.isGPS && file.gpsDetectedFromName).length;
+            if (autoDetectedCount > 0) {
+                showGPSDetectionNotification(autoDetectedCount);
+            }
         }
 
         function renderFileList() {
@@ -1006,22 +1428,144 @@
 
             if (!fileCount) {
                 fileListContainer.innerHTML = '<div class="upload-hint">No hay archivos seleccionados.</div>';
+                updateGlobalCheckbox();
+                updateGPSHints();
                 return;
             }
 
             fileListContainer.innerHTML = dashboardState.selectedFiles
-                .map((file, index) => `
-                    <div class="file-item">
-                        <div class="file-info">
-                            <span class="file-name">${escapeHtml(file.name)}</span>
-                            <span class="file-meta">${escapeHtml(file.type || 'Formato desconocido')} · ${formatFileSize(file.size)}</span>
+                .map((file, index) => {
+                    const isLargeFile = Number(file.size) > 50 * 1024 * 1024;
+                    const sizeWarning = isLargeFile ? ' <span class="size-warning" title="Archivo grande">🔴</span>' : '';
+                    const autoDetectBadge = file.isGPS && file.gpsDetectedFromName
+                        ? '<span class="auto-detect-badge" title="Detectado automáticamente">AUTO</span>'
+                        : '';
+                    const gpsTagClass = file.isGPS ? 'gps-tag gps-active' : 'gps-tag';
+
+                    return `
+                        <div class="file-item" data-index="${index}">
+                            <div class="file-info">
+                                <div class="file-header">
+                                    <div class="file-icon-name">
+                                        <i class="ri-file-pdf-line"></i>
+                                        <span class="file-name">${escapeHtml(file.name)}${sizeWarning}</span>
+                                        ${autoDetectBadge}
+                                    </div>
+                                    <label class="${gpsTagClass}" title="Marcar como reporte GPS (evita OCR)">
+                                        <input
+                                            type="checkbox"
+                                            class="gps-checkbox-individual"
+                                            data-index="${index}"
+                                            ${file.isGPS ? 'checked' : ''}
+                                        >
+                                        <span class="gps-label">GPS</span>
+                                    </label>
+                                </div>
+                                <span class="file-meta">
+                                    ${escapeHtml(file.type || 'Formato desconocido')} · ${formatFileSize(file.size)}
+                                </span>
+                            </div>
+                            <button class="file-action" type="button" aria-label="Eliminar archivo" onclick="removeFile(${index})">
+                                <i class="ri-close-line"></i>
+                            </button>
                         </div>
-                        <button class="file-action" type="button" aria-label="Eliminar archivo" onclick="removeFile(${index})">
-                            <i class="ri-close-line"></i>
-                        </button>
-                    </div>
-                `)
+                    `;
+                })
                 .join('');
+
+            document.querySelectorAll('.gps-checkbox-individual').forEach((checkbox) => {
+                checkbox.addEventListener('change', (event) => {
+                    const index = Number(event.target.dataset.index);
+                    const isChecked = event.target.checked;
+                    applyManualGPSSelection(index, isChecked);
+                });
+            });
+
+            updateGlobalCheckbox();
+            updateGPSHints();
+        }
+
+        function renderGPSDashboard(metrics) {
+            const container = document.getElementById('gpsDashboard');
+            if (!container) {
+                return;
+            }
+
+            if (!metrics || !metrics.totals) {
+                container.innerHTML = '
+                    <div class="gps-dashboard-header"><span class="gps-dashboard-title">Monitoreo GPS</span></div>
+                    <div class="gps-dashboard-empty">Sin datos GPS procesados todavía.</div>
+                ';
+                return;
+            }
+
+            const totals = metrics.totals;
+            const totalCases = totals.cases ?? 0;
+            const totalDocs = totals.documents ?? 0;
+            const totalRows = totals.rows ?? 0;
+            const avgRows = totals.avg_rows_per_document ?? 0;
+            const chunkedDocs = totals.chunked_documents ?? 0;
+            const warnedDocs = totals.documents_with_warnings ?? 0;
+            const lastIngestion = totals.last_ingestion_at ? formatDateTime(totals.last_ingestion_at) : '—';
+
+            const topDocuments = (metrics.top_documents || []).map((item) => `
+                <div class="gps-dashboard-item">
+                    <span><strong>${escapeHtml(item.document_name)}</strong></span>
+                    <span>Case: ${escapeHtml(item.case_id)}</span>
+                    <span>Filas: ${integerFormatter.format(item.row_count || 0)}</span>
+                </div>
+            `).join('') || '<div class="gps-dashboard-empty">Sin documentos relevantes.</div>';
+
+            const recentDocuments = (metrics.recent_documents || []).map((item) => `
+                <div class="gps-dashboard-item">
+                    <span><strong>${escapeHtml(item.document_name)}</strong></span>
+                    <span>${formatDateTime(item.saved_at)}</span>
+                    <span>Case: ${escapeHtml(item.case_id)} · Filas: ${integerFormatter.format(item.row_count || 0)}</span>
+                </div>
+            `).join('') || '<div class="gps-dashboard-empty">Sin actividad reciente.</div>';
+
+            container.innerHTML = `
+                <div class="gps-dashboard-header">
+                    <span class="gps-dashboard-title">Monitoreo GPS</span>
+                    <span class="gps-dashboard-label">Última ingesta: ${lastIngestion}</span>
+                </div>
+                <div class="gps-dashboard-cards">
+                    <div class="gps-dashboard-card">
+                        <span class="gps-dashboard-label">Casos con GPS</span>
+                        <span class="gps-dashboard-value">${integerFormatter.format(totalCases)}</span>
+                    </div>
+                    <div class="gps-dashboard-card">
+                        <span class="gps-dashboard-label">Documentos GPS</span>
+                        <span class="gps-dashboard-value">${integerFormatter.format(totalDocs)}</span>
+                    </div>
+                    <div class="gps-dashboard-card">
+                        <span class="gps-dashboard-label">Filas totales</span>
+                        <span class="gps-dashboard-value">${integerFormatter.format(totalRows)}</span>
+                    </div>
+                    <div class="gps-dashboard-card">
+                        <span class="gps-dashboard-label">Promedio filas/doc</span>
+                        <span class="gps-dashboard-value small">${averageFormatter.format(avgRows)}</span>
+                    </div>
+                    <div class="gps-dashboard-card">
+                        <span class="gps-dashboard-label">Docs chunked</span>
+                        <span class="gps-dashboard-value small">${integerFormatter.format(chunkedDocs)}</span>
+                    </div>
+                    <div class="gps-dashboard-card">
+                        <span class="gps-dashboard-label">Docs con alertas</span>
+                        <span class="gps-dashboard-value small">${integerFormatter.format(warnedDocs)}</span>
+                    </div>
+                </div>
+                <div class="gps-dashboard-lists">
+                    <div class="gps-dashboard-list">
+                        <h4>Documentos recientes</h4>
+                        ${recentDocuments}
+                    </div>
+                    <div class="gps-dashboard-list">
+                        <h4>Top por filas</h4>
+                        ${topDocuments}
+                    </div>
+                </div>
+            `;
         }
 
         function updateFileCount(count, labelNode) {
@@ -1063,16 +1607,133 @@
             return `${size.toFixed(unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
         }
 
-        function removeFile(index) {
-            dashboardState.selectedFiles.splice(index, 1);
+        function formatDateTime(isoValue) {
+            if (!isoValue) {
+                return '—';
+            }
+            const date = new Date(isoValue);
+            if (Number.isNaN(date.getTime())) {
+                return isoValue;
+            }
+            return date.toLocaleString('es-MX', {
+                dateStyle: 'short',
+                timeStyle: 'short'
+            });
+        }
+
+        function showGPSDetectionNotification(count) {
+            const hint = document.getElementById('gpsAutoDetectHint');
+            if (!hint) {
+                return;
+            }
+
+            hint.innerHTML = `
+                <i class="ri-checkbox-circle-line"></i>
+                <strong>${count}</strong> documento(s) GPS detectado(s) automáticamente y ordenados al inicio
+            `;
+            hint.style.display = 'flex';
+
+            window.setTimeout(() => {
+                hint.style.display = 'none';
+            }, 5000);
+        }
+
+        function toggleAllGPS(isChecked) {
+            dashboardState.selectedFiles.forEach((file) => {
+                file.isGPS = Boolean(isChecked);
+                file.gpsScore = isChecked ? (file.gpsOriginalScore || file.gpsScore || 0) : 0;
+            });
+
+            refreshFilesAfterMetadataChange();
+        }
+
+        function updateGlobalCheckbox() {
+            const globalCheckbox = document.getElementById('gpsGlobalToggle');
+            if (!globalCheckbox) {
+                return;
+            }
+
+            if (!dashboardState.selectedFiles.length) {
+                globalCheckbox.checked = false;
+                globalCheckbox.indeterminate = false;
+                return;
+            }
+
+            const allGPS = dashboardState.selectedFiles.every((file) => file.isGPS);
+            const someGPS = dashboardState.selectedFiles.some((file) => file.isGPS);
+
+            globalCheckbox.checked = allGPS;
+            globalCheckbox.indeterminate = someGPS && !allGPS;
+        }
+
+        function updateGPSHints() {
+            const markedHint = document.getElementById('gpsMarkedHint');
+            if (!markedHint) {
+                return;
+            }
+
+            const totalCount = dashboardState.selectedFiles.length;
+            const gpsCount = dashboardState.selectedFiles.filter((file) => file.isGPS).length;
+
+            if (!gpsCount) {
+                markedHint.style.display = 'none';
+                markedHint.textContent = '';
+                return;
+            }
+
+            const autoCount = dashboardState.selectedFiles.filter(
+                (file) => file.isGPS && file.gpsDetectedFromName
+            ).length;
+            const manualCount = Math.max(gpsCount - autoCount, 0);
+
+            let message = `<i class="ri-information-line"></i>
+                <strong>${gpsCount}</strong> de <strong>${totalCount}</strong> documento(s) marcado(s) como GPS`;
+
+            if (autoCount > 0 && manualCount > 0) {
+                message += ` (${autoCount} auto, ${manualCount} manual)`;
+            } else if (autoCount > 0) {
+                message += ` (detección automática)`;
+            }
+
+            message += ' - Se procesarán con pipeline especializado';
+
+            markedHint.innerHTML = message;
+            markedHint.style.display = 'flex';
+        }
+
+        function refreshFilesAfterMetadataChange() {
+            dashboardState.selectedFiles.sort(compareFilesForDisplay);
             renderFileList();
             updateAnalyzeButtonState();
+        }
+
+        function applyManualGPSSelection(index, isChecked) {
+            const targetFile = dashboardState.selectedFiles[index];
+            if (!targetFile) {
+                return;
+            }
+
+            targetFile.isGPS = Boolean(isChecked);
+            targetFile.gpsDetectedFromName = Boolean(targetFile.gpsDetectedFromName && isChecked);
+            targetFile.gpsScore = isChecked ? (targetFile.gpsOriginalScore || targetFile.gpsScore || 0) : 0;
+
+            refreshFilesAfterMetadataChange();
+        }
+
+        function removeFile(index) {
+            dashboardState.selectedFiles.splice(index, 1);
+            refreshFilesAfterMetadataChange();
         }
 
         function clearFiles() {
             dashboardState.selectedFiles = [];
             renderFileList();
             updateAnalyzeButtonState();
+            const autoHint = document.getElementById('gpsAutoDetectHint');
+            if (autoHint) {
+                autoHint.style.display = 'none';
+                autoHint.textContent = '';
+            }
         }
 
         function updateAnalyzeButtonState() {
@@ -1123,6 +1784,15 @@
                 dashboardState.selectedFiles.forEach((file) => {
                     formData.append('files', file);
                 });
+
+                const metadata = dashboardState.selectedFiles.map((file) => ({
+                    filename: file.name,
+                    is_gps: Boolean(file.isGPS),
+                    gps_score: file.gpsScore || 0,
+                    detected_from_name: Boolean(file.gpsDetectedFromName),
+                    matched_keywords: Array.isArray(file.gpsMatchedKeywords) ? file.gpsMatchedKeywords : []
+                }));
+                formData.append('metadata', JSON.stringify(metadata));
 
                 const response = await fetch('/upload', {
                     method: 'POST',
@@ -1193,24 +1863,29 @@
 
         async function loadDashboardData() {
             try {
-                const [statsResp, casesResp] = await Promise.all([
+                const [statsResp, casesResp, gpsMetricsResp] = await Promise.all([
                     fetch('/replay/api/stats'),
-                    fetch('/replay/api/cases')
+                    fetch('/replay/api/cases'),
+                    fetch('/api/gps/metrics')
                 ]);
 
                 const statsPayload = statsResp.ok ? await statsResp.json() : {};
                 const casesPayload = casesResp.ok ? await casesResp.json() : {};
+                const gpsMetricsPayload = gpsMetricsResp.ok ? await gpsMetricsResp.json() : null;
 
                 const stats = statsPayload.data || statsPayload || {};
                 const cases = casesPayload.data || casesPayload || [];
 
                 dashboardState.cases = Array.isArray(cases) ? cases : [];
+                dashboardState.gpsMetrics = gpsMetricsPayload;
 
                 updateMetrics(stats, dashboardState.cases);
                 renderCasesTable(dashboardState.cases);
                 renderCorrelationOverview(dashboardState.cases);
+                renderGPSDashboard(dashboardState.gpsMetrics);
             } catch (error) {
                 console.error('Error cargando datos del dashboard:', error);
+                renderGPSDashboard(null);
             }
         }
 

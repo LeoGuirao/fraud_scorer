@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 from decimal import Decimal, InvalidOperation
 import os
 import re
@@ -70,6 +70,7 @@ class FraudCaseDocumentLoader:
 
         raw_documents.extend(self._build_extraction_results(case_index, base_metadata))
         raw_documents.extend(self._build_fraud_analyses(case_index, base_metadata))
+        raw_documents.extend(self._build_gps_documents(case_index, base_metadata))
 
         unique_documents = deduplicate_documents(raw_documents)
         return self._split_documents(unique_documents)
@@ -201,6 +202,71 @@ class FraudCaseDocumentLoader:
             metadata = self._augment_source_metadata(metadata, source_doc)
 
             documents.append(Document(page_content=content, metadata=metadata))
+
+        return documents
+
+    def _build_gps_documents(
+        self,
+        case_index: Dict[str, Any],
+        base_metadata: Dict[str, Any],
+    ) -> List[Document]:
+        documents: List[Document] = []
+        gps_entries = case_index.get("gps_direct_documents") or {}
+        if not gps_entries:
+            return documents
+
+        for document_name, entry in gps_entries.items():
+            summary = entry.get("summary") or {}
+            dataset_meta = entry.get("dataset") or {}
+            warnings = entry.get("normalization_warnings") or summary.get("warnings") or []
+            ingestion_stats = entry.get("ingestion_stats") or {}
+
+            summary_payload = {
+                "document_name": document_name,
+                "summary": summary,
+                "dataset": {
+                    "row_count": dataset_meta.get("row_count"),
+                    "checksum": dataset_meta.get("checksum"),
+                    "partitions": dataset_meta.get("partitions"),
+                    "compression": dataset_meta.get("compression"),
+                },
+                "largest_gap_minutes": _largest_gap(summary),
+                "warnings": warnings,
+                "ingestion_stats": ingestion_stats,
+            }
+
+            summary_metadata = combine_metadata(
+                base_metadata,
+                {
+                    "source": "gps_summary",
+                    "origin": "gps_dal",
+                    "source_document": document_name,
+                    "document_type": "reporte_gps",
+                    "gps_kind": "summary",
+                },
+            )
+            documents.append(
+                Document(page_content=safe_json_dumps(summary_payload), metadata=summary_metadata)
+            )
+
+            preview_rows = entry.get("preview_rows") or []
+            if preview_rows:
+                preview_metadata = combine_metadata(
+                    base_metadata,
+                    {
+                        "source": "gps_preview",
+                        "origin": "gps_dal",
+                        "source_document": document_name,
+                        "document_type": "reporte_gps",
+                        "gps_kind": "preview",
+                    },
+                )
+                documents.append(
+                    Document(
+                        page_content=safe_json_dumps(preview_rows[:100]),
+                        metadata=preview_metadata,
+                    )
+                )
 
         return documents
 
@@ -524,6 +590,12 @@ class FraudCaseDocumentLoader:
                         return resolved_id, index
 
         raise ValueError(f"No se encontró información del caso {identifier}")
+
+
+def _largest_gap(summary: Dict[str, Any]) -> Optional[int]:
+    gaps = summary.get("time_gaps") or []
+    values = [int(item.get("gap_minutes") or 0) for item in gaps if item.get("gap_minutes")]
+    return max(values) if values else None
 
 
 def _normalize(value: str) -> str:

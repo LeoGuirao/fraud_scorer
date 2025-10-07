@@ -12,6 +12,7 @@ import tempfile
 import shutil
 import logging
 import json
+from urllib.parse import unquote
 
 # Cargar variables de entorno desde .env
 try:
@@ -26,13 +27,13 @@ from typing import Any, Dict, List, Optional, Literal
 from datetime import datetime
 import uuid
 
-from fastapi import FastAPI, UploadFile, File, Request, HTTPException, BackgroundTasks, Query
+from fastapi import FastAPI, UploadFile, File, Request, HTTPException, BackgroundTasks, Query, Form
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 # Configurar logging
 logging.basicConfig(
@@ -58,6 +59,7 @@ from fraud_scorer.storage.cases import (
 from fraud_scorer.storage.db import get_correlation_findings
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.parsers.document_parser import DocumentParser
+from fraud_scorer.parsers.processing_hint import ProcessingHintBuilder
 from fraud_scorer.api.endpoints.replay import router as replay_router
 from fraud_scorer.api.auth_simple import (
     authenticate as simple_authenticate,
@@ -74,6 +76,8 @@ from fraud_scorer.services.fraud_document_service import (
     FraudDocumentCatalog,
     FraudDocumentReprocessService,
 )
+from fraud_scorer.services.gps_query_service import GPSDirectQueryService
+from fraud_scorer.services.gps_llm_service import GPSLLMQueryService
 
 # Inicializar FastAPI
 app = FastAPI(
@@ -191,6 +195,9 @@ fraud_document_reprocess = FraudDocumentReprocessService(
     reports_dir=REPORTS_DIR,
     templates_dir=FRAUD_SCORER_TEMPLATES,
 )
+gps_query_service = GPSDirectQueryService()
+gps_llm_service = GPSLLMQueryService()
+processing_hint_builder = ProcessingHintBuilder()
 
 
 def _build_case_summary(case_id: str, case_index: Optional[Dict[str, Any]]) -> Dict[str, Any]:
@@ -679,12 +686,29 @@ async def get_analyst_editor(request: Request, case_id: str):
 @app.post("/upload")
 async def upload_files(
     background_tasks: BackgroundTasks,
-    files: List[UploadFile] = File(...)
+    files: List[UploadFile] = File(...),
+    metadata: Optional[str] = Form(None),
 ):
     """Endpoint para subir archivos y procesarlos"""
     if not files:
         raise HTTPException(status_code=400, detail="No se subieron archivos")
-    
+    gps_metadata_raw: Dict[str, Any] = {}
+    if metadata:
+        try:
+            parsed = json.loads(metadata)
+            if isinstance(parsed, list):
+                for entry in parsed:
+                    if not isinstance(entry, dict):
+                        continue
+                    filename = str(entry.get("filename") or "").strip()
+                    if not filename:
+                        continue
+                    gps_metadata_raw[filename] = entry
+            else:
+                logger.warning("Metadata GPS recibida no es lista: %s", type(parsed))
+        except Exception as exc:
+            logger.warning("No se pudo parsear metadata GPS: %s", exc)
+
     # Generar ID único para este proceso
     process_id = str(uuid.uuid4())
     
@@ -693,7 +717,10 @@ async def upload_files(
     process_dir.mkdir(parents=True, exist_ok=True)
     
     # Guardar archivos
-    saved_files = []
+    saved_files: List[Path] = []
+    gps_hints: Dict[str, Any] = {}
+    gps_manual_flags: Dict[str, bool] = {}
+    manual_marked_count = 0
     for file in files:
         file_path = process_dir / file.filename
         with open(file_path, "wb") as f:
@@ -701,13 +728,42 @@ async def upload_files(
             f.write(content)
         saved_files.append(file_path)
         logger.info(f"Archivo guardado: {file.filename}")
-    
+        try:
+            ui_entry = gps_metadata_raw.get(file.filename) or {}
+            manual_override = bool(ui_entry.get("is_gps"))
+            if manual_override:
+                manual_marked_count += 1
+            gps_manual_flags[file.filename] = manual_override
+
+            hint = processing_hint_builder.build(
+                file_path,
+                manual_override=manual_override,
+                mime_type=file.content_type,
+            )
+            hint_dict = hint.as_dict()
+            if ui_entry:
+                hint_dict["ui_metadata"] = ui_entry
+            gps_hints[file.filename] = hint_dict
+        except Exception as exc:
+            logger.debug("No se pudo generar hint GPS para %s: %s", file.filename, exc)
+
+    if gps_hints:
+        hints_path = process_dir / "gps_hints.json"
+        try:
+            hints_path.write_text(json.dumps(gps_hints, ensure_ascii=False, indent=2), encoding="utf-8")
+        except Exception as exc:
+            logger.warning("No se pudo persistir gps_hints en %s: %s", hints_path, exc)
+
     # Inicializar estado
     processing_status[process_id] = {
         "status": "processing",
         "message": "Procesando documentos...",
         "progress": 0,
-        "started_at": datetime.now().isoformat()
+        "started_at": datetime.now().isoformat(),
+        "gps_hints": gps_hints,
+        "gps_manual_flags": gps_manual_flags,
+        "gps_manual_count": manual_marked_count,
+        "gps_metadata": gps_metadata_raw,
     }
     
     # Habilitar checkpoint 1.4.1 solo para este proceso
@@ -717,7 +773,9 @@ async def upload_files(
     background_tasks.add_task(
         process_documents_background,
         process_id,
-        saved_files
+        saved_files,
+        gps_hints,
+        gps_manual_flags,
     )
     
     return {
@@ -726,8 +784,15 @@ async def upload_files(
         "status_url": f"/status/{process_id}"
     }
 
-async def process_documents_background(process_id: str, files: List[Path]):
+async def process_documents_background(
+    process_id: str,
+    files: List[Path],
+    gps_hints: Optional[Dict[str, Any]] = None,
+    gps_manual_flags: Optional[Dict[str, bool]] = None,
+):
     """Procesa documentos en background usando el sistema completo de run_report.py"""
+    gps_hints = gps_hints or {}
+    gps_manual_flags = gps_manual_flags or {}
     try:
         # Actualizar estado
         processing_status[process_id]["message"] = "Iniciando procesamiento..."
@@ -772,7 +837,9 @@ async def process_documents_background(process_id: str, files: List[Path]):
         task = asyncio.create_task(system.process_case(
             folder_path=temp_case_dir,
             output_path=REPORTS_DIR,
-            case_title=case_title
+            case_title=case_title,
+            processing_hints=gps_hints,
+            gps_manual_flags=gps_manual_flags,
         ))
         active_jobs[process_id] = {"task": task, "system": system}
 
@@ -847,6 +914,41 @@ async def process_documents_background(process_id: str, files: List[Path]):
             shutil.rmtree(TEMP_DIR / process_id)
         except Exception as cleanup_error:
             logger.warning(f"No se pudo limpiar directorio temporal {process_id}: {cleanup_error}")
+
+
+class GPSBoundingBoxPayload(BaseModel):
+    min_lat: Optional[float] = None
+    max_lat: Optional[float] = None
+    min_lon: Optional[float] = None
+    max_lon: Optional[float] = None
+
+
+class GPSQueryPayload(BaseModel):
+    case_id: str
+    document_name: str
+    start_time: Optional[datetime] = None
+    end_time: Optional[datetime] = None
+    event_labels: Optional[List[str]] = None
+    bounding_box: Optional[GPSBoundingBoxPayload] = None
+    limit: int = Field(default=500, ge=1, le=10000)
+
+
+class GPSAggregationPayload(GPSQueryPayload):
+    frequency: str = Field(default="60min")
+    metrics: List[Literal["row_count", "avg_speed", "event_distribution"]] = Field(
+        default_factory=lambda: ["row_count", "avg_speed", "event_distribution"]
+    )
+
+
+class GPSAnomalyPayload(GPSQueryPayload):
+    gap_threshold_minutes: int = Field(default=60, ge=1)
+    speed_threshold: Optional[float] = Field(default=None)
+    max_samples: int = Field(default=100, ge=1, le=500)
+
+
+class GPSLLMPayload(GPSQueryPayload):
+    question: Optional[str] = None
+    language: str = Field(default="es")
 
 
 class CaseDecisionRequest(BaseModel):
@@ -957,6 +1059,197 @@ async def get_report_html(case_id: str):
         return {"case_id": case_id, "html": html_path.read_text(encoding="utf-8"), "is_manual": False}
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc))
+
+
+@app.get("/api/cases/{case_id}/gps")
+async def list_gps_documents(case_id: str):
+    try:
+        documents = gps_query_service.list_documents(case_id)
+        return {"case_id": case_id, "documents": documents}
+    except Exception as exc:
+        logger.error("No se pudo listar artefactos GPS para %s: %s", case_id, exc)
+        raise HTTPException(status_code=500, detail="Error recuperando artefactos GPS")
+
+
+@app.get("/api/gps/metrics")
+async def get_gps_metrics(top_documents: int = 5, recent_limit: int = 5):
+    try:
+        metrics = gps_query_service.global_metrics(
+            top_documents=top_documents,
+            recent_limit=recent_limit,
+        )
+        return metrics
+    except Exception as exc:
+        logger.error("Error recuperando métricas globales GPS: %s", exc)
+        raise HTTPException(status_code=500, detail="Error recuperando métricas GPS")
+
+
+@app.get("/api/cases/{case_id}/gps/{document_name}")
+async def get_gps_metadata(case_id: str, document_name: str):
+    decoded_name = unquote(document_name)
+    try:
+        metadata = gps_query_service.get_metadata(case_id, decoded_name)
+        return {"case_id": case_id, **metadata}
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error recuperando metadata GPS %s/%s: %s", case_id, decoded_name, exc)
+        raise HTTPException(status_code=500, detail="Error recuperando metadata GPS")
+
+
+@app.get("/api/cases/{case_id}/gps/{document_name}/tables/{table_id}")
+async def get_gps_table(case_id: str, document_name: str, table_id: int):
+    decoded_name = unquote(document_name)
+    try:
+        payload = gps_query_service.query_table(case_id, decoded_name, table_id)
+        return {
+            "case_id": case_id,
+            "document_name": decoded_name,
+            "table_id": table_id,
+            **payload,
+        }
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error("Error consultando tabla GPS %s/%s #%s: %s", case_id, decoded_name, table_id, exc)
+        raise HTTPException(status_code=500, detail="Error consultando tabla GPS")
+
+
+@app.get("/api/cases/{case_id}/gps/{document_name}/text")
+async def get_gps_raw_text(case_id: str, document_name: str):
+    decoded_name = unquote(document_name)
+    try:
+        text = gps_query_service.get_raw_text(case_id, decoded_name)
+        return {
+            "case_id": case_id,
+            "document_name": decoded_name,
+            "text": text,
+        }
+    except Exception as exc:
+        logger.error("Error recuperando texto GPS %s/%s: %s", case_id, decoded_name, exc)
+        raise HTTPException(status_code=500, detail="Error recuperando texto GPS")
+
+
+@app.post("/api/gps/query")
+async def query_gps_dataset(payload: GPSQueryPayload):
+    try:
+        bounding_box = payload.bounding_box.model_dump() if payload.bounding_box else None
+        result = gps_query_service.query_dataset(
+            payload.case_id,
+            payload.document_name,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            event_labels=payload.event_labels,
+            bounding_box=bounding_box,
+            limit=payload.limit,
+        )
+        return {
+            "case_id": payload.case_id,
+            "document_name": payload.document_name,
+            **result,
+        }
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error(
+            "Error ejecutando consulta GPS %s/%s: %s",
+            payload.case_id,
+            payload.document_name,
+            exc,
+        )
+        raise HTTPException(status_code=500, detail="Error consultando dataset GPS")
+
+
+@app.post("/api/gps/segment")
+async def segment_gps_dataset(payload: GPSAggregationPayload):
+    try:
+        bounding_box = payload.bounding_box.model_dump() if payload.bounding_box else None
+        result = gps_query_service.segment_dataset(
+            payload.case_id,
+            payload.document_name,
+            frequency=payload.frequency,
+            metrics=payload.metrics,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            event_labels=payload.event_labels,
+            bounding_box=bounding_box,
+        )
+        return {
+            "case_id": payload.case_id,
+            "document_name": payload.document_name,
+            **result,
+        }
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.error(
+            "Error segmentando dataset GPS %s/%s: %s",
+            payload.case_id,
+            payload.document_name,
+            exc,
+        )
+        raise HTTPException(status_code=500, detail="Error segmentando dataset GPS")
+
+
+@app.post("/api/gps/anomalies")
+async def detect_gps_anomalies(payload: GPSAnomalyPayload):
+    try:
+        bounding_box = payload.bounding_box.model_dump() if payload.bounding_box else None
+        result = gps_query_service.detect_anomalies(
+            payload.case_id,
+            payload.document_name,
+            gap_threshold_minutes=payload.gap_threshold_minutes,
+            speed_threshold=payload.speed_threshold,
+            max_samples=payload.max_samples,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            event_labels=payload.event_labels,
+            bounding_box=bounding_box,
+        )
+        return {
+            "case_id": payload.case_id,
+            "document_name": payload.document_name,
+            **result,
+        }
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error(
+            "Error detectando anomalías GPS %s/%s: %s",
+            payload.case_id,
+            payload.document_name,
+            exc,
+        )
+        raise HTTPException(status_code=500, detail="Error detectando anomalías GPS")
+
+
+@app.post("/api/gps/llm-summary")
+async def llm_gps_summary(payload: GPSLLMPayload):
+    try:
+        bounding_box = payload.bounding_box.model_dump() if payload.bounding_box else None
+        result = gps_llm_service.summarise_route(
+            case_id=payload.case_id,
+            document_name=payload.document_name,
+            question=payload.question,
+            language=payload.language,
+            start_time=payload.start_time,
+            end_time=payload.end_time,
+            event_labels=payload.event_labels,
+            bounding_box=bounding_box,
+        )
+        return result
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    except Exception as exc:
+        logger.error(
+            "Error generando resumen LLM para %s/%s: %s",
+            payload.case_id,
+            payload.document_name,
+            exc,
+        )
+        raise HTTPException(status_code=500, detail="Error generando resumen LLM")
 
 
 @app.put("/api/editor/{case_id}/report-html")

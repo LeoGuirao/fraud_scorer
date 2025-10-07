@@ -8,6 +8,7 @@ from pathlib import Path
 import shutil
 import json
 import sys
+import re
 
 def get_valid_cases():
     """Obtiene los case_ids válidos de la BD"""
@@ -20,6 +21,12 @@ def get_valid_cases():
     except Exception as e:
         print(f"Error leyendo BD: {e}")
         return set()
+
+
+def sanitize_name(value: str) -> str:
+    sanitized = re.sub(r"[^a-zA-Z0-9_.-]+", "_", value or "")
+    sanitized = sanitized.strip("_")
+    return sanitized or "SIN_VALOR"
 
 def clean_orphaned_files(dry_run=False):
     """Limpia archivos que no corresponden a ningún caso válido"""
@@ -38,6 +45,7 @@ def clean_orphaned_files(dry_run=False):
 
     files_to_delete = []
     dirs_to_delete = []
+    sanitized_valid_cases = {sanitize_name(case) for case in valid_cases} if valid_cases else set()
 
     # 1. Limpiar reportes
     reports_dir = Path("data/reports")
@@ -136,6 +144,20 @@ def clean_orphaned_files(dry_run=False):
                 if not folder_is_valid:
                     dirs_to_delete.append(folder)
 
+    # 6. Limpiar datasets GPS huérfanos
+    gps_dir = Path("data/gps")
+    if gps_dir.exists():
+        for folder in gps_dir.iterdir():
+            if not folder.is_dir():
+                continue
+            if sanitized_valid_cases and folder.name in sanitized_valid_cases:
+                continue
+            if not valid_cases and not sanitized_valid_cases:
+                # Se solicitará confirmación global más adelante
+                dirs_to_delete.append(folder)
+                continue
+            dirs_to_delete.append(folder)
+
     # Mostrar resumen
     print("\n📊 RESUMEN DE LIMPIEZA:")
     print(f"  - Archivos a eliminar: {len(files_to_delete)}")
@@ -187,6 +209,7 @@ def clean_all():
     print("Esto eliminará:")
     print("  - TODOS los casos de la base de datos")
     print("  - TODOS los archivos de cache")
+    print("  - TODOS los datasets GPS")
     print("  - TODOS los reportes")
     print("  - TODAS las carpetas temporales")
 
@@ -215,6 +238,7 @@ def clean_all():
         # 2. Limpiar carpetas
         dirs_to_clean = [
             ("data/ocr_cache", True),   # Recrear
+            ("data/gps", True),         # Recrear datasets
             ("data/temp", False),       # No eliminar la carpeta en sí
             ("data/reports", False),
             ("data/uploads", False),

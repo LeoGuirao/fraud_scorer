@@ -9,6 +9,7 @@ Este documento (Better Practices) describe en detalle los problemas detectados y
 - Reutilización de análisis de fraude en reprocesos parciales sin romper plantillas.
 - Limpieza completa de casos (deep purge y purgas parciales) sin residuos en el filesystem.
 - Variables sensibles (.env): las claves de servicios externos (por ejemplo `OPENAI_API_KEY`, `AZURE_OCR_KEY`) se almacenan en la raíz del proyecto en `.env`. Cualquier instalación o reparación debe verificar este archivo antes de ejecutar scripts que dependan de esos proveedores.
+- Gobernanza LLM GPS: antes de habilitar `GPS_LLM_ENABLED`, revisa las salvaguardas descritas en `guides_md/GPS_LLM_GOVERNANCE.md` (umbrales de costo, registro de prompts y auditoría por caso).
 - Motor de correlación inter-documental (CaseContext + RuleEngine) y generación de reportes consolidados.
 - Actualización del pipeline de extracción/consolidación IA (septiembre 2025).
 
@@ -458,9 +459,12 @@ Al ejecutar `DELETE /replay/api/deep-purge/<case_id>` o la acción equivalente d
 1. **BD**: se elimina la fila en `cases` y, por cascada, `documents`, `ocr_results`, `extracted_data`, `fraud_analyses`, `runs` y métricas (`reset_cache_stats(case_id)`).
 2. **Índices**: se eliminan `case_index/{case_id}.json` y cualquier `*.backup_*` asociado.
 3. **Carpetas reorganizadas**: `data/ocr_cache/<ASEGURADO - SINIESTRO>/` desaparece (incluye subcarpetas y shards).
-4. **Archivos temporales**: se borran carpetas bajo `data/temp/...` que contengan el `case_id` o el siniestro (incluye `pipeline_cache` y staging temporales).
-5. **Reportes**: para cada coincidencia de `case_id`, `claim_number` o variantes del asegurado, se eliminan los archivos `HTML/PDF/JSON` de `data/reports/`.
-6. **Residuos adicionales**: si la limpieza se ejecuta mediante `clear_cache(['all'])`, también se vacía `case_index/` por completo antes de reconstruir la estructura.
+4. **Artefactos GPS**: `data/gps/<case_id>/` se elimina con todos los Parquet, manifest y `raw_text.txt`. Si existen variaciones sanitizadas del `case_id`, también deben desaparecer.
+5. **Archivos temporales**: se borran carpetas bajo `data/temp/...` que contengan el `case_id` o el siniestro (incluye `pipeline_cache` y staging temporales).
+6. **Índices vectoriales**: `data/chroma/<case_id>*` y snapshots asociados desaparecen; en `clear_cache(['all'])` se recrea la estructura vacía.
+7. **Auditoría Rick**: las entradas del caso se purgan de `data/logs/agent_rick_audit.jsonl` y el archivo se recrea vacío (se toca el fichero tras el purge para que futuros eventos no fallen).
+8. **Reportes**: para cada coincidencia de `case_id`, `claim_number` o variantes del asegurado, se eliminan los archivos `HTML/PDF/JSON` de `data/reports/`.
+9. **Residuos adicionales**: si la limpieza se ejecuta mediante `clear_cache(['all'])`, también se vacía `case_index/` por completo antes de reconstruir la estructura.
 
 Con estas garantías, volver a subir los mismos documentos hará que `/api/case/null/check-existing` responda `existing_case: false` y el pipeline procese el caso desde cero sin depender de artefactos previos.
 
@@ -468,7 +472,7 @@ Con estas garantías, volver a subir los mismos documentos hará que `/api/case/
 
 Para que la eliminación resista nuevas integraciones (Agente Rick, correlaciones, consolidadores personalizados), todas las rutas de borrado (`clear_cache`, `purge_case`, `deep_purge_case`) generan un conjunto de **tokens sanitizados** a partir de `case_id`, número de siniestro y nombre del asegurado. Estos tokens se usan para:
 
-- Escanear `data/reports`, `data/temp/pipeline_cache`, `data/chroma/` y `data/logs/agent_rick_audit.jsonl` buscando coincidencias parciales en nombres de archivo o contenido JSON; cualquier match deriva en borrado del artefacto completo (familia HTML/PDF/JSON, carpetas de índice, líneas de auditoría).
+- Escanear `data/reports`, `data/temp/pipeline_cache`, `data/gps/`, `data/chroma/` y `data/logs/agent_rick_audit.jsonl` buscando coincidencias parciales en nombres de archivo o contenido JSON; cualquier match deriva en borrado del artefacto completo (familia HTML/PDF/JSON, carpetas de índice, datasets GPS, líneas de auditoría).
 - Eliminar shards y carpetas reorganizadas incluso si el índice del caso ya no existe (p. ej. se detecta `GRUPO_ACEROS_OCOTLAN_SA_DE_CV - 20240000001361` solo a partir de los tokens).
 - Reconstruir la tabla `fraud_correlations` incorporando `ON DELETE CASCADE` de forma idempotente para evitar correlaciones huérfanas cuando se eliminan casos desde UI.
 

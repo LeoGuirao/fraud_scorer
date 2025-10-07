@@ -124,6 +124,7 @@ class CaseContext(BaseModelCompat):
     entities: Dict[str, List[Any]] = Field(default_factory=dict)
     timeline: List[Dict[str, Any]] = Field(default_factory=list)
     metadata: Dict[str, Any] = Field(default_factory=dict)
+    gps_documents: Dict[str, Any] = Field(default_factory=dict)
 
     _data_tree: Dict[str, Any] = PrivateAttr(default_factory=dict)
     _entity_normalizer: Optional[EntityNormalizer] = PrivateAttr(default=None)
@@ -228,6 +229,12 @@ class CaseContext(BaseModelCompat):
         if cache_manager:
             metadata_payload["cache_base_dir"] = str(cache_manager.cache_dir)
 
+        gps_documents = case_index.get("gps_direct_documents") or {}
+        metadata_payload["gps_documents"] = list(gps_documents.keys())
+        metadata_payload["gps_documents_count"] = len(gps_documents)
+        if case_index.get("gps_ingestion_audit"):
+            metadata_payload["gps_ingestion_audit"] = case_index.get("gps_ingestion_audit")
+
         context = cls(
             case_id=case_id,
             consolidated=consolidated_obj,
@@ -238,6 +245,7 @@ class CaseContext(BaseModelCompat):
             entities=entities,
             timeline=timeline,
             metadata=metadata_payload,
+            gps_documents=gps_documents,
         )
         context._entity_normalizer = normalizer
         context._document_alias_index = normalizer.document_alias_index()

@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 import json
 import sys
+import re
 from collections import defaultdict
 
 def check_system_integrity():
@@ -52,17 +53,19 @@ def check_system_integrity():
     except Exception as e:
         issues.append(f"Error accediendo a la BD: {e}")
 
+    try:
+        conn = sqlite3.connect("data/cases.db")
+        valid_cases = {row[0] for row in conn.execute("SELECT case_id FROM cases")}
+        conn.close()
+    except Exception:
+        valid_cases = set()
+
     # 2. Verificar archivos de índice
     print(f"\n📁 ÍNDICES DE CACHE:")
     index_dir = Path("data/ocr_cache/case_index")
     if index_dir.exists():
         index_files = list(index_dir.glob("*.json"))
         print(f"  - Archivos de índice: {len(index_files)}")
-
-        # Verificar que cada índice corresponda a un caso válido
-        conn = sqlite3.connect("data/cases.db")
-        valid_cases = {row[0] for row in conn.execute("SELECT case_id FROM cases")}
-        conn.close()
 
         for index_file in index_files:
             case_id = index_file.stem
@@ -121,7 +124,39 @@ def check_system_integrity():
                     issues.append(f"Carpeta huérfana: {folder_name}")
         conn.close()
 
-    # 4. Verificar reportes
+    # 4. Verificar datasets GPS
+    print(f"\n🛰️ DATASETS GPS:")
+    gps_dir = Path("data/gps")
+    if gps_dir.exists():
+        gps_folders = [folder for folder in gps_dir.iterdir() if folder.is_dir()]
+        print(f"  - Carpetas encontradas: {len(gps_folders)}")
+        sanitized_valid = {sanitize_name(case_id) for case_id in valid_cases}
+        for folder in gps_folders:
+            if sanitized_valid and folder.name not in sanitized_valid:
+                issues.append(f"Dataset GPS huérfano: {folder.name}")
+            manifest_path = folder / "_manifest.json"
+            if not manifest_path.exists():
+                warnings.append(f"Dataset GPS {folder.name} sin manifest")
+                continue
+            try:
+                manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            except Exception as exc:
+                issues.append(f"No se pudo leer manifest de {folder.name}: {exc}")
+                continue
+            for entry in manifest.values():
+                dataset = entry.get("dataset") or {}
+                for partition in dataset.get("partitions", []):
+                    partition_path = folder / partition.get("file", "")
+                    if not partition_path.exists():
+                        issues.append(
+                            f"Dataset GPS {folder.name} ({entry.get('document_name')}) sin partición {partition.get('file')}"
+                        )
+            if not manifest:
+                warnings.append(f"Dataset GPS {folder.name} vacío")
+    else:
+        warnings.append("No existe directorio data/gps")
+
+    # 5. Verificar reportes
     print(f"\n📄 REPORTES:")
     reports_dir = Path("data/reports")
     report_count = 0
@@ -146,7 +181,7 @@ def check_system_integrity():
             if not belongs_to_case:
                 issues.append(f"Reporte huérfano: {report.name}")
 
-    # 5. Verificar integridad de cache
+    # 6. Verificar integridad de cache
     print(f"\n🔗 INTEGRIDAD DE CACHE:")
     cache_stats = defaultdict(int)
 
@@ -160,7 +195,7 @@ def check_system_integrity():
 
     print(f"  - Shards de cache: {cache_stats['shards']}")
 
-    # 6. Verificar archivos temporales
+    # 7. Verificar archivos temporales
     print(f"\n🗑️ ARCHIVOS TEMPORALES:")
     temp_dir = Path("data/temp")
     if temp_dir.exists():
@@ -260,3 +295,7 @@ def check_system_integrity():
 if __name__ == "__main__":
     success = check_system_integrity()
     sys.exit(0 if success else 1)
+def sanitize_name(value: str) -> str:
+    sanitized = re.sub(r"[^a-zA-Z0-9_.-]+", "_", value or "")
+    sanitized = sanitized.strip("_")
+    return sanitized or "SIN_VALOR"

@@ -8,7 +8,9 @@ para reconstruir campos críticos siguiendo las recomendaciones de
 from __future__ import annotations
 
 import re
+import logging
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from fraud_scorer.analyzers.correlation.utils.normalization import (
@@ -17,6 +19,10 @@ from fraud_scorer.analyzers.correlation.utils.normalization import (
     normalize_decimal_as_str,
 )
 from fraud_scorer.models.extraction import DocumentExtraction
+from fraud_scorer.services.gps_query_service import GPSDirectQueryService
+
+
+logger = logging.getLogger(__name__)
 
 
 def _coerce_extraction(payload: Any) -> Optional[DocumentExtraction]:
@@ -155,6 +161,8 @@ class UnifiedDataLayer:
             self._extractions[extraction.source_document] = extraction
 
         self._field_cache: Dict[str, ResolvedField] = {}
+        self._gps_service = GPSDirectQueryService()
+        self.gps_documents: Dict[str, Any] = dict(self.case_index.get("gps_direct_documents") or {})
 
     @classmethod
     def from_case_index(
@@ -162,6 +170,39 @@ class UnifiedDataLayer:
         case_index: Dict[str, Any],
     ) -> "UnifiedDataLayer":
         return cls(case_index=case_index)
+
+    # ------------------------------------------------------------------
+    # GPS helpers
+    # ------------------------------------------------------------------
+    def has_gps_data(self) -> bool:
+        return bool(self.gps_documents)
+
+    def list_gps_documents(self) -> Dict[str, Any]:
+        return dict(self.gps_documents)
+
+    def get_gps_snapshot(
+        self,
+        document_name: str,
+        *,
+        start_time: Optional[Any] = None,
+        end_time: Optional[Any] = None,
+        event_labels: Optional[Iterable[str]] = None,
+        limit: int = 500,
+    ) -> Dict[str, Any]:
+        if document_name not in self.gps_documents:
+            return {}
+
+        start_dt = _coerce_datetime(start_time)
+        end_dt = _coerce_datetime(end_time)
+
+        return self._gps_service.query_dataset(
+            case_id=self.case_index.get("case_id") or self.case_id or "",
+            document_name=document_name,
+            start_time=start_dt,
+            end_time=end_dt,
+            event_labels=list(event_labels) if event_labels else None,
+            limit=limit,
+        )
 
     # ------------------------------------------------------------------
     # Resolución de campos
@@ -288,6 +329,18 @@ class UnifiedDataLayer:
 
         coverage = self._summarize_documents()
 
+        gps_context: Dict[str, Any] = {}
+        for name, entry in self.gps_documents.items():
+            dataset_meta = entry.get("dataset") or {}
+            summary = entry.get("summary") or {}
+            gps_context[name] = {
+                "row_count": dataset_meta.get("row_count"),
+                "warnings": entry.get("normalization_warnings") or summary.get("warnings"),
+                "time_span": summary.get("time_span"),
+                "largest_gap_minutes": _largest_gap_minutes(summary),
+                "h3_cells": summary.get("h3_cells"),
+            }
+
         return {
             "case_id": self.case_id,
             "claim_number": core.get("numero_siniestro", {}).get("value") or self.claim_number,
@@ -296,6 +349,8 @@ class UnifiedDataLayer:
             "field_sources": sources,
             "document_coverage": coverage,
             "last_updated_at": self.case_index.get("updated_at"),
+            "gps_documents": gps_context,
+            "gps_ingestion_audit": self.case_index.get("gps_ingestion_audit"),
         }
 
     def build_document_context(
@@ -326,7 +381,26 @@ class UnifiedDataLayer:
                 if field not in missing:
                     missing.append(field)
 
-        return {
+        gps_info: Optional[Dict[str, Any]] = None
+        if extraction.source_document in self.gps_documents:
+            entry = self.gps_documents[extraction.source_document]
+            dataset_meta = entry.get("dataset") or {}
+            summary = entry.get("summary") or {}
+            gps_info = {
+                "row_count": dataset_meta.get("row_count"),
+                "warnings": entry.get("normalization_warnings") or summary.get("warnings"),
+                "time_span": summary.get("time_span"),
+                "largest_gap_minutes": _largest_gap_minutes(summary),
+                "preview_rows": entry.get("preview_rows"),
+            }
+            try:
+                snapshot = self.get_gps_snapshot(extraction.source_document, limit=100)
+                gps_info["preview"] = snapshot.get("preview")
+                gps_info["query_summary"] = snapshot.get("summary")
+            except Exception as exc:  # pragma: no cover - defensivo
+                logger.debug("No se pudo construir snapshot GPS para %s: %s", extraction.source_document, exc)
+
+        payload = {
             "document_type": extraction.document_type,
             "document_name": extraction.source_document,
             "resolved_fields": resolved_fields,
@@ -334,6 +408,9 @@ class UnifiedDataLayer:
             "missing_fields": missing,
             "ocr_word_count": len(ocr_text.split()),
         }
+        if gps_info:
+            payload["gps_summary"] = gps_info
+        return payload
 
     @staticmethod
     def _is_present_in_document(resolved: ResolvedField, document_name: str) -> bool:
@@ -366,3 +443,20 @@ class UnifiedDataLayer:
 
 
 __all__ = ["UnifiedDataLayer", "ResolvedField"]
+
+
+def _coerce_datetime(value: Any) -> Optional[datetime]:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except Exception:
+        return None
+
+
+def _largest_gap_minutes(summary: Dict[str, Any]) -> Optional[int]:
+    time_gaps = summary.get("time_gaps") or []
+    values = [int(gap.get("gap_minutes") or 0) for gap in time_gaps if gap.get("gap_minutes")]
+    return max(values) if values else None

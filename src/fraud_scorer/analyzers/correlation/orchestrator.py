@@ -21,6 +21,7 @@ from .engines.rule_engine import RuleEngine
 from .engines.statistical_correlator import StatisticalCorrelator
 from .engines.rag_evidence_builder import RAGEvidenceBuilder
 from .metrics import record_report
+from .rules import gps_rules
 
 logger = logging.getLogger(__name__)
 
@@ -67,6 +68,9 @@ class CorrelationEngine:
         rule_findings = self.rule_engine.evaluate(context)
         findings.extend(rule_findings)
 
+        gps_findings = gps_rules.evaluate(context)
+        findings.extend(gps_findings)
+
         statistical_findings = self.statistical_correlator.analyze(context)
         findings.extend(statistical_findings)
 
@@ -85,6 +89,7 @@ class CorrelationEngine:
         metadata_payload = {
             "rule_count": len(rule_findings),
             "statistical_count": len(statistical_findings),
+            "gps_rule_count": len(gps_findings),
             "documents_indexed": len(context.documents),
             "rules_catalog_version": getattr(self.rule_engine, "catalog_version", "v0"),
             "entity_mappings_version": getattr(self.rule_engine, "entity_mappings_version", "v0"),

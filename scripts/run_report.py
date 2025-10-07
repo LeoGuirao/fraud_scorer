@@ -32,6 +32,7 @@ logger = logging.getLogger("fraud_scorer.run_report")
 # ==== Componentes del sistema v2 ====
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
 from fraud_scorer.parsers.document_parser import DocumentParser
+from fraud_scorer.parsers.processing_hint import ProcessingHint
 from fraud_scorer.storage.ocr_cache import OCRCacheManager
 from fraud_scorer.storage.post_process_verifier import verify_case_artifacts
 from fraud_scorer.storage.db import sha256_of_file, get_conn, save_correlation_findings
@@ -292,6 +293,46 @@ class FraudAnalysisSystemV2:
                 return stem
             return f"{stem}{suffix}" if suffix else stem
         except Exception:
+            return None
+
+    def _rehydrate_processing_hint(self, payload: Any) -> Optional[ProcessingHint]:
+        """Reconstruye un ``ProcessingHint`` serializado si es posible."""
+
+        if isinstance(payload, ProcessingHint):
+            return payload
+        if not isinstance(payload, dict):
+            return None
+
+        data = dict(payload)
+        data.pop("ui_metadata", None)
+
+        allowed_keys = {
+            "file_name",
+            "file_extension",
+            "mime_type",
+            "file_size_bytes",
+            "manual_override",
+            "is_gps_candidate",
+            "confidence",
+            "detector_version",
+            "vector_ratio",
+            "reason",
+        }
+
+        filtered = {key: data[key] for key in allowed_keys if key in data}
+        required = {"file_name", "file_extension", "mime_type", "file_size_bytes"}
+        if not required.issubset(filtered):
+            logger.debug("ProcessingHint incompleto: faltan %s", required - set(filtered))
+            return None
+
+        try:
+            return ProcessingHint(**filtered)
+        except Exception as exc:
+            logger.debug(
+                "No se pudo reconstruir ProcessingHint para %s: %s",
+                filtered.get("file_name"),
+                exc,
+            )
             return None
 
     def _prepare_docless_ocr(
@@ -556,6 +597,8 @@ class FraudAnalysisSystemV2:
         reprocess_mode: bool = False,
         reprocess_options: Optional[Dict[str, Any]] = None,
         existing_case_id: Optional[str] = None,
+        processing_hints: Optional[Dict[str, Dict[str, Any]]] = None,
+        gps_manual_flags: Optional[Dict[str, bool]] = None,
     ) -> Dict[str, Any]:
         """
         Procesa un caso completo con el flujo v2 (solo IA).
@@ -773,7 +816,14 @@ class FraudAnalysisSystemV2:
         self.progress_emitter = _ProgressEmitter(case_id)
 
         # Ejecutar pipeline v2
-        return await self._process_with_ai(documents, case_id, output_path, folder_path)
+        return await self._process_with_ai(
+            documents,
+            case_id,
+            output_path,
+            folder_path,
+            processing_hints=processing_hints,
+            gps_manual_flags=gps_manual_flags,
+        )
 
     async def _process_with_ai(
         self,
@@ -781,6 +831,9 @@ class FraudAnalysisSystemV2:
         case_id: str,
         output_path: Path,
         base_folder: Path,
+        *,
+        processing_hints: Optional[Dict[str, Dict[str, Any]]] = None,
+        gps_manual_flags: Optional[Dict[str, bool]] = None,
     ) -> Dict[str, Any]:
         """
         Procesamiento con el sistema de IA y cache.
@@ -801,6 +854,35 @@ class FraudAnalysisSystemV2:
             except Exception:
                 case_data = {}
         case_data.setdefault("case_id", case_id)
+
+        if processing_hints:
+            existing_hints = case_data.get("gps_processing_hints")
+            if isinstance(existing_hints, dict):
+                existing_hints.update(processing_hints)
+            else:
+                case_data["gps_processing_hints"] = dict(processing_hints)
+
+        if gps_manual_flags:
+            existing_flags = case_data.get("gps_manual_flags")
+            if isinstance(existing_flags, dict):
+                existing_flags.update(gps_manual_flags)
+            else:
+                case_data["gps_manual_flags"] = dict(gps_manual_flags)
+
+        hint_objects: Dict[str, ProcessingHint] = {}
+        if processing_hints:
+            for name, payload in processing_hints.items():
+                hint = self._rehydrate_processing_hint(payload)
+                if hint:
+                    hint_objects[name] = hint
+
+        def _hint_for_path(doc_path: Path) -> Optional[ProcessingHint]:
+            if not hint_objects:
+                return None
+            hint = hint_objects.get(doc_path.name)
+            if hint:
+                return hint
+            return hint_objects.get(str(doc_path.name))
 
         doc_ids_by_name: Dict[str, str] = {}
         try:
@@ -899,7 +981,10 @@ class FraudAnalysisSystemV2:
                         doc_path.name,
                     )
                     try:
-                        ocr_result = self.document_parser.parse_document(doc_path)
+                        ocr_result = self.document_parser.parse_document(
+                            doc_path,
+                            hint=_hint_for_path(doc_path),
+                        )
                         if ocr_result and self.cache_manager:
                             self.cache_manager.save_cache(doc_path, ocr_result, case_id)
                         all_cached = False
@@ -1022,7 +1107,10 @@ class FraudAnalysisSystemV2:
                             # OCR/Parser tolerante a fallos
                             logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
                             try:
-                                ocr_result = self.document_parser.parse_document(doc_path)
+                                ocr_result = self.document_parser.parse_document(
+                                    doc_path,
+                                    hint=_hint_for_path(doc_path),
+                                )
                                 if self.cache_manager and ocr_result:
                                     self.cache_manager.save_cache(doc_path, ocr_result, case_id)
                             except Exception as e:
@@ -1045,7 +1133,10 @@ class FraudAnalysisSystemV2:
                     logger.info(f"  Procesando: {doc_path.name}")
                     logger.info(f"  🔄 Procesando con OCR/Parser: {doc_path.name}")
                     try:
-                        ocr_result = self.document_parser.parse_document(doc_path)
+                        ocr_result = self.document_parser.parse_document(
+                            doc_path,
+                            hint=_hint_for_path(doc_path),
+                        )
                     except Exception as e:
                         logger.error(f"  ❌ Error procesando {doc_path.name}: {e}", exc_info=True)
                         continue

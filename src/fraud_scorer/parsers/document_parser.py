@@ -25,6 +25,11 @@ from fraud_scorer.parsers.types import (
     OCR_EXTENSIONS,
 )
 from fraud_scorer.parsers.readers.azure_reader import AzureOCRReader
+from fraud_scorer.parsers.document_router import DocumentIntakeRouter
+from fraud_scorer.parsers.processing_hint import (
+    ProcessingHint,
+    ProcessingHintBuilder,
+)
 
 # OCR de Azure (inyectado al adapter)
 from fraud_scorer.processors.ocr.azure_ocr import AzureOCRProcessor
@@ -54,9 +59,16 @@ class DocumentParser:
         """
         # Adapter/Reader que encapsula Azure y devuelve salida unificada
         self.ocr_reader: DocumentReader = AzureOCRReader(ocr_processor)
+        self.hint_builder = ProcessingHintBuilder()
+        self.intake_router = DocumentIntakeRouter(hint_builder=self.hint_builder)
         logger.info("DocumentParser inicializado con todos los procesadores.")
 
-    def parse_document(self, doc_path: Path) -> Optional[ParsedDocument]:
+    def parse_document(
+        self,
+        doc_path: Path,
+        *,
+        hint: Optional[ProcessingHint] = None,
+    ) -> Optional[ParsedDocument]:
         """
         Parsea un documento, seleccionando el método apropiado según su extensión.
 
@@ -75,37 +87,47 @@ class DocumentParser:
             logger.warning(f"Omitiendo archivo temporal/oculto: {doc_path.name}")
             return None
 
-        ext = doc_path.suffix.lower()
-        logger.info(f"Iniciando parsing para: {doc_path.name} (tipo: {ext})")
+        logger.info("Iniciando parsing para: %s", doc_path.name)
 
+        router_hint = hint or self.hint_builder.build(doc_path)
         try:
-            # 1) OCR para imágenes y PDFs
-            if ext in OCR_EXTENSIONS:
-                return self.ocr_reader.read(doc_path)
-
-            # 2) DOCX
-            if ext == ".docx":
-                return self._parse_docx(doc_path)
-
-            # 3) XLSX (Excel)
-            if ext == ".xlsx":
-                return self._parse_excel(doc_path)
-
-            # 4) CSV
-            if ext == ".csv":
-                return self._parse_csv(doc_path)
-
-            # 5) No soportado
-            logger.warning(f"Formato no soportado: {ext} → {doc_path.name}")
-            return None
-
-        except Exception as e:
-            logger.error(f"Error al parsear {doc_path.name}: {e}", exc_info=True)
+            result = self.intake_router.route(doc_path, self._legacy_parse, hint=router_hint)
+            if result and router_hint:
+                metadata = result.setdefault("metadata", {})
+                metadata["processing_hint"] = router_hint.as_dict()
+                gps_meta = metadata.setdefault("gps_direct", {}) if metadata.get("gps_direct") else None
+                if gps_meta is not None and not gps_meta.get("hint"):
+                    gps_meta["hint"] = router_hint.as_dict()
+            return result
+        except Exception as exc:
+            logger.error("Error en intaked routing para %s: %s", doc_path.name, exc, exc_info=True)
             return None
 
     # ==========================
     # Parsers nativos unificados
     # ==========================
+
+    def _legacy_parse(self, doc_path: Path) -> Optional[ParsedDocument]:
+        """Mantiene el flujo tradicional basado en OCR/parsers nativos."""
+        ext = doc_path.suffix.lower()
+        try:
+            if ext in OCR_EXTENSIONS:
+                return self.ocr_reader.read(doc_path)
+
+            if ext == ".docx":
+                return self._parse_docx(doc_path)
+
+            if ext == ".xlsx":
+                return self._parse_excel(doc_path)
+
+            if ext == ".csv":
+                return self._parse_csv(doc_path)
+
+            logger.warning(f"Formato no soportado: {ext} → {doc_path.name}")
+            return None
+        except Exception as exc:
+            logger.error(f"Error al parsear {doc_path.name}: {exc}", exc_info=True)
+            return None
 
     def _parse_docx(self, doc_path: Path) -> ParsedDocument:
         """Parsea un archivo .docx a la salida unificada."""

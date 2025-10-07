@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import Optional, Dict, Any, List
+from typing import Optional, Dict, Any, List, Tuple
 from .db import (
     upsert_document, get_ocr_by_document_id, get_any_ocr_by_hash, copy_ocr_to_document,
     save_ocr_result, mark_ocr_success, sha256_of_file, get_extracted_by_document_id, save_extracted_data,
@@ -12,7 +12,9 @@ import shutil
 import re
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
+
+from fraud_scorer.storage.gps_cache import GPSCacheManager
 
 logger = logging.getLogger(__name__)
 
@@ -103,11 +105,13 @@ class OCRCacheManager:
         
         self.cache_dir = Path(cache_base_dir)
         self.index_dir = self.cache_dir / "case_index"
-        
+
         # Crear directorios si no existen
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.index_dir.mkdir(parents=True, exist_ok=True)
-        
+
+        self.gps_cache = GPSCacheManager()
+
         logger.info(f"OCRCacheManager inicializado con directorio: {self.cache_dir}")
     
     def _get_cache_path(self, document_path: Path) -> Path:
@@ -521,13 +525,16 @@ class OCRCacheManager:
                                         doc_id = row["id"]
                             except Exception:
                                 doc_id = None
+
                             if not doc_id:
                                 try:
                                     doc_id, _ = ensure_document_registered(case_id, str(document_path))
                                 except Exception:
                                     doc_id = None
+
                             if doc_id:
-                                persist_ocr(doc_id, ocr_result, "azure", "full")
+                                engine, version = self._resolve_engine_hint(ocr_result)
+                                persist_ocr(doc_id, ocr_result, engine, version)
                         except Exception as persist_exc:
                             logger.debug(f"No se pudo persistir OCR en DB para {document_path}: {persist_exc}")
                         if not COPY_DOCUMENTS_IN_REORG:
@@ -537,6 +544,14 @@ class OCRCacheManager:
                                     pdf_destination.unlink()
                                 except Exception:
                                     pass
+                        try:
+                            self._persist_gps_artifacts(case_id, document_path, ocr_result)
+                        except Exception:
+                            logger.debug("No se pudieron persistir artefactos GPS para %s", document_path.name)
+                        try:
+                            self._update_case_index_metadata(case_id, document_path, ocr_result)
+                        except Exception as exc:
+                            logger.debug("No se pudo actualizar case_index con metadata GPS %s: %s", document_path.name, exc)
                         return
                     except Exception as e:
                         logger.warning(f"Fallo guardando en vista humana; guardando en shard. Detalle: {e}")
@@ -573,12 +588,22 @@ class OCRCacheManager:
                     except Exception:
                         doc_id = None
                 if doc_id:
-                    persist_ocr(doc_id, ocr_result, "azure", "full")
+                    engine, version = self._resolve_engine_hint(ocr_result)
+                    persist_ocr(doc_id, ocr_result, engine, version)
             except Exception as persist_exc:
                 logger.debug(f"No se pudo persistir OCR en DB para {document_path}: {persist_exc}")
+            if case_id:
+                try:
+                    self._persist_gps_artifacts(case_id, document_path, ocr_result)
+                except Exception:
+                    logger.debug("No se pudieron persistir artefactos GPS para %s", document_path.name)
+                try:
+                    self._update_case_index_metadata(case_id, document_path, ocr_result)
+                except Exception as exc:
+                    logger.debug("No se pudo actualizar case_index con metadata GPS %s: %s", document_path.name, exc)
         except Exception as e:
             logger.error(f"Error guardando caché para {document_path}: {e}")
-    
+
     def save_case_index(self, case_id: str, case_data: Dict[str, Any]) -> None:
         """
         Guarda el índice de archivos de un caso para futura reorganización.
@@ -593,6 +618,11 @@ class OCRCacheManager:
             insured = case_data.get('insured_name') or "SIN_NOMBRE"
             claim = case_data.get('claim_number') or case_id
             case_data['case_folder'] = f"{self._sanitize_filename(insured)} - {self._sanitize_filename(claim)}"
+
+            try:
+                self.gps_cache.attach_to_case_index(case_id, case_data)
+            except Exception as exc:
+                logger.debug("No se pudo adjuntar metadata GPS a case_index %s: %s", case_id, exc)
 
             # Sincronizar con BD: actualizar base_path si hay carpeta reorganizada
             try:
@@ -617,6 +647,68 @@ class OCRCacheManager:
             logger.debug(f"Índice de caso guardado: {index_path}")
         except Exception as e:
             logger.error(f"Error guardando índice del caso {case_id}: {e}")
+
+    def _persist_gps_artifacts(self, case_id: str, document_path: Path, ocr_result: Dict[str, Any]) -> None:
+        self.gps_cache.persist_direct_output(case_id, document_path, ocr_result)
+
+    def _resolve_engine_hint(self, ocr_result: Dict[str, Any]) -> Tuple[str, str]:
+        metadata = ocr_result.get("metadata") or {}
+        gps_meta = metadata.get("gps_direct") or {}
+        if gps_meta.get("enabled"):
+            hint = gps_meta.get("hint") or {}
+            version = hint.get("detector_version") or "direct"
+            return "gps_dal", str(version)
+        return "azure", "full"
+
+    def _update_case_index_metadata(
+        self,
+        case_id: str,
+        document_path: Path,
+        ocr_result: Dict[str, Any],
+    ) -> None:
+        if not case_id:
+            return
+
+        case_data = self.get_case_index(case_id) or {"case_id": case_id}
+        case_data.setdefault("case_id", case_id)
+
+        metadata = ocr_result.get("metadata") or {}
+        hint_payload = metadata.get("processing_hint")
+        if hint_payload:
+            hints = case_data.setdefault("document_hints", {})
+            hints[document_path.name] = hint_payload
+
+        gps_meta = metadata.get("gps_direct") or {}
+        if gps_meta:
+            hint_dict = hint_payload if isinstance(hint_payload, dict) else {}
+            source = "manual" if hint_dict.get("manual_override") else (hint_dict.get("source") or "auto")
+            detector_version = hint_dict.get("detector_version") or gps_meta.get("schema_version")
+            audit_entry = {
+                "document_name": document_path.name,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+                "enabled": bool(gps_meta.get("enabled")),
+                "detector_version": detector_version,
+                "confidence": hint_dict.get("confidence"),
+                "source": source,
+                "plugins_used": gps_meta.get("plugins_used"),
+                "normalized_row_count": gps_meta.get("normalized_row_count"),
+                "warnings": gps_meta.get("normalization_warnings"),
+                "ingestion_stats": gps_meta.get("ingestion_stats"),
+                "dataset_checksum": (gps_meta.get("dataset") or {}).get("checksum"),
+                "dataset_rows": (gps_meta.get("dataset") or {}).get("row_count"),
+            }
+            audit_list = [
+                entry
+                for entry in case_data.get("gps_ingestion_audit", [])
+                if entry.get("document_name") != document_path.name
+            ]
+            audit_list.append(audit_entry)
+            case_data["gps_ingestion_audit"] = sorted(
+                audit_list,
+                key=lambda entry: entry.get("document_name") or "",
+            )
+
+        self.save_case_index(case_id, case_data)
 
     def get_case_folder_path(self, case_id: str, case_data: Optional[Dict[str, Any]] = None) -> Path:
         """Devuelve la ruta de carpeta reorganizada para un caso."""
