@@ -8,7 +8,7 @@ import logging
 import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Tuple
+from typing import Any, Iterable, List, Tuple
 
 import openai
 from langchain.schema import Document
@@ -76,6 +76,7 @@ class RickVectorStoreManager:
                 else:
                     doc.metadata = dict(doc.metadata)
                 doc.metadata.setdefault("vector_id", doc_id)
+                doc.metadata = self._sanitize_metadata(doc.metadata)
 
             batch, ids = self._filter_new_records(store, original_batch, original_ids)
 
@@ -155,8 +156,15 @@ class RickVectorStoreManager:
                 ) from exc
             except Exception as exc:  # pragma: no cover - depende del proveedor
                 success_streak = 0
+                logger.error(
+                    "Error inesperado generando embeddings para %s con batch=%s: %s: %s",
+                    case_id,
+                    current_batch_size,
+                    exc.__class__.__name__,
+                    exc,
+                )
                 raise RuntimeError(
-                    "Error generando embeddings (posible límite de tokens). Reduce el tamaño de lote con AGENTE_RICK_EMBED_BATCH."
+                    f"Error generando embeddings para {case_id}: {exc.__class__.__name__}: {exc}"
                 ) from exc
 
         try:
@@ -207,10 +215,14 @@ class RickVectorStoreManager:
 
         existing_ids: set[str] = set()
         try:
-            payload = store.get(ids=unique_ids, include=[])
-            existing_ids.update(payload.get("ids") or [])
+            payload = store.get(ids=unique_ids, include=["metadatas"])
         except Exception as exc:  # pragma: no cover - defensivo
             logger.debug("No se pudo verificar IDs existentes en Chroma: %s", exc)
+        else:
+            if isinstance(payload, dict):
+                existing_ids.update(payload.get("ids") or [])
+            else:  # pragma: no cover - defensivo
+                logger.debug("Respuesta inesperada al consultar IDs existentes: %r", payload)
 
         if not existing_ids:
             return unique_docs, unique_ids
@@ -246,6 +258,24 @@ class RickVectorStoreManager:
         )
         raw = f"{case_id}:{source}:{chunk_index}:{fingerprint}"
         return hashlib.sha1(raw.encode("utf-8")).hexdigest()
+
+    def _sanitize_metadata(self, metadata: dict[str, Any]) -> dict[str, Any]:
+        """Normaliza metadatos para cumplir con los requisitos de Chroma 1.1.0 (solo tipos primitivos)."""
+
+        sanitized: dict[str, Any] = {}
+        for key, value in (metadata or {}).items():
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                sanitized[key] = value
+            elif isinstance(value, (list, tuple, set)):
+                sanitized[key] = ", ".join(str(item) for item in value if item is not None)
+            elif isinstance(value, dict):
+                try:
+                    sanitized[key] = json.dumps(value, ensure_ascii=False, sort_keys=True)
+                except TypeError:
+                    sanitized[key] = str(value)
+            else:
+                sanitized[key] = str(value)
+        return sanitized
 
     def _write_manifest(self, case_id: str, documents: List[Document]) -> None:
         manifest = {

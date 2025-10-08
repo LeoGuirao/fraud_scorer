@@ -1832,11 +1832,18 @@ class FraudAnalysisSystemV2:
                     snapshot.setdefault("case_id", case_id)
                     snapshot.setdefault("claim_number", claim_number_from_data)
                     snapshot.setdefault("insured_name", insured_name_from_data)
-                    consolidated_dump = (
-                        consolidated.fields.model_dump()  # type: ignore[attr-defined]
-                        if hasattr(consolidated.fields, "model_dump")
-                        else getattr(consolidated.fields, "__dict__", {})
-                    )
+                    # Preferimos `consolidated_fields` (ver BETTER_PRACTICES §13); tolera `fields` en datos antiguos.
+                    field_obj = getattr(consolidated, "consolidated_fields", None) or getattr(consolidated, "fields", None)
+                    if field_obj:
+                        if hasattr(field_obj, "model_dump"):
+                            consolidated_dump = field_obj.model_dump()
+                        elif hasattr(field_obj, "dict"):
+                            consolidated_dump = field_obj.dict()
+                        else:
+                            consolidated_dump = getattr(field_obj, "__dict__", {})
+                    else:
+                        consolidated_dump = {}
+                        logger.warning("No se encontraron campos consolidados en el objeto ConsolidatedExtraction; se usará un dict vacío.")
                     snapshot["consolidated_data"] = {"consolidated_fields": consolidated_dump}
                     snapshot["extraction_results"] = [
                         ext.model_dump() if hasattr(ext, "model_dump") else (

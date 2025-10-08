@@ -239,7 +239,7 @@ class FraudDocumentCatalog:
                        fa.analisis_completo,
                        fa.indicators,
                        fa.evidence,
-                       fa.evidence_gaps,
+                       COALESCE(fa.evidence_gaps, '[]') AS evidence_gaps,
                        fa.recommendations,
                        fa.confidence,
                        fa.analysis_model,

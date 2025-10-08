@@ -807,7 +807,7 @@ DOCUMENT_PRIORITIES = {
 CLASSIFICATION_CONFIG = {
     "min_confidence_threshold": 0.6,  # Umbral para usar LLM
     "sample_text_length": 1500,       # Caracteres para clasificación
-    "llm_model": "gpt-5-mini",       # Modelo base para clasificación textual
+    "llm_model": "gpt-4o-mini",       # Modelo base para clasificación textual
     "llm_temperature": 0.1,           # Baja temperatura para consistencia
     "llm_max_completion_tokens": 200  # Límite de tokens para respuesta
 }

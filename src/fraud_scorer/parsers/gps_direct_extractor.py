@@ -23,6 +23,19 @@ from fraud_scorer.parsers.types import ParsedDocument, Table
 
 logger = logging.getLogger(__name__)
 
+_COORD_PATTERN = re.compile(r"(?P<lat>-?\d{1,2}\.\d+)\s*/\s*(?P<lon>-?\d{1,3}\.\d+)")
+_TIMESTAMP_PATTERN = re.compile(r"(?P<ts>\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}:\d{2})")
+_SPEED_HEADING_PATTERN = re.compile(
+    r"(?P<speed>\d+(?:\.\d+)?)(?P<heading>[A-Za-zÁÉÍÓÚÑñ]+(?:\([^)]*\))?)?"
+)
+_EVENT_PATTERN = re.compile(
+    r"(Encendido|Apagado|Detenido|Detención|Detencion|Movimiento|Arranque|Arrancado|"
+    r"Sin\s*Reporte|SinReporte|Bloqueado|Desbloqueado|Ignición|Ignicion|Reiniciado|"
+    r"Reinicio|Pánico|Panico|Inicio|Fin)",
+    re.IGNORECASE,
+)
+_RAW_LINE_HEADER = "raw_line"
+
 
 GPS_SCHEMA_VERSION = 1
 REQUIRED_COLUMNS = (
@@ -195,6 +208,14 @@ class PDFExtractionPlugin(GPSExtractionPlugin):
                 except Exception as exc:  # pragma: no cover - fallback
                     warnings.append(f"camelot_error:{exc}")
 
+        if not tables and text_segments:
+            regex_tables = extract_tables_from_text_segments(text_segments)
+            if regex_tables:
+                tables.extend(regex_tables)
+                plugins_used.append("pdf_text_regex")
+            else:
+                warnings.append("pdf_text_regex_no_matches")
+
         return PluginResult(
             tables=tables,
             text_segments=text_segments,
@@ -324,6 +345,107 @@ class DocxExtractionPlugin(GPSExtractionPlugin):
             plugin_name=self.name,
             extra_metadata={"chunk_count": len(tables)},
         )
+
+
+def extract_tables_from_text_segments(text_segments: Sequence[str]) -> List[Table]:
+    """
+    Construye tablas sintéticas a partir de líneas de texto con registros GPS.
+    Se utiliza como fallback cuando los PDFs no contienen tablas declaradas.
+    """
+    rows: List[List[Any]] = []
+    for segment in text_segments or []:
+        for candidate in _iter_candidate_records(segment):
+            parsed_row = _parse_candidate_line(candidate)
+            if parsed_row:
+                rows.append(parsed_row)
+
+    if not rows:
+        return []
+
+    table: Table = {
+        "headers": ["timestamp", "latitude", "longitude", "speed", "heading", "event", _RAW_LINE_HEADER],
+        "data_rows": rows,
+        "sheet_name": "pdf_text_regex",
+        "row_count": len(rows),
+        "column_count": 7,
+        "source_page": None,
+        "gps_plugin": "pdf_text_regex",
+    }
+    return [table]
+
+
+def _iter_candidate_records(segment: str) -> Iterable[str]:
+    """
+    Agrupa líneas consecutivas que conforman un registro GPS. Funciona tanto
+    para registros en una sola línea como para estructuras verticales.
+    """
+    buffer: List[str] = []
+    for raw_line in segment.splitlines():
+        stripped = raw_line.strip()
+        if not stripped:
+            if buffer:
+                joined = " ".join(buffer)
+                if _is_candidate(joined):
+                    yield joined
+                buffer = []
+            continue
+
+        buffer.append(stripped)
+        joined = " ".join(buffer)
+        if _is_candidate(joined):
+            yield joined
+            buffer = []
+
+    if buffer:
+        joined = " ".join(buffer)
+        if _is_candidate(joined):
+            yield joined
+
+
+def _is_candidate(line: str) -> bool:
+    if len(line) < 20:
+        return False
+    if "gps" not in line.lower():
+        return False
+    if not _COORD_PATTERN.search(line):
+        return False
+    if not _TIMESTAMP_PATTERN.search(line):
+        return False
+    return True
+
+
+def _parse_candidate_line(line: str) -> Optional[List[Any]]:
+    if not _is_candidate(line):
+        return None
+
+    coord_match = _COORD_PATTERN.search(line)
+    ts_match = _TIMESTAMP_PATTERN.search(line)
+    if not coord_match or not ts_match:
+        return None
+
+    timestamp = " ".join(ts_match.group("ts").split())
+    lat = coord_match.group("lat").strip()
+    lon = coord_match.group("lon").strip()
+
+    tail = line[ts_match.end():]
+    speed = None
+    heading = None
+    speed_match = _SPEED_HEADING_PATTERN.search(tail)
+    if speed_match:
+        speed = (speed_match.group("speed") or "").strip() or None
+        heading_raw = speed_match.group("heading") or ""
+        heading = heading_raw.strip() or None
+
+    event_label = _match_event_label(line)
+    return [
+        timestamp,
+        lat,
+        lon,
+        speed,
+        heading,
+        event_label,
+        line.strip(),
+    ]
 
 
 class GPSDirectExtractor:
@@ -516,6 +638,45 @@ def normalize_gps_tables(tables: Iterable[Table]) -> Tuple[pd.DataFrame, List[st
     ordered_columns = list(REQUIRED_COLUMNS) + list(OPTIONAL_COLUMNS) + [RAW_PAYLOAD_COLUMN]
     df = df[ordered_columns]
     return df, warnings
+
+
+def _match_event_label(line: str) -> str:
+    match = _EVENT_PATTERN.search(line)
+    if not match:
+        return "Unknown"
+    return _canonical_event_label(match.group(1))
+
+
+def _canonical_event_label(token: str) -> str:
+    key = _normalize_event_key(token)
+    return _EVENT_CANONICAL.get(key, token.strip().title() or "Unknown")
+
+
+def _normalize_event_key(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+    normalized = normalized.lower().replace(" ", "")
+    return normalized
+
+
+_EVENT_CANONICAL: Dict[str, str] = {
+    "encendido": "Encendido",
+    "apagado": "Apagado",
+    "detenido": "Detenido",
+    "detencion": "Detención",
+    "movimiento": "Movimiento",
+    "arranque": "Arranque",
+    "arrancado": "Arranque",
+    "sinreporte": "Sin reporte",
+    "bloqueado": "Bloqueado",
+    "desbloqueado": "Desbloqueado",
+    "ignicion": "Ignición",
+    "reiniciado": "Reiniciado",
+    "reinicio": "Reinicio",
+    "panico": "Pánico",
+    "inicio": "Inicio",
+    "fin": "Fin",
+}
 
 
 def build_gps_summary(
@@ -754,6 +915,7 @@ def compute_sha256_for_paths(paths: Iterable[Path]) -> str:
 
 __all__ = [
     "GPSDirectExtractor",
+    "extract_tables_from_text_segments",
     "normalize_gps_tables",
     "build_gps_summary",
     "dataframe_to_table",

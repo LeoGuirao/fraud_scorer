@@ -30,20 +30,20 @@
             line-height: 1.5;
             min-height: 100vh;
             display: flex;
-            align-items: center;
+            align-items: stretch;
             justify-content: center;
-            padding: 0;
+            padding: 18px 32px;
+            overflow-y: auto;
         }
 
         .dashboard-container {
             display: flex;
-            height: calc(100vh - 32px);
-            width: calc(100vw - 48px);
-            max-width: 1500px;
-            border-radius: 35px;
+            width: min(96vw, 1520px);
+            min-height: calc(100vh - 36px);
+            background: #000000;
+            border-radius: 30px;
             overflow: hidden;
             box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
-            background-color: #000000;
         }
 
         .sidebar {
@@ -131,12 +131,15 @@
         .blacknox-logo {
             margin-top: auto;
             text-align: center;
-            padding: 20px 0;
+            padding: 18px 12px;
+            display: flex;
+            justify-content: center;
         }
 
         .blacknox-logo-img {
-            width: 120px;
+            width: 96px;
             height: auto;
+            object-fit: contain;
             filter: brightness(0) invert(1);
         }
 
@@ -144,23 +147,23 @@
             flex: 1;
             background-color: #5f5f5f;
             padding: 32px 48px;
-            border: 1px solid #000000;
-            position: relative;
-            display: grid;
-            grid-template-rows: auto minmax(420px, 65vh) minmax(280px, 1fr);
-            gap: 32px;
-            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            overflow-y: auto;
+            overflow-x: hidden;
         }
 
         .main-header {
             margin-bottom: 12px;
             padding-bottom: 16px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.4);
-        }
-
-        .header-top {
-            position: relative;
-            text-align: center;
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px 20px;
         }
 
         .main-title {
@@ -173,183 +176,93 @@
             line-height: 1.1;
         }
 
-        .last-login-main {
-            position: absolute;
-            top: -20px;
-            right: 0;
-            font-size: 12px;
-            color: #ffffff;
-            opacity: 0.75;
-            text-transform: none;
-            white-space: nowrap;
+        .last-login-chip {
             display: inline-flex;
             align-items: center;
-            gap: 8px;
+            gap: 10px;
+            padding: 8px 14px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.35);
+            font-size: 12px;
+            color: #ffffff;
+            letter-spacing: 0.3px;
+            white-space: nowrap;
+        }
+
+        .last-login-chip i {
+            font-size: 16px;
+            opacity: 0.85;
+        }
+
+        .last-login-label {
+            text-transform: uppercase;
+            font-weight: 700;
+            font-size: 11px;
+            opacity: 0.8;
+        }
+
+        .last-login-value {
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .last-login-chip.is-empty {
+            opacity: 0.7;
         }
 
         .section-title {
-            font-size: 14px;
-            font-weight: 700;
-            color: #ffffff;
-            margin-bottom: 15px;
-        }
-
-        .correlation-section {
-            background-color: rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 0;
-            padding: 24px 32px 32px;
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-            margin-top: 32px;
-        }
-
-        .correlation-summary-card {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 16px;
-        }
-
-        .correlation-summary-card .correlation-metric {
-            background-color: rgba(0, 0, 0, 0.25);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            padding: 16px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .correlation-summary-card .correlation-metric span {
-            font-size: 12px;
-            color: rgba(255, 255, 255, 0.75);
-        }
-
-        .correlation-summary-card .correlation-metric strong {
             font-size: 18px;
-            color: #ffffff;
-        }
-
-        .correlation-controls {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .correlation-controls label {
-            font-size: 12px;
             font-weight: 700;
             color: #ffffff;
+            margin-bottom: 16px;
+            letter-spacing: 0.4px;
         }
 
-        .correlation-controls select {
-            background: rgba(0, 0, 0, 0.3);
-            border: 1px solid rgba(255, 255, 255, 0.35);
-            color: #ffffff;
-            padding: 8px 12px;
-            font-size: 13px;
-        }
-
-        .correlation-table {
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            background-color: rgba(0, 0, 0, 0.25);
-            display: flex;
-            flex-direction: column;
-            max-height: 320px;
-            overflow-y: auto;
-        }
-
-        .correlation-table-header,
-        .correlation-table-body .correlation-row {
-            display: grid;
-            grid-template-columns: 1.2fr 1fr 0.6fr 0.6fr 1fr;
-            gap: 12px;
-            padding: 12px 16px;
-            align-items: center;
-        }
-
-        .correlation-table-header {
-            background-color: rgba(0, 0, 0, 0.35);
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .correlation-table-body .correlation-row {
-            border-top: 1px solid rgba(255, 255, 255, 0.15);
-        }
-
-        .correlation-table-body .correlation-row span {
-            font-size: 13px;
-            color: #ffffff;
-        }
-
-        .correlation-table-body .correlation-chip {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            padding: 4px 8px;
-            border: 1px solid rgba(255, 255, 255, 0.35);
-            background: rgba(0, 0, 0, 0.4);
-            font-size: 11px;
-            text-transform: uppercase;
-        }
-
-        .correlation-empty {
-            padding: 16px;
-            text-align: center;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
+        .cases-section .section-title {
+            margin-bottom: 12px;
         }
 
         .analysis-section {
-            background-color: rgba(0, 0, 0, 0.15);
-            border: 1px solid rgba(255, 255, 255, 0.25);
-            border-radius: 0;
-            padding: 20px 28px 28px;
-            overflow-x: hidden;
-            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px 28px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            min-height: 0;
-            --file-count: 0;
-            scrollbar-width: thin;
-            scrollbar-color: rgba(255, 255, 255, 0.35) transparent;
-        }
-
-        .analysis-section::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        .analysis-section::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.35);
-            border-radius: 999px;
-        }
-
-        .analysis-section::-webkit-scrollbar-track {
-            background: transparent;
+            gap: 18px;
+            align-items: stretch;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         .upload-module {
-            flex: 1;
-            display: grid;
-            grid-template-rows: auto auto minmax(0, 1fr) auto auto;
-            gap: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
             min-height: 0;
-            position: relative;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         .upload-area {
             position: relative;
             border: 2px dashed rgba(255, 255, 255, 0.4);
-            border-radius: 0;
-            padding: 48px;
-            text-align: center;
-            background: rgba(0, 0, 0, 0.2);
+            border-radius: 16px;
+            padding: 34px;
+            background: rgba(0, 0, 0, 0.22);
             cursor: pointer;
             transition: all 0.2s ease;
             z-index: 1;
+            min-height: 200px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            gap: 12px;
+            text-align: center;
         }
 
         .upload-area:hover,
@@ -370,40 +283,40 @@
         }
 
         .upload-icon {
-            font-size: 72px;
+            font-size: 60px;
             color: #ffffff;
-            margin-bottom: 12px;
         }
 
         .upload-text {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: 700;
             color: #ffffff;
         }
 
         .upload-subtext,
         .upload-hint {
-            font-size: 12px;
+            font-size: 13px;
             color: rgba(255, 255, 255, 0.7);
         }
 
         .upload-hint {
             text-align: center;
+            margin-top: 4px;
         }
 
         .file-list {
             display: flex;
             flex-direction: column;
-            gap: 8px;
-            min-height: 180px;
-            max-height: 550px;
+            gap: 10px;
+            min-height: 140px;
+            max-height: 360px;
             overflow-y: auto;
             scrollbar-width: thin;
             scrollbar-color: rgba(255, 255, 255, 0.5) rgba(255, 255, 255, 0.1);
             scrollbar-gutter: stable both-edges;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.1);
-            border-radius: 4px;
+            padding: 16px;
+            background: rgba(0, 0, 0, 0.16);
+            border-radius: 14px;
         }
 
         .file-item {
@@ -461,19 +374,25 @@
             color: rgba(255, 255, 255, 0.75);
             text-align: right;
             margin-top: 6px;
+            align-self: flex-end;
+            max-width: 900px;
+            width: 100%;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .button-row {
             display: flex;
             justify-content: flex-end;
             gap: 12px;
-            position: sticky;
-            bottom: 0;
-            z-index: 1;
-            padding-top: 12px;
-            margin-top: 4px;
-            background: linear-gradient(180deg, rgba(95, 95, 95, 0) 0%, rgba(95, 95, 95, 0.92) 55%, rgba(95, 95, 95, 1) 100%);
-            border-top: 1px solid rgba(255, 255, 255, 0.2);
+            padding-top: 16px;
+            margin-top: 12px;
+            border-top: 1px solid rgba(255, 255, 255, 0.18);
+            align-self: stretch;
+            width: 100%;
+            max-width: 900px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
         .action-button {
@@ -528,33 +447,45 @@
         .cases-section {
             display: flex;
             flex-direction: column;
-            flex: 1;
-            min-height: 320px;
-            overflow: hidden;
+            gap: 18px;
+            min-height: 0;
+            background: rgba(0, 0, 0, 0.18);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 16px;
+            padding: 24px 28px;
+            width: 100%;
+            max-width: 900px;
+            margin: 0 auto;
         }
 
         .cases-table-container {
-            background-color: #A9A9A9;
-            border-radius: 0;
+            background: rgba(0, 0, 0, 0.15);
+            border-radius: 14px;
             overflow: hidden;
-            flex: 1;
+            flex: 1 1 auto;
             display: flex;
             flex-direction: column;
+            min-height: 0;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+            width: 100%;
+            min-height: 280px;
         }
 
         .table-header {
-            background-color: #D9D9D9;
-            padding: 12px 20px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 14px 24px;
             display: grid;
             grid-template-columns: 1.4fr 1.8fr 0.8fr 1fr 1fr 1fr 1fr;
             gap: 15px;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .table-header-cell {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 700;
-            color: #000000;
+            color: rgba(255, 255, 255, 0.85);
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
             text-align: left;
         }
 
@@ -562,12 +493,14 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
+            min-height: 0;
+            max-height: 360px;
         }
 
         .table-row {
-            background-color: #C3C2C2;
-            border-bottom: 1px solid rgba(0, 0, 0, 0.5);
-            padding: 10px 20px;
+            background: rgba(0, 0, 0, 0.28);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 14px 24px;
             display: grid;
             grid-template-columns: 1.4fr 1.8fr 0.8fr 1fr 1fr 1fr 1fr;
             gap: 15px;
@@ -577,13 +510,13 @@
         }
 
         .table-row:hover {
-            background-color: #D0D0D0;
+            background: rgba(255, 255, 255, 0.06);
         }
 
         .table-cell {
-            font-size: 11px;
-            font-weight: 700;
-            color: #000000;
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(255, 255, 255, 0.9);
             display: flex;
             flex-direction: column;
             gap: 4px;
@@ -592,7 +525,7 @@
         .cell-subtitle {
             font-weight: 500;
             font-size: 10px;
-            color: rgba(0, 0, 0, 0.6);
+            color: rgba(255, 255, 255, 0.6);
         }
 
         .action-buttons {
@@ -604,7 +537,7 @@
             width: 26px;
             height: 26px;
             border: none;
-            border-radius: 0px;
+            border-radius: 6px;
             cursor: pointer;
             display: flex;
             align-items: center;
@@ -619,8 +552,9 @@
         }
 
         .action-btn.edit-btn {
-            background-color: transparent;
-            color: #000000;
+            background-color: rgba(255, 255, 255, 0.12);
+            color: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.18);
         }
 
         .action-btn:hover {
@@ -630,7 +564,7 @@
         .no-cases {
             text-align: center;
             padding: 40px 20px;
-            color: rgba(0, 0, 0, 0.6);
+            color: rgba(255, 255, 255, 0.7);
             font-style: italic;
         }
 
@@ -730,14 +664,15 @@
         }
 
         .gps-global-filter {
-            margin: 12px 0;
-            padding: 12px;
-            background: rgba(0, 0, 0, 0.15);
+            margin: 8px 0;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.14);
             border-radius: 6px;
             border: 1px solid rgba(255, 255, 255, 0.2);
             display: flex;
             flex-direction: column;
             gap: 8px;
+            border-radius: 12px;
         }
 
         .gps-global-checkbox {
@@ -812,145 +747,56 @@
             color: #22c55e;
         }
 
-        .gps-dashboard {
-            margin-top: 16px;
-            padding: 16px;
-            background: rgba(0, 0, 0, 0.18);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-
-        .gps-dashboard-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            color: rgba(255, 255, 255, 0.85);
-        }
-
-        .gps-dashboard-title {
-            font-size: 14px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .gps-dashboard-cards {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-            gap: 12px;
-        }
-
-        .gps-dashboard-card {
-            background: rgba(255, 255, 255, 0.08);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            padding: 12px 14px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-        }
-
-        .gps-dashboard-label {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 0.6px;
-            color: rgba(255, 255, 255, 0.65);
-        }
-
-        .gps-dashboard-value {
-            font-size: 18px;
-            font-weight: 700;
-            color: #ffffff;
-        }
-
-        .gps-dashboard-value.small {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .gps-dashboard-lists {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 16px;
-        }
-
-        .gps-dashboard-list {
-            background: rgba(0, 0, 0, 0.12);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 6px;
-            padding: 12px;
-        }
-
-        .gps-dashboard-list h4 {
-            margin: 0 0 8px 0;
-            font-size: 12px;
-            font-weight: 700;
-            color: rgba(255, 255, 255, 0.85);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .gps-dashboard-item {
-            display: flex;
-            flex-direction: column;
-            gap: 2px;
-            padding: 6px 0;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .gps-dashboard-item:last-child {
-            border-bottom: none;
-        }
-
-        .gps-dashboard-item span {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 12px;
-        }
-
-        .gps-dashboard-empty {
-            color: rgba(255, 255, 255, 0.7);
-            font-style: italic;
-            font-size: 12px;
-        }
-
         @media (max-width: 1200px) {
             body {
-                padding: 16px;
+                padding: 20px;
             }
 
             .dashboard-container {
                 flex-direction: column;
-                height: auto;
                 width: 100%;
                 max-width: none;
+                min-height: 0;
             }
 
             .sidebar {
                 width: 100%;
-                border-radius: 20px 20px 0 0;
+                border-radius: 24px 24px 0 0;
             }
 
             .main-content {
-                border-radius: 0 0 20px 20px;
+                border-radius: 0 0 24px 24px;
+                padding: 28px 24px 36px;
+            }
+
+            .analysis-section,
+            .cases-section {
+                padding: 18px 24px;
+            }
+
+            .analysis-section {
+                max-height: none;
+                overflow: visible;
             }
 
             .table-header,
             .table-row {
-                grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-                gap: 10px;
+                grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+                gap: 12px;
                 text-align: center;
             }
 
-            .last-login-main {
-                position: static;
-                margin-top: 8px;
+            .last-login-chip {
+                width: 100%;
+                justify-content: center;
             }
         }
 
         @media (max-width: 768px) {
+            body {
+                padding: 16px;
+            }
+
             .main-title {
                 font-size: 24px;
             }
@@ -1068,9 +914,11 @@
 
         <main class="main-content">
             <div class="main-header">
-                <div class="header-top">
-                    <h1 class="main-title">Sistema Inteligente de Análisis de Fraude</h1>
-                    <div class="last-login-main" id="mainLastLogin">Último inicio de sesión: --</div>
+                <h1 class="main-title">Sistema Inteligente de Análisis de Fraude</h1>
+                <div class="last-login-chip" id="mainLastLogin">
+                    <i class="ri-time-line" aria-hidden="true"></i>
+                    <span class="last-login-label">Último inicio de sesión</span>
+                    <span class="last-login-value" id="mainLastLoginValue">Sin registro</span>
                 </div>
             </div>
 
@@ -1111,12 +959,6 @@
                             Analizar caso
                         </button>
                     </div>
-                    <div class="gps-dashboard" id="gpsDashboard">
-                        <div class="gps-dashboard-header">
-                            <span class="gps-dashboard-title">Monitoreo GPS</span>
-                        </div>
-                        <div class="gps-dashboard-empty">Cargando métricas GPS…</div>
-                    </div>
                 </div>
             </section>
 
@@ -1137,44 +979,6 @@
                 </div>
             </section>
 
-            <section class="correlation-section">
-                <h2 class="section-title">Hallazgos de correlación</h2>
-                <div class="correlation-summary-card" id="dashboardCorrelationSummary">
-                    <div class="correlation-metric">
-                        <span>Total</span>
-                        <strong id="dashboardCorrelationTotal">--</strong>
-                    </div>
-                    <div class="correlation-metric">
-                        <span>Fallas</span>
-                        <strong id="dashboardCorrelationFails">--</strong>
-                    </div>
-                    <div class="correlation-metric">
-                        <span>Contexto</span>
-                        <strong id="dashboardCorrelationNeedsContext">--</strong>
-                    </div>
-                </div>
-                <div class="correlation-controls">
-                    <label for="dashboardCorrelationFilter">Filtrar por estado</label>
-                    <select id="dashboardCorrelationFilter">
-                        <option value="all">Todos</option>
-                        <option value="fail">Fallas</option>
-                        <option value="needs_context">Contexto</option>
-                        <option value="pass">Sin hallazgos</option>
-                    </select>
-                </div>
-                <div class="correlation-table" id="dashboardCorrelationTable">
-                    <div class="correlation-table-header">
-                        <span>Case ID</span>
-                        <span>Reclamación</span>
-                        <span>Fallas</span>
-                        <span>Contexto</span>
-                        <span>Última actualización</span>
-                    </div>
-                    <div class="correlation-table-body" id="dashboardCorrelationBody"></div>
-                    <div class="correlation-empty" id="dashboardCorrelationEmpty" hidden>Sin correlaciones relevantes.</div>
-                </div>
-            </section>
-
         </main>
     </div>
 
@@ -1182,9 +986,7 @@
         const dashboardState = {
             selectedFiles: [],
             uploadInProgress: false,
-            cases: [],
-            correlationFilter: 'all',
-            gpsMetrics: null
+            cases: []
         };
 
         const averageFormatter = new Intl.NumberFormat('es-MX', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -1296,7 +1098,6 @@
             initializeUserProfile();
             setupUploadModule();
             renderFileList();
-            setupCorrelationFilter();
             loadDashboardData();
         });
 
@@ -1310,9 +1111,13 @@
             }
 
             const formattedLogin = formatLastLogin(body.dataset.lastLoginIso, body.dataset.lastLoginDisplay);
-            const mainLogin = document.getElementById('mainLastLogin');
-            if (mainLogin) {
-                mainLogin.textContent = `Último inicio de sesión: ${formattedLogin}`;
+            const mainLoginValue = document.getElementById('mainLastLoginValue');
+            if (mainLoginValue) {
+                mainLoginValue.textContent = formattedLogin;
+            }
+            const mainLoginChip = document.getElementById('mainLastLogin');
+            if (mainLoginChip) {
+                mainLoginChip.classList.toggle('is-empty', formattedLogin === 'Sin registro');
             }
         }
 
@@ -1413,7 +1218,6 @@
 
         function renderFileList() {
             const fileListContainer = document.getElementById('fileList');
-            const analysisSection = document.querySelector('.analysis-section');
             const fileCountLabel = document.getElementById('fileCount');
             if (!fileListContainer) {
                 return;
@@ -1421,9 +1225,6 @@
 
             const fileCount = dashboardState.selectedFiles.length;
 
-            if (analysisSection) {
-                analysisSection.style.setProperty('--file-count', String(fileCount));
-            }
             updateFileCount(fileCount, fileCountLabel);
 
             if (!fileCount) {
@@ -1483,89 +1284,6 @@
 
             updateGlobalCheckbox();
             updateGPSHints();
-        }
-
-        function renderGPSDashboard(metrics) {
-            const container = document.getElementById('gpsDashboard');
-            if (!container) {
-                return;
-            }
-
-            if (!metrics || !metrics.totals) {
-                container.innerHTML = '
-                    <div class="gps-dashboard-header"><span class="gps-dashboard-title">Monitoreo GPS</span></div>
-                    <div class="gps-dashboard-empty">Sin datos GPS procesados todavía.</div>
-                ';
-                return;
-            }
-
-            const totals = metrics.totals;
-            const totalCases = totals.cases ?? 0;
-            const totalDocs = totals.documents ?? 0;
-            const totalRows = totals.rows ?? 0;
-            const avgRows = totals.avg_rows_per_document ?? 0;
-            const chunkedDocs = totals.chunked_documents ?? 0;
-            const warnedDocs = totals.documents_with_warnings ?? 0;
-            const lastIngestion = totals.last_ingestion_at ? formatDateTime(totals.last_ingestion_at) : '—';
-
-            const topDocuments = (metrics.top_documents || []).map((item) => `
-                <div class="gps-dashboard-item">
-                    <span><strong>${escapeHtml(item.document_name)}</strong></span>
-                    <span>Case: ${escapeHtml(item.case_id)}</span>
-                    <span>Filas: ${integerFormatter.format(item.row_count || 0)}</span>
-                </div>
-            `).join('') || '<div class="gps-dashboard-empty">Sin documentos relevantes.</div>';
-
-            const recentDocuments = (metrics.recent_documents || []).map((item) => `
-                <div class="gps-dashboard-item">
-                    <span><strong>${escapeHtml(item.document_name)}</strong></span>
-                    <span>${formatDateTime(item.saved_at)}</span>
-                    <span>Case: ${escapeHtml(item.case_id)} · Filas: ${integerFormatter.format(item.row_count || 0)}</span>
-                </div>
-            `).join('') || '<div class="gps-dashboard-empty">Sin actividad reciente.</div>';
-
-            container.innerHTML = `
-                <div class="gps-dashboard-header">
-                    <span class="gps-dashboard-title">Monitoreo GPS</span>
-                    <span class="gps-dashboard-label">Última ingesta: ${lastIngestion}</span>
-                </div>
-                <div class="gps-dashboard-cards">
-                    <div class="gps-dashboard-card">
-                        <span class="gps-dashboard-label">Casos con GPS</span>
-                        <span class="gps-dashboard-value">${integerFormatter.format(totalCases)}</span>
-                    </div>
-                    <div class="gps-dashboard-card">
-                        <span class="gps-dashboard-label">Documentos GPS</span>
-                        <span class="gps-dashboard-value">${integerFormatter.format(totalDocs)}</span>
-                    </div>
-                    <div class="gps-dashboard-card">
-                        <span class="gps-dashboard-label">Filas totales</span>
-                        <span class="gps-dashboard-value">${integerFormatter.format(totalRows)}</span>
-                    </div>
-                    <div class="gps-dashboard-card">
-                        <span class="gps-dashboard-label">Promedio filas/doc</span>
-                        <span class="gps-dashboard-value small">${averageFormatter.format(avgRows)}</span>
-                    </div>
-                    <div class="gps-dashboard-card">
-                        <span class="gps-dashboard-label">Docs chunked</span>
-                        <span class="gps-dashboard-value small">${integerFormatter.format(chunkedDocs)}</span>
-                    </div>
-                    <div class="gps-dashboard-card">
-                        <span class="gps-dashboard-label">Docs con alertas</span>
-                        <span class="gps-dashboard-value small">${integerFormatter.format(warnedDocs)}</span>
-                    </div>
-                </div>
-                <div class="gps-dashboard-lists">
-                    <div class="gps-dashboard-list">
-                        <h4>Documentos recientes</h4>
-                        ${recentDocuments}
-                    </div>
-                    <div class="gps-dashboard-list">
-                        <h4>Top por filas</h4>
-                        ${topDocuments}
-                    </div>
-                </div>
-            `;
         }
 
         function updateFileCount(count, labelNode) {
@@ -1863,29 +1581,23 @@
 
         async function loadDashboardData() {
             try {
-                const [statsResp, casesResp, gpsMetricsResp] = await Promise.all([
+                const [statsResp, casesResp] = await Promise.all([
                     fetch('/replay/api/stats'),
-                    fetch('/replay/api/cases'),
-                    fetch('/api/gps/metrics')
+                    fetch('/replay/api/cases')
                 ]);
 
                 const statsPayload = statsResp.ok ? await statsResp.json() : {};
                 const casesPayload = casesResp.ok ? await casesResp.json() : {};
-                const gpsMetricsPayload = gpsMetricsResp.ok ? await gpsMetricsResp.json() : null;
 
                 const stats = statsPayload.data || statsPayload || {};
                 const cases = casesPayload.data || casesPayload || [];
 
                 dashboardState.cases = Array.isArray(cases) ? cases : [];
-                dashboardState.gpsMetrics = gpsMetricsPayload;
 
                 updateMetrics(stats, dashboardState.cases);
                 renderCasesTable(dashboardState.cases);
-                renderCorrelationOverview(dashboardState.cases);
-                renderGPSDashboard(dashboardState.gpsMetrics);
             } catch (error) {
                 console.error('Error cargando datos del dashboard:', error);
-                renderGPSDashboard(null);
             }
         }
 
@@ -1896,6 +1608,8 @@
             const cachedFilesElement = document.getElementById('cachedFiles');
             const avgDocsElement = document.getElementById('avgDocs');
             const criticalCorrelationsElement = document.getElementById('criticalCorrelations');
+            const mainLoginValue = document.getElementById('mainLastLoginValue');
+            const mainLoginChip = document.getElementById('mainLastLogin');
 
             const totalCases = stats.case_count ?? cases.length;
             if (totalCasesElement) {
@@ -1931,6 +1645,16 @@
             if (criticalCorrelationsElement) {
                 const aggregate = computeCorrelationAggregate(cases);
                 criticalCorrelationsElement.textContent = aggregate.fail;
+            }
+
+            const statsLoginIso = stats.last_login_iso || stats.last_login_at || stats.last_login;
+            const statsLoginDisplay = stats.last_login_display || stats.last_login_label;
+            if ((statsLoginIso || statsLoginDisplay) && mainLoginValue) {
+                const formatted = formatLastLogin(statsLoginIso, statsLoginDisplay);
+                mainLoginValue.textContent = formatted;
+                if (mainLoginChip) {
+                    mainLoginChip.classList.toggle('is-empty', formatted === 'Sin registro');
+                }
             }
         }
 
@@ -2018,108 +1742,6 @@
                 totals.needs_context += Number.parseFloat(counts.needs_context ?? 0) || 0;
             });
             return totals;
-        }
-
-        function setupCorrelationFilter() {
-            const filter = document.getElementById('dashboardCorrelationFilter');
-            if (!filter || filter.dataset.bound) {
-                return;
-            }
-            filter.addEventListener('change', (event) => {
-                dashboardState.correlationFilter = event.target.value || 'all';
-                renderCorrelationOverview(dashboardState.cases);
-            });
-            filter.dataset.bound = 'true';
-        }
-
-        function renderCorrelationOverview(cases) {
-            const tableBody = document.getElementById('dashboardCorrelationBody');
-            const emptyState = document.getElementById('dashboardCorrelationEmpty');
-            const totalEl = document.getElementById('dashboardCorrelationTotal');
-            const failEl = document.getElementById('dashboardCorrelationFails');
-            const contextEl = document.getElementById('dashboardCorrelationNeedsContext');
-
-            const aggregate = computeCorrelationAggregate(cases);
-            if (totalEl) { totalEl.textContent = aggregate.total; }
-            if (failEl) { failEl.textContent = aggregate.fail; }
-            if (contextEl) { contextEl.textContent = aggregate.needs_context; }
-
-            if (!tableBody) {
-                return;
-            }
-
-            if (!cases.length) {
-                tableBody.innerHTML = '';
-                if (emptyState) {
-                    emptyState.hidden = false;
-                }
-                return;
-            }
-
-            const rows = cases.map((caseItem) => {
-                const counts = caseItem.correlation_counts || {};
-                const failCount = Number.parseFloat(counts.fail ?? 0) || 0;
-                const contextCount = Number.parseFloat(counts.needs_context ?? 0) || 0;
-                return {
-                    caseId: caseItem.case_id || '',
-                    claimNumber: caseItem.claim_number || 'N/A',
-                    fails: failCount,
-                    needsContext: contextCount,
-                    processedAt: caseItem.processed_at,
-                };
-            });
-
-            const filter = (dashboardState.correlationFilter || 'all').toLowerCase();
-            const filtered = rows.filter((row) => {
-                if (filter === 'fail') {
-                    return row.fails > 0;
-                }
-                if (filter === 'needs_context') {
-                    return row.needsContext > 0;
-                }
-                if (filter === 'pass') {
-                    return row.fails === 0 && row.needsContext === 0;
-                }
-                return true;
-            });
-
-            if (!filtered.length) {
-                tableBody.innerHTML = '';
-                if (emptyState) {
-                    emptyState.hidden = false;
-                }
-                return;
-            }
-
-            const rowsHtml = filtered.map((row) => `
-                    <div class="correlation-row">
-                        <span>${escapeHtml(row.caseId)}</span>
-                        <span>${escapeHtml(row.claimNumber)}</span>
-                        <span>${row.fails}</span>
-                        <span>${row.needsContext}</span>
-                        <span>${escapeHtml(formatDateTime(row.processedAt))}</span>
-                    </div>
-                `);
-
-            tableBody.innerHTML = rowsHtml.join('');
-            if (emptyState) {
-                emptyState.hidden = true;
-            }
-        }
-
-
-        function formatDateTime(value) {
-            if (!value) {
-                return 'N/A';
-            }
-            const parsed = new Date(value);
-            if (Number.isNaN(parsed.getTime())) {
-                return value;
-            }
-            return parsed.toLocaleString('es-MX', {
-                dateStyle: 'short',
-                timeStyle: 'short'
-            });
         }
 
         function formatDecision(value) {

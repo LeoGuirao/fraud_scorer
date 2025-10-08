@@ -105,27 +105,51 @@ class RickRetriever:
         if cache and (vector_count is None or cache.vector_count == vector_count):
             return cache
 
-        payload = store.get(include=["documents", "metadatas", "ids", "embeddings"])
+        # Chroma 1.1.0 siempre devuelve los IDs; no hace falta incluirlos explícitamente (BETTER_PRACTICES §7.2).
+        payload = store.get(include=["documents", "metadatas", "embeddings"])
         raw_documents = list(payload.get("documents") or [])
         metadatas = list(payload.get("metadatas") or [])
         vector_ids = list(payload.get("ids") or [])
-        embeddings = payload.get("embeddings") or []
+        if not vector_ids and metadatas:
+            # Compatibilidad defensiva: algunas colecciones antiguas guardaban el ID solo en metadata.
+            vector_ids = [
+                str((metadata or {}).get("vector_id") or "")
+                for metadata in metadatas
+            ]
+        embeddings = payload.get("embeddings")
 
         count = min(len(raw_documents), len(metadatas), len(vector_ids))
         documents: List[Document] = []
+        filtered_embeddings: List[Sequence[float]] = []
+        filtered_vector_ids: List[str] = []
         index_by_vector_id: Dict[str, int] = {}
         for idx in range(count):
+            vector_id = vector_ids[idx]
+            if not vector_id:
+                logger.debug("Vector sin ID detectado en %s[%s]; se descarta el chunk.", case_id, idx)
+                continue
+
             text = raw_documents[idx] or ""
             metadata = metadatas[idx] or {}
             if not isinstance(metadata, dict):
                 metadata = dict(metadata)
-            vector_id = vector_ids[idx]
             metadata.setdefault("vector_id", vector_id)
+            doc_index = len(documents)
             documents.append(Document(page_content=text, metadata=metadata))
-            index_by_vector_id[vector_id] = idx
+            filtered_vector_ids.append(vector_id)
+            index_by_vector_id[vector_id] = doc_index
 
-        embedding_matrix = np.array(embeddings[:count], dtype=float) if embeddings else np.zeros((0, 0), dtype=float)
-        if embedding_matrix.shape[0] != count:
+            if embeddings is not None:
+                try:
+                    filtered_embeddings.append(embeddings[idx])
+                except (IndexError, TypeError):
+                    logger.debug("Embeddings inconsistentes para %s[%s]; omitiendo vector.", case_id, idx)
+
+        embedding_matrix = (
+            np.array(filtered_embeddings, dtype=float) if filtered_embeddings else np.zeros((0, 0), dtype=float)
+        )
+        actual_count = len(documents)
+        if embedding_matrix.shape[0] != actual_count:
             embedding_matrix = np.zeros((0, 0), dtype=float)
         normalized_embeddings = _normalize_embeddings(embedding_matrix)
         bm25_index = _BM25Index(documents) if documents else None
@@ -134,10 +158,10 @@ class RickRetriever:
             documents=documents,
             embeddings=embedding_matrix,
             normalized_embeddings=normalized_embeddings,
-            vector_ids=vector_ids[:count],
+            vector_ids=filtered_vector_ids,
             index_by_vector_id=index_by_vector_id,
             bm25=bm25_index,
-            vector_count=count,
+            vector_count=actual_count,
         )
         self._case_cache[case_id] = cache
         return cache

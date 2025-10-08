@@ -892,6 +892,15 @@ Resultado: las consultas guardan `status: answered`, incluyen fuentes y registra
 
 Actualización 2025-02 — Se habilitó el histograma de similitudes en la auditoría de Rick para medir la distribución real por pregunta y se fijó el umbral por defecto en `0.35` con búsqueda híbrida (dense + BM25). Validar semanalmente que la cola `0.30-0.40` sostenga el 85 % de respuestas útiles antes de mover el umbral.
 
+### 7.4 Compatibilidad con ChromaDB 1.1.0
+
+- No incluir `"ids"` en `collection.get()`. Chroma 1.1.0 devuelve los IDs por defecto; pedirlos explícitamente provoca `ValueError` y corta la carga del caché híbrido. Mantén `include=["documents", "metadatas", "embeddings"]` y recrea `vector_id` desde metadata cuando falte.
+- Si encuentras chunks sin `vector_id`, descártalos y sincroniza la matriz de embeddings con los documentos filtrados. Evita filas desalineadas que distorsionan el score denso o rompen BM25.
+- No evalúes arreglos de NumPy con operadores booleanos (`or`, `and`). Accede directamente a `payload["embeddings"]` y valida su longitud explícitamente para evitar `ValueError: truth value of an array is ambiguous`.
+- `_filter_new_records` debe usar `store.get(ids=..., include=["metadatas"])` para detectar duplicados sin violar la API. Así preservas la idempotencia en reindexados y obtienes `ids` válidos.
+- Sanitiza los metadatos antes de `add_documents`: conserva `str/int/float/bool/None`, y transforma listas/tuplas en cadenas (`", ".join(...)`) o serializa dicts con `json.dumps`. Chroma 1.1.0 rechaza valores complejos y aborta el lote si quedan estructuras anidadas.
+- Registra las excepciones inesperadas con el tipo (`exc.__class__.__name__`) y el mensaje original antes de elevar el `RuntimeError`. Mejora el diagnóstico de fallos reales (duplicados, conectividad, límites del proveedor) en lugar de culpar falsamente a los tokens.
+
 
 ## 10) Editor del Analista — Bootstrap, decisiones y ahorro
 
@@ -1018,6 +1027,8 @@ La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agent
 ### Consideraciones de implementación
 - **Presencia por documento**: `build_document_context` marca un campo como cubierto solo si proviene del mismo documento (extracción u OCR regex). Los valores heredados de consolidado se mantienen en `resolved_fields`, pero el campo aparece en `missing_fields` para solicitar evidencia adicional.
 - **Migración de base**: al primer guardado se ejecuta `ALTER TABLE` para añadir `evidence_gaps` si falta. En entornos con migraciones estrictas conviene forzar un reproceso controlado después del despliegue.
+- **Sincronización del esquema**: `src/fraud_scorer/storage/db.get_conn` invoca `ensure_evidence_gaps_column`, que vuelve idempotente la migración (`ALTER TABLE … evidence_gaps TEXT NOT NULL DEFAULT '[]'`) en cada conexión. Antes de tocar `fraud_analyses`, mantiene este helper y actualiza también el DDL base (`init_db`) para instalaciones nuevas.
+- **Lecturas defensivas**: al consumir resultados desde la DB, usa `COALESCE(fa.evidence_gaps, '[]')` (ver `fraud_document_service._hydrate_from_db`) para blindar queries antiguas. Evita asumir que la columna existe o que siempre trae JSON válido.
 - **Hash combinado**: cambios en cualquiera de los prompts invalidan el `prompt_hash`; documentar en PRs cuándo se modifiquen para evitar interpretaciones erróneas en auditoría.
 - **Integraciones externas**: cuando se invoque `FraudAnalyzer.analyze_batch` fuera del pipeline estándar, construir el `UnifiedDataLayer` con consolidado, extracciones y clasificaciones manuales como referencia.
 - **Fallbacks**: si la IA falla (timeout, JSON inválido) se registrará en `analysis.evidence` y la brecha permanece vacía para no bloquear la ejecución.
@@ -1025,6 +1036,7 @@ La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agent
 ### Observabilidad
 - Revisar `total_brechas` y `brechas_evidencia` en el reporte HTML como indicador temprano de plantillas incompletas o extracción deficiente.
 - Consultar la columna `evidence_gaps` en `fraud_analyses` para identificar patrones recurrentes (por tipo de documento o aseguradora).
+- Confirmar que los reportes usen `consolidated.consolidated_fields` y accedan con `getattr` para tolerar cambios en `ConsolidatedExtraction`. Cualquier refactor debe evitar referencias directas a atributos inexistentes (`fields`).
 - Incorporar conteos de brechas vs. indicadores en los dashboards existentes para distinguir ausencia de datos de hallazgos de fraude.
 
 ### Testing recomendado
@@ -1051,3 +1063,32 @@ La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agent
   - Extracción (OCR texto): `gpt-5` es la base; `gpt-5-thinking` se reserva para huecos >5 % en campos críticos.
   - Extracción directa/visión: `gpt-5-vision` es el estándar para escaneos; no requiere escalación adicional.
   - Consolidación: `gpt-5-mini` + IA guiada cubre la mayoría de conflictos; `gpt-5` sólo cuando la confianza cae o persisten discrepancias entre póliza e informe.
+
+## 15) GPS directo — Fallback de texto plano y PDFs verticales
+
+### Síntoma
+- Los reportes GPS devolvían `row_count = 0` aunque el PDF contenía coordenadas y eventos; los registros venían en formato vertical (cada campo en una línea distinta), por lo que el extractor buscaba la columna `GPS` y la latitud en líneas separadas sin encontrarlas.
+
+### Solución aplicada
+- `extract_tables_from_text_segments` (`src/fraud_scorer/parsers/gps_direct_extractor.py`) agrupa líneas consecutivas con `_iter_candidate_records` y arma un registro sintético antes de aplicar regex.
+- `_parse_candidate_line` reutiliza los patrones de timestamp, latitud/longitud y velocidad para construir filas canónicas listas para `normalize_gps_tables`, manteniendo el texto original en `raw_line`.
+- Pruebas dedicadas (`tests/gps/test_gps_direct_extractor.py`) cubren registros en una sola línea, formato vertical y entradas sin coordenadas.
+
+### Consideraciones de implementación
+- Mantener `_is_candidate` ligero: valida longitud mínima, presencia de “gps”, timestamp y coordenadas; evita evaluaciones costosas antes de tiempo.
+- Usar `join` con espacios al fusionar líneas para no perder separadores; si el PDF trae ruido (paginas con encabezados), filtrar buffers que no cumplan con timestamp/coord.
+- Al extender soporte para nuevos proveedores, añadir tokens al patrón `_EVENT_PATTERN` y al diccionario `_EVENT_CANONICAL` para preservar nomenclatura normalizada.
+- No elimines `raw_line`: sirve para auditoría y debugging cuando las regex necesitan ajustes.
+
+### Testing recomendado
+- `python3 -m pytest tests/gps/test_gps_direct_extractor.py -q` tras tocar regex o heurísticas de `_iter_candidate_records`.
+- Reprocesar un caso real (ej. `CASE-2025-0001`) y comprobar que `gps_summary.row_count` > 0 y que el cache Parquet contiene las filas reconstruidas.
+- Revisar los warnings en `metadata['gps_direct']['normalization_warnings']`; si aparece `missing_coordinates`, ajustar regex o delimitadores antes de cerrar la PR.
+
+## 16) Clasificación documental — Modelos LLM soportados
+
+- **Síntoma**: el clasificador textual devolvía `temperature not supported` y pasaba al heurístico.
+- **Causa**: `CLASSIFICATION_CONFIG['llm_model'] = "gpt-5-mini"` (alias inexistente).
+- **Acción**: usar `gpt-4o-mini` (mismo stack que OCR/consolidación) sin alterar temperatura ni tokens.
+- **Recomendaciones**: validar aliases con `OPENAI_MODEL_CONFIG`, probar en lote pequeño antes de generalizar y, si se experimenta con otros modelos, envolverlo detrás de `CLASSIFICATION_ENGINE.strategy`.
+- **Checks**: `python3 -m pytest tests/analyzers/test_unified_data_layer.py`, reprocesar un caso y confirmar en `/api/editor/{case}/bootstrap` que la clasificación reporta `gpt-4o-mini`.

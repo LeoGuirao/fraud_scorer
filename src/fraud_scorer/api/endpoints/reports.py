@@ -401,11 +401,16 @@ async def _process_documents_and_generate_report(
             case_id=process_id,
             use_advanced_reasoning=True
         )
+        consolidated_fields = getattr(consolidated, "consolidated_fields", None)
         
         # Obtener datos del asegurado y siniestro
-        insured_name = consolidated.fields.nombre_asegurado or "DESCONOCIDO"
+        insured_name = (
+            getattr(consolidated_fields, "nombre_asegurado", None) or "DESCONOCIDO"
+        )
         if not claim_number:
-            claim_number = consolidated.fields.numero_siniestro or process_id
+            claim_number = (
+                getattr(consolidated_fields, "numero_siniestro", None) or process_id
+            )
         
         # Sanitizar nombres para el sistema de archivos
         from fraud_scorer.services.replay_service import sanitize_filename
@@ -429,11 +434,14 @@ async def _process_documents_and_generate_report(
                         'ocr': ocr,
                         'extraction': ext,
                     })
-                consolidated_fields_dump = (
-                    consolidated.fields.model_dump()  # type: ignore[attr-defined]
-                    if hasattr(consolidated.fields, "model_dump")
-                    else getattr(consolidated.fields, "__dict__", {})
-                )
+                consolidated_fields_dump = {}
+                if consolidated_fields is not None:
+                    if hasattr(consolidated_fields, "model_dump"):
+                        consolidated_fields_dump = consolidated_fields.model_dump()
+                    else:
+                        consolidated_fields_dump = getattr(
+                            consolidated_fields, "__dict__", {}
+                        )
                 extraction_payloads = []
                 for ext in extractions:
                     if hasattr(ext, "model_dump"):

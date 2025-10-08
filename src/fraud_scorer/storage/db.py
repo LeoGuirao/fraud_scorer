@@ -24,6 +24,7 @@ def get_conn() -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys=ON;")
     try:
         ensure_fraud_visibility_column(conn)
+        ensure_evidence_gaps_column(conn)
         ensure_fraud_correlations_cascade(conn)
     except Exception:
         # Modo defensivo: en escenarios de migración antigua preferimos no bloquear la conexión
@@ -48,6 +49,30 @@ def ensure_fraud_visibility_column(conn: Optional[sqlite3.Connection] = None) ->
         if 'include_in_report' not in existing:
             conn.execute(
                 "ALTER TABLE fraud_analyses ADD COLUMN include_in_report INTEGER NOT NULL DEFAULT 1"
+            )
+            conn.commit()
+    finally:
+        if owns_conn:
+            conn.close()
+
+
+def ensure_evidence_gaps_column(conn: Optional[sqlite3.Connection] = None) -> None:
+    """Garantiza la columna evidence_gaps en fraud_analyses (idempotente)."""
+    owns_conn = False
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys=ON;")
+        owns_conn = True
+
+    try:
+        rows = conn.execute("PRAGMA table_info(fraud_analyses)").fetchall()
+        if not rows:
+            return
+        existing = {row["name"] for row in rows}
+        if "evidence_gaps" not in existing:
+            conn.execute(
+                "ALTER TABLE fraud_analyses ADD COLUMN evidence_gaps TEXT NOT NULL DEFAULT '[]'"
             )
             conn.commit()
     finally:
@@ -213,6 +238,7 @@ def init_db() -> None:
                 analisis_completo TEXT,
                 indicators      TEXT,
                 evidence        TEXT,
+                evidence_gaps   TEXT NOT NULL DEFAULT '[]',
                 recommendations TEXT,
                 confidence      REAL,
                 analysis_model  TEXT,
@@ -228,6 +254,7 @@ def init_db() -> None:
             """
         )
         ensure_fraud_visibility_column(conn)
+        ensure_evidence_gaps_column(conn)
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_case ON fraud_analyses(case_id);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_risk ON fraud_analyses(risk_level);")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_fraud_score ON fraud_analyses(fraud_score);")

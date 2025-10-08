@@ -479,7 +479,7 @@ class FraudAnalyzer:
                                 analisis_completo TEXT,
                                 indicators      TEXT,
                                 evidence        TEXT,
-                                evidence_gaps   TEXT,
+                                evidence_gaps   TEXT NOT NULL DEFAULT '[]',
                                 recommendations TEXT,
                                 confidence      REAL,
                                 analysis_model  TEXT,
@@ -498,7 +498,9 @@ class FraudAnalyzer:
                     await self._save_analysis_to_db(analysis)
                 elif "no column named evidence_gaps" in error_text:
                     with get_conn() as conn:
-                        conn.execute("ALTER TABLE fraud_analyses ADD COLUMN evidence_gaps TEXT DEFAULT '[]';")
+                        conn.execute(
+                            "ALTER TABLE fraud_analyses ADD COLUMN evidence_gaps TEXT NOT NULL DEFAULT '[]';"
+                        )
                         conn.commit()
                     await self._save_analysis_to_db(analysis)
             except Exception as e2:  # pragma: no cover
