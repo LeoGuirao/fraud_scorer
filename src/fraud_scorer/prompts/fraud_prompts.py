@@ -102,10 +102,11 @@ class FraudPromptBuilder:
         lines.append(
             "\nINSTRUCCIONES ESPECÍFICAS:\n"
             "1) Evalúa autenticidad, coherencia y consistencia del documento.\n"
-            "2) Registra cada indicador de fraude detectado con evidencia y ubicación.\n"
+            "2) Registra únicamente los indicadores derivados de las verificaciones efectuadas.\n"
             "3) Ajusta risk_level y fraud_score (0.0-1.0) con justificación.\n"
-            "4) Lista recomendaciones accionables y tareas de validación.\n"
-            "5) Responde ÚNICAMENTE en JSON con la siguiente plantilla:\n"
+            "4) Usa recomendaciones sólo cuando hagan falta datos externos para completar las verificaciones.\n"
+            "5) Completa las secciones de verificaciones/validaciones cruzadas estableciendo resultados y referencias.\n"
+            "6) Responde ÚNICAMENTE en JSON con la siguiente plantilla:\n"
         )
         lines.append(json.dumps(self._indicator_output_template, ensure_ascii=False, indent=2))
         return "\n".join(lines)
@@ -185,15 +186,44 @@ class FraudPromptBuilder:
                     "description": "string",
                     "severity": "bajo|medio|alto|critico",
                     "confidence": 0.75,
-                    "evidence": "Texto o cita localizada",
                     "location": {"page": "número opcional", "snippet": "fragmento opcional"},
                 }
             ],
-            "supporting_evidence": ["Listado de evidencias que sustentan las conclusiones"],
             "risk_level": "bajo|medio|alto|critico",
             "fraud_score": 0.62,
             "confidence": 0.8,
-            "recommendations": ["Acciones concretas para el ajustador"]
+            "recommendations": ["Acciones concretas cuando falte información externa"],
+            "verificaciones": {
+                "fecha_reclamacion_posterior": {"resultado": "desconocido", "diferencia_dias": 0, "detalle": ""},
+                "numero_poliza_consistente": {"resultado": "desconocido", "referencia_poliza": "", "detalle": ""},
+                "numero_siniestro_consistente": {"resultado": "desconocido", "referencia_ajustador": "", "detalle": ""},
+                "emisor_legitimado": {"resultado": "desconocido", "fundamento": "", "detalle": ""},
+                "bienes_consistentes": {"resultado": "desconocido", "referencias": [], "detalle": ""},
+                "monto_vs_ajustador": {
+                    "resultado": "desconocido",
+                    "monto_carta": "",
+                    "monto_ajustador": "",
+                    "diferencia": "",
+                    "detalle": "",
+                },
+            },
+            "validacion_cruzada": {
+                "poliza": {
+                    "asegurado_principal": "",
+                    "asegurados_adicionales": [],
+                    "observaciones": "",
+                },
+                "denuncia": {
+                    "bienes_reportados": [],
+                    "coincidencia_con_carta": "pendiente",
+                    "observaciones": "",
+                },
+                "ajustador": {
+                    "monto_reclamado_reportado": "",
+                    "fuente": "",
+                    "observaciones": "",
+                },
+            },
         }
 
     def _get_gap_output_template(self) -> Dict[str, Any]:

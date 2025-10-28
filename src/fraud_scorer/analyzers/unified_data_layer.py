@@ -187,6 +187,7 @@ class UnifiedDataLayer:
         start_time: Optional[Any] = None,
         end_time: Optional[Any] = None,
         event_labels: Optional[Iterable[str]] = None,
+        bounding_box: Optional[Dict[str, float]] = None,
         limit: int = 500,
     ) -> Dict[str, Any]:
         if document_name not in self.gps_documents:
@@ -201,6 +202,7 @@ class UnifiedDataLayer:
             start_time=start_dt,
             end_time=end_dt,
             event_labels=list(event_labels) if event_labels else None,
+            bounding_box=bounding_box,
             limit=limit,
         )
 

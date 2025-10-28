@@ -1,9 +1,9 @@
 metadata:
   type: carta_porte_simple
-  version: "1.0"
-  author: "Sistema Experto HDI"
-  last_updated: "2025-02-15"
-  description: "Guía especializada para auditar cartas porte simples sin timbrado fiscal y contrastarlas con evidencia logística y CFDI Carta Porte, detectando inconsistencias y posibles riesgos de fraude"
+  version: "2.0"
+  author: "Equipo Fraude HDI"
+  last_updated: "2025-03-18"
+  description: "Guía reforzada para auditar cartas porte simples, alineada con validaciones cruzadas contra póliza, denuncias y operadores declarados, detectando riesgos operativos y de legitimación"
 
 definition:
   nature: "Formato interno/administrativo emitido por transportistas para amparar un traslado sin timbrado fiscal"
@@ -27,50 +27,50 @@ definition:
 
 methodology:
   analysis_approach: |
-    1. Verificar integridad documental: membrete, folio interno, fecha, firmas y sellos (si existen).
-    2. Confirmar datos de remitente, destinatario y mercancia (descripción, cantidad, peso/volumen) contra carta de reclamación y CFDI asociados.
-    3. Revisar identificación del vehículo (placas, tipo, capacidad) y del operador (nombre, licencia/permisos SCT) vs tarjeta de circulación y registros internos.
-    4. Evaluar coherencia de la ruta (origen, destino, escalas) con denuncias, cartas de reclamación, GPS y bitácoras.
-    5. Distinguir la carta porte simple de un CFDI Carta Porte: validar ausencia de UUID, sellos digitales y timbrado SAT.
-    6. Identificar alteraciones, enmiendas o faltantes críticos (peso total, datos de seguridad, firma del operador).
-    7. Registrar recomendaciones de seguimiento (solicitar CFDI, evidencias de GPS, tickets de peaje, permisos vigentes).
+    1. Validar integridad documental: folio interno, fecha de emisión, remitente, destinatario, firmas y diferencia frente al CFDI Carta Porte.
+    2. Reconciliar destinatario/cliente con el asegurado principal o asegurados adicionales vigentes en la póliza y cartas de reclamación.
+    3. Confirmar mercancía/vehículos declarados, cantidades y peso con carta a la aseguradora, denuncias y acreditaciones logísticas.
+    4. Verificar operador (nombre, firma, permisos) y unidad (placas, configuración) contra denuncias, carpeta de investigación y bitácoras operativas.
+    5. Contrastar fecha y hora de emisión con el inicio del recorrido reportado en denuncias, GPS o protocolos de acción.
+    6. Detectar inconsistencias relevantes (datos faltantes, rutas divergentes, firmas inexistentes) y clasificar indicadores según severidad.
+    7. Limitar recomendaciones a faltantes documentales que impidan concluir verificaciones (póliza, denuncia, soportes logísticos).
 
   fraud_indicators:
     high_risk:
-      - pattern: datos_transporte_incoherentes
-        detection: "Placas, tipo de unidad o permisos SCT no coinciden con tarjeta de circulación o registros oficiales"
+      - pattern: cliente_no_autorizado
+        detection: "Destinatario o cliente citado no coincide con el asegurado ni con asegurados adicionales vigentes en la póliza"
         severity: "alto"
-        evidence_hint: "Comparar placas y permisos con tarjeta de circulación y bitácoras"
-        follow_up: "Solicitar validación con área de logística o autoridad SCT"
-      - pattern: mercancia_no_coincide
-        detection: "Descripción/peso de mercancía difiere respecto a carta de reclamación o CFDI"
+        evidence_hint: "Comparar destinatario con póliza, endosos y carta de reclamación"
+        follow_up: "Solicitar documentación que legitime al destinatario como asegurado adicional o cesionario"
+      - pattern: operador_no_coincide_denuncia
+        detection: "Operador o chofer declarado no coincide con los declarantes en la denuncia o maneja placas distintas a las reconocidas"
         severity: "alto"
-        evidence_hint: "Contrastar cantidades y peso con CFDI o factura"
-        follow_up: "Requerir documentación de respaldo y aclaraciones formales"
-      - pattern: documento_falsificado
-        detection: "Formato manipulado, firmas copiadas o datos esenciales borrados"
-        severity: "critico"
-        evidence_hint: "Identificar enmiendas, tachaduras, trazos repetidos"
-        follow_up: "Escalar a área antifraude y solicitar certificación del emisor"
+        evidence_hint: "Cotejar nombres y placas con denuncias/carpeta de investigación"
+        follow_up: "Escalar a investigación y solicitar entrevistas adicionales"
+      - pattern: ruta_invalida
+        detection: "Fecha u hora de emisión no concuerdan con el inicio de recorrido declarado en denuncias o GPS"
+        severity: "alto"
+        evidence_hint: "Comparar sellos de fecha con narrativa de salida en denuncias"
+        follow_up: "Solicitar aclaración formal del transportista y evidencia de ruta"
     medium_risk:
-      - pattern: falta_firmas_validas
-        detection: "No existe firma del operador, remitente o responsable logístico"
+      - pattern: datos_transporte_incompletos
+        detection: "Placas, tipo de unidad o permisos SCT incompletos o ilegibles"
         severity: "medio"
-        evidence_hint: "Señalar espacios sin firma y contrastar con políticas internas"
-        follow_up: "Solicitar ratificación y documentación complementaria"
-      - pattern: permisos_sct_vencidos
-        detection: "Permisos o licencias SCT fuera de vigencia"
+        evidence_hint: "Identificar campos omitidos y comparar con tarjeta de circulación"
+        follow_up: "Solicitar soporte actualizado de unidad y permisos SCT"
+      - pattern: mercancia_no_coincide_denuncia
+        detection: "Categoría de mercancía o unidad declarada no se identifica en denuncias o carta a la aseguradora"
         severity: "medio"
-        evidence_hint: "Cotejar fechas de vigencia vs fecha de traslado"
-        follow_up: "Requerir renovación o constancia de trámite"
-      - pattern: ruta_inconsistente
-        detection: "Ruta declarada no coincide con GPS, bitácoras o denuncias"
+        evidence_hint: "Contrastar narrativa de mercancía con denuncia y carta de reclamación"
+        follow_up: "Solicitar aclaración y evidencia logística complementaria"
+      - pattern: firmas_incompletas
+        detection: "Faltan firmas de operador o remitente en la carta porte simple"
         severity: "medio"
-        evidence_hint: "Comparar origen/destino con GPS y evidencia de peaje"
-        follow_up: "Solicitar aclaración y evidencia adicional"
+        evidence_hint: "Listar espacios en blanco o firmas digitalizadas sin respaldo"
+        follow_up: "Solicitar ratificación de firmas o acta circunstanciada"
     low_risk:
       - pattern: campos_administrativos_incompletos
-        detection: "Faltan campos secundarios (p.ej., hora estimada de llegada) sin impacto crítico"
+        detection: "Campos secundarios (p.ej., hora estimada) faltantes sin afectar verificaciones principales"
         severity: "bajo"
         evidence_hint: "Listar campos omitidos"
         follow_up: "Recomendar completar expedientes internos"
@@ -101,47 +101,42 @@ methodology:
   cross_reference_documents:
     - carta_de_reclamacion_formal_a_la_aseguradora
     - cfdi_carta_porte
-    - denuncias
+    - denuncia_de_los_hechos
+    - carpeta_de_investigacion
     - tarjeta_de_circulacion
-    - facturas_y_pedimentos
-    - reportes_gps
+    - facturas_comerciales_internacionales
+    - pedimento_importacion
+    - reporte_monitoreo_gps
     - carta_aclatoria_comprobantes_peaje
 
   evidence_expectations:
-    - "Datos de remitente/destinatario coherentes con carta de reclamación y CFDI"
-    - "Peso/volumen razonable respecto a capacidad del vehículo"
-    - "Permisos y licencias SCT vigentes"
-    - "Ruta alineada con GPS, peajes y bitácoras"
-    - "Ausencia de UUID/sello digital, diferenciando la carta porte simple del CFDI"
+    - "Destinatario/cliente legitimado en póliza o endosos"
+    - "Operador y placas coincidentes con denuncias o carpeta de investigación"
+    - "Fecha/hora de emisión alineada al inicio de recorrido reportado"
+    - "Descripción general de mercancía o vehículos coherente con carta a la aseguradora y acreditaciones"
+    - "Firmas y sellos internos que acrediten emisión por el transportista"
 
   red_flags:
     high_risk:
-      - clue: "Formato presenta folio o membrete que corresponde a CFDI pero carece de timbrado"
-        why: "Indica posible uso indebido o falsificación de documentos fiscales"
-      - clue: "Datos de unidad o operador que no pertenecen al transportista habitual"
-        why: "Eleva riesgo de simulación o usurpación de identidad"
+      - clue: "Cliente/destinatario no asociado a póliza ni a endoso vigente"
+        why: "Sugiere intento de legitimar traslado para un tercero sin cobertura"
+      - clue: "Operador o placas distintos a los asentados en denuncias o carpeta"
+        why: "Indica posible simulación o sustitución de unidades"
     medium:
-      - clue: "Ruta declarada omite plazas de peaje donde se generó controversia"
-        why: "Puede ocultar información relevante para la investigación"
-      - clue: "Fechas de emisión o salida inconsistentes con denuncias o reportes GPS"
-        why: "Aumenta riesgo de declaración sesgada"
+      - clue: "Fecha de emisión fuera de la ventana del recorrido denunciado"
+        why: "Debilita la trazabilidad del siniestro y la cobertura"
+      - clue: "Firmas o sellos ausentes en campos obligatorios"
+        why: "Reduce confianza en la autenticidad del formato"
 
 response_template:
   output_format:
     documento_analizado: "carta_porte_simple"
     analisis_completo: |
-      Redactar 3-5 párrafos técnicos que aborden:
-      1) Integridad del formato (folio, remitente/destinatario, firmas, diferencias con CFDI Carta Porte).
-      2) Coherencia logística (mercancía, peso/volumen, vehículo, operador, permisos SCT).
-      3) Verificación de ruta y consistencia con evidencia externa (GPS, denuncias, cartas, peajes).
-      4) Indicadores de riesgo detectados y evidencia puntual.
-      5) Recomendaciones de seguimiento (solicitar CFDI, validar permisos, obtener soportes complementarios).
-      Fundamentar hallazgos con citas textuales, cifras y referencias cruzadas a documentos relacionados.
+      Se cuenta con Carta Porte Simple con folio {folio}, emitida por {empresa_transportista}, con fecha {fecha_emision_formateada}; se detalla el traslado de {categoria_mercancia} desde {origen} hacia {destino}, consignado a {cliente}. El operador identificado es {operador} y se declara la unidad con placas {placas}. Resumir si la información concuerda con denuncias, póliza y soportes logísticos.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
-    evidence: []
     recommendations: []
 
     integridad_documental:
@@ -149,7 +144,6 @@ response_template:
       remitente: ""
       destinatario: ""
       firmas_presentes: []
-      diferencias_vs_cfdi: []
       observaciones: ""
 
     logistica_transporte:
@@ -173,26 +167,23 @@ response_template:
         vigencia_permisos: ""
 
     validacion_cruzada:
-      concordancia_con_cfdi: "pendiente"
-      concordancia_con_carta_reclamacion: "pendiente"
-      concordancia_con_gps: "pendiente"
-      soporte_peaje: "pendiente"
-      observaciones: ""
+      carta_porte:
+        categoria_bienes: ""
+        cliente_normalizado: ""
+        operadores_relacionados: []
+        placas_declaradas: []
+        observaciones: ""
 
     validation_tasks:
-      - tarea: "Confirmar existencia del CFDI Carta Porte correspondiente"
-        fuente: "Sistema SAT / transportista"
+      - tarea: "Confirmar en póliza y endosos la legitimación del destinatario/cliente citado."
+        fuente: "Póliza vigente y endosos"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Verificar permisos SCT y licencias del operador"
-        fuente: "Autoridad SCT / registros internos"
+      - tarea: "Cotejar fecha/hora de emisión con denuncias y registros GPS del recorrido."
+        fuente: "Denuncia de los hechos / reporte GPS"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Cruzar ruta con evidencia GPS y cartas aclaratorias de peaje"
-        fuente: "Reportes GPS / carta aclaratoria"
-        prioridad: "media"
-        estado: "pendiente"
-      - tarea: "Comparar mercancía y peso con carta de reclamación y facturas"
-        fuente: "Carta de reclamación / facturas"
-        prioridad: "media"
+      - tarea: "Validar operador y placas contra denuncias y carpeta de investigación."
+        fuente: "Carpeta de investigación / denuncia"
+        prioridad: "alta"
         estado: "pendiente"

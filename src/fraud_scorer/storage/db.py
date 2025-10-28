@@ -25,6 +25,7 @@ def get_conn() -> sqlite3.Connection:
     try:
         ensure_fraud_visibility_column(conn)
         ensure_evidence_gaps_column(conn)
+        ensure_fraud_structured_columns(conn)
         ensure_fraud_correlations_cascade(conn)
     except Exception:
         # Modo defensivo: en escenarios de migración antigua preferimos no bloquear la conexión
@@ -75,6 +76,32 @@ def ensure_evidence_gaps_column(conn: Optional[sqlite3.Connection] = None) -> No
                 "ALTER TABLE fraud_analyses ADD COLUMN evidence_gaps TEXT NOT NULL DEFAULT '[]'"
             )
             conn.commit()
+    finally:
+        if owns_conn:
+            conn.close()
+
+def ensure_fraud_structured_columns(conn: Optional[sqlite3.Connection] = None) -> None:
+    """Garantiza columnas estructuradas (verificaciones/validacion_cruzada) en fraud_analyses."""
+    owns_conn = False
+    if conn is None:
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA foreign_keys=ON;")
+        owns_conn = True
+    try:
+        rows = conn.execute("PRAGMA table_info(fraud_analyses)").fetchall()
+        if not rows:
+            return
+        existing = {row["name"] for row in rows}
+        if "verificaciones" not in existing:
+            conn.execute(
+                "ALTER TABLE fraud_analyses ADD COLUMN verificaciones TEXT NOT NULL DEFAULT '{}'"
+            )
+        if "validacion_cruzada" not in existing:
+            conn.execute(
+                "ALTER TABLE fraud_analyses ADD COLUMN validacion_cruzada TEXT NOT NULL DEFAULT '{}'"
+            )
+        conn.commit()
     finally:
         if owns_conn:
             conn.close()
@@ -240,6 +267,8 @@ def init_db() -> None:
                 evidence        TEXT,
                 evidence_gaps   TEXT NOT NULL DEFAULT '[]',
                 recommendations TEXT,
+                verificaciones  TEXT NOT NULL DEFAULT '{}',
+                validacion_cruzada TEXT NOT NULL DEFAULT '{}',
                 confidence      REAL,
                 analysis_model  TEXT,
                 guide_version   TEXT,

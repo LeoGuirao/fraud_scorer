@@ -217,13 +217,45 @@ Eres un asistente experto en la extracción de datos de documentos de siniestros
             "vigencia_fin": "Fecha de fin de vigencia de la póliza",
             "domicilio_poliza": "Dirección completa registrada en la póliza",
             "bien_reclamado": "Descripción del bien o mercancía reclamada",
+            "numero_carpeta": "Clave oficial asignada a la carpeta de investigación",
+            "fiscalia": "Nombre completo de la fiscalía o autoridad ministerial que recibe la denuncia",
+            "agente_ministerio_publico": "Nombre del agente del Ministerio Público que tomó la declaración",
+            "denuncias": "Listado de denuncias incluidas en la carpeta con su narrativa y datos críticos",
+            "acreditaciones": "Listado de acreditaciones de propiedad anexadas a la carpeta",
+            "resumen_conjunto": "Resumen general que cruza la información de todas las denuncias",
             "monto_reclamacion": "Monto total de la reclamación",
             "tipo_siniestro": "Tipo de siniestro (robo, colisión, incendio, etc.)",
             "fecha_ocurrencia": "Fecha cuando ocurrió el siniestro",
             "fecha_reclamacion": "Fecha cuando se presentó la reclamación",
             "lugar_hechos": "Lugar donde ocurrió el siniestro",
             "ajuste": "Nombre del ajustador asignado",
-            "conclusiones": "Conclusiones o resolución del caso"
+            "conclusiones": "Conclusiones o resolución del caso",
+            "fecha_carta": "Fecha en que se emitió la carta",
+            "emisor_carta": "Entidad o persona que emite la carta",
+            "firmante_nombre": "Nombre de quien firma la carta",
+            "firmante_cargo": "Cargo o puesto del firmante",
+            "destinatario_nombre": "Nombre de la persona a quien va dirigida",
+            "destinatario_cargo": "Cargo o puesto del destinatario",
+            "asunto_principal": "Asunto principal descrito en la carta",
+            "descripcion_evento": "Descripción breve del evento informado",
+            "consecuencia_evento": "Consecuencias descritas a raíz del evento",
+            "detalle_carta": "Detalle adicional incluido en la carta",
+            "proposito_notificacion": "Objetivo explícito de la notificación",
+            "casetas_involucradas": "Lista de casetas de peaje citadas",
+            "horarios_reportados": "Fechas y horas asociadas a las casetas",
+            "evidencia_respaldo": "Documentos o soportes mencionados",
+            "numero_interno_documento": "Folio interno o número de control de la carta porte",
+            "empresa_transportista": "Nombre de la empresa transportista que emite el documento",
+            "destinatario": "Nombre del cliente o consignatario al que se entrega la mercancía",
+            "fecha_emision": "Fecha de emisión de la carta porte en formato YYYY-MM-DD",
+            "uuid_fiscal": "UUID o folio fiscal cuando exista",
+            "fecha_timbrado": "Fecha de timbrado fiscal del CFDI o carta porte",
+            "operador_nombre": "Nombre del operador o chofer responsable del traslado",
+            "licencia_operador": "Número de licencia o permiso SCT del operador",
+            "placas": "Placas de la unidad (tractor y/o remolques)",
+            "origen": "Lugar exacto de origen del traslado",
+            "destino": "Lugar exacto de destino del traslado",
+            "ruta_planeada": "Ruta o trayecto planeado para la unidad"
         }
     
     def _load_examples(self) -> Dict[str, List[Dict]]:
@@ -401,7 +433,34 @@ DETALLES POR CAMPO PERMITIDO:
             guide += f"""
    Ajustadores válidos: {', '.join(self.config.RECOGNIZED_ADJUSTERS)}
    Regla especial: Extrae el NOMBRE de la persona o empresa ajustadora, nunca montos ni porcentajes."""
-        
+        elif field == "numero_interno_documento":
+            guide += """
+   Regla especial: Identifica folios como "Folio", "No. Carta Porte" o "Folio interno". Conserva el texto exacto."""
+        elif field == "empresa_transportista":
+            guide += """
+   Regla especial: Usa la razón social/literal del transportista que emite el documento (encabezado o sello)."""
+        elif field == "destinatario":
+            guide += """
+   Regla especial: Extrae el nombre del cliente/consignatario al que se entrega la mercancía."""
+        elif field == "operador_nombre":
+            guide += """
+   Regla especial: Selecciona el nombre del operador/chofer principal (campo OPERADOR, CONDUCTOR o similar)."""
+        elif field == "placas":
+            guide += """
+   Regla especial: Devuelve todas las placas asociadas a la unidad. Formato alfanumérico sin espacios adicionales."""
+        elif field == "licencia_operador":
+            guide += """
+   Regla especial: Captura el número de licencia o permiso SCT del operador, si aparece."""
+        elif field == "origen":
+            guide += """
+   Regla especial: Describe el punto de partida (ciudad/estado y, si se menciona, planta o parque industrial)."""
+        elif field == "destino":
+            guide += """
+   Regla especial: Describe el punto de entrega final (ciudad/estado y ubicación específica)."""
+        elif field == "fecha_emision":
+            guide += """
+   Regla especial: Convierte cualquier formato textual a YYYY-MM-DD (ej. "12 de febrero de 2024" → 2024-02-12)."""
+
         guide += "\n"
         return guide
     
@@ -437,6 +496,7 @@ INSTRUCCIONES ESPECÍFICAS PARA INFORME FINAL DEL AJUSTADOR:
    - Esta información suele estar en las últimas páginas del informe.
    - Extrae el monto TOTAL reclamado por la mercancía (no gastos de transporte, subrogaciones ni deducibles).
    - Puede estar escrito en número y en letra; conserva el valor numérico completo (ej. MXN$3,145,997.60).
+   - Si aparecen varios montos ("Total pérdida", deducible, ajuste), PRIORIZA el monto reclamado por el asegurado. Ignora "Total pérdida" u otros importes contables.
 
 3. FECHA_OCURRENCIA:
    - Busca "Fecha de siniestro", "Fecha del evento" o similar.
@@ -473,10 +533,87 @@ INSTRUCCIONES ESPECÍFICAS PARA INFORME FINAL DEL AJUSTADOR:
 """
         elif document_type == "carta_de_reclamacion_formal_a_la_aseguradora":
             instructions += """
-- Buscar el monto TOTAL reclamado, no parciales
-- Puede aparecer como "valor estimado" o "suma reclamada"
+- Identifica al emisor (persona moral o física) y regístralo en `nombre_asegurado`.
+- Extrae el número de póliza y el número de siniestro tal como aparecen en el encabezado.
+- Captura la fecha de la carta en `fecha_reclamacion` (formato YYYY-MM-DD) y, si se menciona, la fecha del siniestro en `fecha_ocurrencia`.
+- Verifica la ubicación del siniestro (carretera, kilómetro, municipio) y colócala en `lugar_hechos`.
+- Normaliza el monto TOTAL reclamado (sin IVA) en `monto_reclamacion` usando formato numérico o con prefijo "$".
+- Si describe la mercancía o bienes reclamados, regístralos en `bien_reclamado` como texto descriptivo.
+- Evita capturar gastos adicionales cuando el documento distinga entre mercancía robada y otros cargos; prioriza el valor de la mercancía reclamada.
 """
-        elif document_type in ["carpeta_de_investigacion", "narracion_de_hechos", "declaracion_del_asegurado"]:
+        elif document_type == "carta_porte_simple":
+            instructions += """
+- `numero_interno_documento`: toma el folio literal (ej. "500", "Folio 500") indicado en encabezado o tabla principal.
+- `empresa_transportista`: copia la razón social que emite la carta porte (membrete o sello del transportista).
+- Si existen varios nombres de empresa, prioriza la razón social destacada en el encabezado (ej. "Logística, Carga y Más Transportaciones") y no alias abreviados.
+- `destinatario`: captura el nombre del cliente/consignatario indicado en campos "Destinatario", "Cliente" o similares.
+- `fecha_emision`: convierte cualquier formato textual al estándar YYYY-MM-DD (ej. "12 de febrero de 2024" → 2024-02-12).
+- `operador_nombre`: utiliza el nombre del operador/chofer principal. Si se listan varios operadores, prioriza el que conduce la unidad.
+- `placas`: extrae todas las placas indicadas (tractor y/o remolques) en formato alfanumérico limpio, separadas por comas si hay varias.
+- `origen` y `destino`: transcribe la ubicación completa (ciudad, estado y referencias) tal como aparece en el documento.
+- Si algún campo no aparece, devuélvelo como null (no lo infieras)."""
+        elif document_type == "carta_aclatoria_comprobantes_peaje":
+            instructions += """
+- Extrae `fecha_carta` en formato YYYY-MM-DD exactamente como aparece en la carta.
+- `emisor_carta` debe conservar el nombre comercial o razón social del remitente (respetando mayúsculas y símbolos como "LC&+").
+- Captura `firmante_nombre` y `firmante_cargo` a partir de la firma (normalmente debajo de "Atentamente").
+- Registra `destinatario_nombre` y `destinatario_cargo` si se mencionan en el encabezado o saludo.
+- `asunto_principal`, `descripcion_evento`, `consecuencia_evento` y `proposito_notificacion` deben describirse con texto literal del documento (sin inferencias).
+- `casetas_involucradas` debe ser una lista de objetos con las claves `nombre`, `fecha` y/o `hora` cuando estén presentes. Ejemplo:
+  [{"nombre": "Plaza de Cobro LIBRAMIENTO PONIENTE TAMPICO", "fecha": "2024-02-12", "hora": "23:01:17"}]
+- `horarios_reportados` debe incluir únicamente timestamps (YYYY-MM-DD HH:MM:SS) asociados a las casetas.
+- Si se mencionan soportes (tickets, facturas, bitácoras), agrégalos en `evidencia_respaldo` como lista de textos.
+- Si algún campo no aparece en el documento, devuélvelo como null (no inventes datos).
+"""
+        elif document_type == "carpeta_de_investigacion":
+            instructions += """
+- Prioriza la transcripción textual. NO inventes ni completes datos fuera del expediente.
+- Devuelve `numero_carpeta`, `fiscalia` y `agente_ministerio_publico` exactamente como aparecen (ej. "Fiscalía General de la República").
+- Usa el siguiente esquema para `denuncias` (lista con cada declaración principal, incluye al menos la del operador asegurado y la del operador escolta):
+  [
+    {
+      "orden": 1,
+      "declarante_titulo": "Sr.",
+      "declarante_nombre": "Enrique Hernández García",
+      "declarante_rol": "operador del tractocamión asegurado",
+      "autoridad": "Lic. Jonathan Josué Zuviri Alonso",
+      "fiscalia": "Fiscalía General de la República",
+      "numero_carpeta": "FED/SLP/SLP/0000231/2024",
+      "fecha_inicio": "2024-02-14",
+      "fecha_siniestro": "2024-02-13",
+      "hora_evento": "19:30",
+      "hora_liberacion": "10:00",
+      "origen": "Puerto Altamira, Tampico, Tamaulipas",
+      "destino": "Aceros Ocotlán, Guadalajara, Jalisco",
+      "lugar": "Kilómetro 57 del entronque de la carretera Matehuala, San Luis Potosí",
+      "stop_reason": "consumir alimentos",
+      "vehiculos": [
+        {"placa": "16BC2T", "tipo": "tractocamión"},
+        {"placa": "97UL4C", "tipo": "semirremolque"},
+        {"placa": "15TZ2Y", "tipo": "semirremolque"}
+      ],
+      "mercancias": [
+        "Placas de acero (90.36 toneladas)"
+      ],
+      "descripcion_evento": "Despojo del tractocamión y la mercancía al reanudar el trayecto.",
+      "narrativa_detallada": "Incluye el detalle completo de la denuncia en prosa.",
+      "assailant_detail": "dos individuos armados",
+      "detention_detail": "los mantuvieron en una construcción en obra negra con la vista cubierta",
+      "post_event_detail": "Posteriormente los abandonaron cerca de San Lorenzo, Municipio de Villa Hidalgo, San Luis Potosí.",
+      "abandon_location": "San Lorenzo, Municipio de Villa Hidalgo, San Luis Potosí",
+      "companion_reference": "Irwin Rueda Rubio"
+    }
+  ]
+- Duplica la estructura anterior para cada declarante adicional (cambia `orden` y los datos correspondientes).
+- `destino` debe reflejar el destino FINAL declarado (ej. Aceros Ocotlán, Guadalajara, Jalisco), no el punto de descanso.
+- `hora_evento` debe corresponder a la hora del robo descrita en la narrativa (ej. 19:30); evita registrar horarios de ratificación o de traslado posterior.
+- Si ambos operadores describen el mismo abandono, utiliza el MISMO texto en `abandon_location` y en `post_event_detail`.
+- Incluye pesos o toneladas relevantes dentro de `mercancias` conservando la cifra exacta mencionada.
+- `acreditaciones` debe ser una lista con objetos que indiquen tipo de bien, presentante, rol y documentos soporte (ej. pedimentos, cartas porte con folio fiscal).
+- `resumen_conjunto` debe resumir coincidencias críticas entre denuncias (origen, destino final, hora del evento, agresores, lugar de abandono y hora de liberación).
+- Si no se localiza algún dato, devuelve null sin generar conjeturas.
+"""
+        elif document_type in ["narracion_de_hechos", "declaracion_del_asegurado"]:
             instructions += """
 - Identificar el tipo de siniestro según el catálogo
 - Mapear a UNA sola categoría del listado oficial

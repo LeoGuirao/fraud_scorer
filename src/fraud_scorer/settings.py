@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 MODEL_SAMPLING_CONFIG: Dict[str, Dict[str, Optional[float]]] = {
+    "gpt-5": {"temperature": None, "top_p": None},
     "gpt-5-nano": {"temperature": None, "top_p": None},
     "gpt-5-mini": {"temperature": None, "top_p": None},
     "gpt-4o": {"temperature": 0.1, "top_p": 0.9},
@@ -135,6 +136,12 @@ class ExtractionConfig:
         # Cartas de reclamación
         "carta_de_reclamacion_formal_a_la_aseguradora": [
             "numero_siniestro",
+            "nombre_asegurado",
+            "numero_poliza",
+            "fecha_reclamacion",
+            "fecha_ocurrencia",
+            "lugar_hechos",
+            "bien_reclamado",
             "monto_reclamacion"
         ],
         "carta_de_reclamacion_formal_al_transportista": [
@@ -145,12 +152,18 @@ class ExtractionConfig:
         # Documentos legales
         "carpeta_de_investigacion": [
             "numero_siniestro",
+            "numero_carpeta",
+            "fiscalia",
+            "agente_ministerio_publico",
             "tipo_siniestro",
             "fecha_ocurrencia",
             "lugar_hechos",
             "fecha_apertura",
             "placas",
             "vin",
+            "denuncias",
+            "acreditaciones",
+            "resumen_conjunto",
         ],
         "denuncia_de_los_hechos": [
             "numero_siniestro",
@@ -182,6 +195,9 @@ class ExtractionConfig:
             "monto_reclamacion"
         ],
         "carta_porte": [
+            "numero_interno_documento",
+            "empresa_transportista",
+            "destinatario",
             "uuid_fiscal",
             "fecha_emision",
             "fecha_timbrado",
@@ -282,7 +298,22 @@ class ExtractionConfig:
             "lugar_hechos",
             "tipo_siniestro"
         ],
-        "carta_aclatoria_comprobantes_peaje": [],
+        "carta_aclatoria_comprobantes_peaje": [
+            "fecha_carta",
+            "emisor_carta",
+            "firmante_nombre",
+            "firmante_cargo",
+            "destinatario_nombre",
+            "destinatario_cargo",
+            "asunto_principal",
+            "descripcion_evento",
+            "consecuencia_evento",
+            "detalle_carta",
+            "proposito_notificacion",
+            "casetas_involucradas",
+            "horarios_reportados",
+            "evidencia_respaldo",
+        ],
         "carta_porte_simple": DOCUMENT_FIELD_MAPPING["carta_porte"],
         "declaracion_universal_de_accidente": [],
         "ficha_tecnica_de_vehiculo": [],
@@ -296,6 +327,8 @@ class ExtractionConfig:
         "informe_final_del_ajustador",
         "poliza_de_la_aseguradora",
         "carta_de_reclamacion_formal_a_la_aseguradora",
+        "carta_de_reclamacion_formal_al_transportista",
+        "carta_aclatoria_comprobantes_peaje",
         "carpeta_de_investigacion",
         "denuncia_de_los_hechos",
         "narracion_de_hechos",
@@ -373,6 +406,82 @@ class ExtractionConfig:
         ],
         "conclusiones": [
             "Conclusión", "Conclusiones", "Resumen de conclusiones"
+        ],
+        "fecha_carta": [
+            "Fecha", "Fecha de la carta", "Fecha de emisión"
+        ],
+        "emisor_carta": [
+            "Emisor", "Remitente", "Empresa que emite", "Asegurado emisor"
+        ],
+        "firmante_nombre": [
+            "Firmante", "Firma", "Quien firma", "Nombre del firmante"
+        ],
+        "firmante_cargo": [
+            "Cargo", "Puesto", "Título del firmante"
+        ],
+        "destinatario_nombre": [
+            "Destinatario", "A", "Atención", "Señor"
+        ],
+        "destinatario_cargo": [
+            "Cargo destinatario", "Título destinatario", "Puesto destinatario"
+        ],
+        "asunto_principal": [
+            "Asunto", "Motivo", "Notificación"
+        ],
+        "descripcion_evento": [
+            "Descripción", "Narrativa", "Detalle del evento"
+        ],
+        "consecuencia_evento": [
+            "Resultado", "Consecuencia", "Impacto"
+        ],
+        "detalle_carta": [
+            "Detalles", "Se detalla", "Describe"
+        ],
+        "proposito_notificacion": [
+            "Propósito", "Objetivo", "Intención"
+        ],
+        "casetas_involucradas": [
+            "Casetas", "Plazas de cobro", "Peajes", "Pistas"
+        ],
+        "horarios_reportados": [
+            "Horarios", "Fechas y horas", "Tiempos reportados"
+        ],
+        "evidencia_respaldo": [
+            "Evidencia", "Soportes", "Documentos anexos"
+        ],
+        "numero_interno_documento": [
+            "Folio", "Folio No.", "No. de carta porte", "No. documento",
+            "Folio interno", "Folio carta porte"
+        ],
+        "empresa_transportista": [
+            "Transportista", "Empresa transportista", "Razón social transportista",
+            "Empresa que emite", "Transportista emisor"
+        ],
+        "destinatario": [
+            "Destinatario", "Cliente", "Consignatario", "Cliente destinatario",
+            "Nombre del cliente"
+        ],
+        "fecha_emision": [
+            "Fecha de emisión", "Fecha", "Fecha expedición", "Fecha de elaboración"
+        ],
+        "operador_nombre": [
+            "Operador", "Nombre del operador", "Chofer", "Conductor",
+            "Operador responsable"
+        ],
+        "placas": [
+            "Placas", "No. de placas", "Placa", "Matrícula", "Número económico"
+        ],
+        "licencia_operador": [
+            "Licencia", "No. de licencia", "Licencia SCT", "Permiso SCT"
+        ],
+        "origen": [
+            "Origen", "Lugar de origen", "Punto de partida", "Ubicación de salida"
+        ],
+        "destino": [
+            "Destino", "Lugar de destino", "Punto de llegada", "Ubicación de entrega"
+        ],
+        "ruta_planeada": [
+            "Ruta", "Trayecto", "Itinerario", "Ruta planeada"
         ]
     }
     
@@ -420,6 +529,14 @@ class ExtractionConfig:
         "lugar_hechos": {
             "max_length": 200,
             "format": "Carretera, kilómetro, municipio y estado"
+        },
+        "numero_interno_documento": {
+            "max_length": 40,
+            "format": "Texto alfanumérico corto (folio de carta porte)"
+        },
+        "fecha_emision": {
+            "format": "YYYY-MM-DD",
+            "type": "date_iso"
         }
     }
     
@@ -559,9 +676,10 @@ class ExtractionConfig:
             "informe_final_del_ajustador",
             "informe_preliminar_del_ajustador",
             "denuncia_de_los_hechos",
-            "denuncia"
+            "denuncia",
+            "carta_de_reclamacion_formal_a_la_aseguradora"
         ],
-        "numero_poliza": ["poliza", "denuncia"],
+        "numero_poliza": ["poliza", "denuncia", "carta_de_reclamacion_formal_a_la_aseguradora"],
         "vigencia_inicio": ["poliza"],
         "vigencia_fin": ["poliza"],
         "domicilio_poliza": ["poliza", "denuncia"],
@@ -587,12 +705,13 @@ class ExtractionConfig:
             "denuncia",
             "peritaje"
         ],
-        "fecha_reclamacion": ["denuncia"],
+        "fecha_reclamacion": ["denuncia", "carta_de_reclamacion_formal_a_la_aseguradora"],
         "lugar_hechos": [
             "informe_final_del_ajustador",
             "peritaje",
             "denuncia_de_los_hechos",
-            "denuncia"
+            "denuncia",
+            "carta_de_reclamacion_formal_a_la_aseguradora"
         ],
         "ajuste": ["peritaje"],
         "conclusiones": ["peritaje", "denuncia"]

@@ -49,7 +49,7 @@ Los overrides se definen en `MODEL_SAMPLING_CONFIG`; `_chat_with_retry` sólo en
 
 1. **No romper la carátula**: después de cualquier cambio, reproduce `CASE-2025-0001` y verifica los campos críticos.
 2. **Actualizar mapeos y guías** si se agregan nuevos documentos o campos.
-3. **Prompts antes que heurísticas**: refuerza la extracción antes de aumentar fallbacks.
+3. **Prompts antes que heurísticas**: refuerza la extracción antes de aumentar fallbacks. Las guías deben priorizar modelos GPT para cada dato; expresiones regulares se reservan como red de seguridad cuando la IA no logra poblar un campo aun después de reforzar el prompt.
 4. **No eliminar `raw_text_snippet`**: se usa para debugging y para motores secundarios.
 5. **Instrumenta métricas**: vigila cuántos campos provienen de consolidación vs. fallback para detectar regresiones.
 
@@ -166,6 +166,12 @@ Después de estabilizar el flujo “solo 3.5”, observamos el mismo bloqueo al 
 - **Conteos coherentes**: `documents_processed`, `total_documents` y `case_data['documents']` se basan ahora en los JSON cuando los originales no existen (scripts/run_report.py:1011-1024, 1708-1777).
 
 Con esto, cualquier combinación de fases 1.4–3.5 puede ejecutarse reutilizando únicamente el cache reorganizado.
+
+### Sub-bullet (noviembre 2025): Extracción y análisis de carpetas con GPT-5
+
+- **Motivación**: Las narrativas de carpeta de investigación requerían inferir rutas completas, horas del evento/liberación y destino final (Aceros Ocotlán) que GPT‑4o‑mini omitía.
+- **Acción**: Forzamos `AIFieldExtractor.extract_from_document` a usar `gpt-5` cuando `document_type == "carpeta_de_investigacion"` y deshabilitamos temperatura/top_p para esa familia (ver `src/fraud_scorer/processors/ai/ai_field_extractor.py:209-223`, `1080-1105`).
+- **Consistencia**: `FraudAnalyzer` ya respetaba esa guía, por lo que las narrativas consolidan horarios, lugar de abandono y pesos reportados. Mantén esta configuración para cualquier refactor futuro; si cambias de modelo, actualiza la sección anterior.
 
 ### Actualización (2025-09-21): Reproceso sin originales para Fases 1.4–3
 
@@ -1092,3 +1098,10 @@ La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agent
 - **Acción**: usar `gpt-4o-mini` (mismo stack que OCR/consolidación) sin alterar temperatura ni tokens.
 - **Recomendaciones**: validar aliases con `OPENAI_MODEL_CONFIG`, probar en lote pequeño antes de generalizar y, si se experimenta con otros modelos, envolverlo detrás de `CLASSIFICATION_ENGINE.strategy`.
 - **Checks**: `python3 -m pytest tests/analyzers/test_unified_data_layer.py`, reprocesar un caso y confirmar en `/api/editor/{case}/bootstrap` que la clasificación reporta `gpt-4o-mini`.
+
+## 17) Carta aclaratoria de peaje — buenas prácticas de análisis (marzo 2026)
+
+- **Preparación de datos**: antes de tocar la guía `carta_aclatoria_comprobantes_peaje.yaml` o su post-proceso, verifica que el `case_index` incluya los datasets GPS reconstruidos (`gps_direct_documents`). Sin ellos, reporta explícitamente la ausencia en `ruta_vs_gps` y evita generar indicadores no sustentados.
+- **Tolerancias y evidencia**: conserva los umbrales actuales (±600 m, ±20 min) en `fraud_analyzer._postprocess_carta_aclaratoria_peaje`. Si necesitas ajustarlos, reejecuta `preview_fraud_analysis.py --no-save --refresh-extraction` sobre CASE-2025-0001 y documenta en la PR el impacto en coincidencias vs. desviaciones.
+- **Narrativa consistente**: el resumen debe omitir el conteo de páginas, usar solo el nombre real del destinatario (sin “Estimado”) y redactar el propósito como una frase corrida. Si cambias la plantilla YAML, comprueba que el post-proceso siga produciendo esa estructura.
+- **Trazabilidad por ECO**: revisa que `verificaciones.ruta_vs_gps.detalle` y `validacion_cruzada.monitoreo_gps.detalle_por_unidad` enumeren coincidencias y discrepancias por unidad (ECO 006 / ECO 010) con timestamp y coordenadas. Es la referencia principal para auditores; no borres esos bloques aunque modifiques recomendaciones.

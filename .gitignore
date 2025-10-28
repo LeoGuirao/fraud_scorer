@@ -49,8 +49,11 @@ tests/*
 !tests/.gitkeep
 !tests/gps/
 !tests/gps/*.py
+!tests/agent/
+!tests/agent/*.py
 
 # Ignorar todos los .md en la raíz salvo README.md y BETTER_PRACTICES.md
 /*.md
 !/README.md
 !/BETTER_PRACTICES.md
+!/GUIA_IMPLEMENTACION_AGENTICO_RICK_GPS.md

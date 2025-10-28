@@ -206,6 +206,10 @@ class AIFieldExtractor:
                 ocr_content=prepared_content,
             )
 
+        # Definir modelo específico para carpeta de investigación (requiere GPT-5)
+        doc_type_normalized = (document_type or "otro").lower()
+        model_override = "gpt-5" if doc_type_normalized == "carpeta_de_investigacion" else None
+
         # Llamar IA con reintentos (ahora acepta que el LLM responda solo con el JSON de campos)
         text_snippet = (prepared_content.get("text") or "")[:8000]
         extraction = await self._call_ai_with_retry(
@@ -214,6 +218,7 @@ class AIFieldExtractor:
             document_type=document_type or "otro",
             route=route,
             ocr_text_snippet=text_snippet,
+            model_override=model_override,
             expected_fields=expected_fields,
         )
 
@@ -1091,7 +1096,12 @@ Responde SOLO con el JSON de los campos extraídos.
 
     @staticmethod
     def _supports_custom_sampling(model_name: Optional[str]) -> bool:
-        """Todos los modelos actuales soportan temperature/top_p."""
+        """Controla si se envían parámetros de sampling."""
+        if not model_name:
+            return True
+        lowered = model_name.lower()
+        if lowered.startswith("gpt-5"):
+            return False
         return True
 
     @staticmethod
@@ -1328,23 +1338,39 @@ Responde SOLO con el JSON de los campos extraídos.
             return {}
     
     def _apply_field_mask_dict(
-        self, 
+        self,
         extraction: Dict[str, Any],
-        allowed_fields: List[str]
+        allowed_fields: List[str],
     ) -> Dict[str, Any]:
         """
-        Aplica máscara de seguridad a un diccionario
+        Aplica máscara de seguridad a un diccionario manteniendo sólo campos permitidos.
+        Además garantiza que los campos requeridos existan (con valor None cuando no se permitan).
         """
-        masked = {}
-        
-        for field in self.config.REQUIRED_FIELDS:
-            if field in allowed_fields:
+        if not isinstance(extraction, dict):
+            return {field: None for field in self.config.REQUIRED_FIELDS}
+
+        allowed_set = set(allowed_fields or [])
+        required_set = set(self.config.REQUIRED_FIELDS)
+        masked: Dict[str, Any] = {}
+
+        # Conservar valores permitidos por la guía
+        for field in allowed_set:
+            masked[field] = extraction.get(field, None)
+
+        # Asegurar presencia de campos requeridos con fallback a None cuando no están autorizados
+        for field in required_set:
+            if field in allowed_set:
                 masked[field] = extraction.get(field, None)
             else:
-                masked[field] = None
                 if field in extraction and extraction[field] is not None:
-                    logger.warning(f"Campo '{field}' bloqueado (no permitido)")
-        
+                    logger.warning("Campo '%s' bloqueado (no permitido)", field)
+                masked.setdefault(field, None)
+
+        # Registrar campos no autorizados presentes en la extracción original para diagnóstico
+        for field in extraction.keys():
+            if field not in allowed_set and field not in required_set:
+                logger.debug("Descartando campo no permitido '%s' en extracción", field)
+
         return masked
     
     def _validate_and_transform_dict(

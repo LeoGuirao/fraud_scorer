@@ -105,36 +105,24 @@ class FraudReportGenerator(AIReportGenerator):
             if getattr(analysis, "include_in_report", True)
         ]
 
+        grouped: Dict[str, List[FraudAnalysisResult]] = {}
+        for analysis in visible_analyses:
+            grouped.setdefault(analysis.document_type, []).append(analysis)
+
         docs: List[Dict[str, Any]] = []
-        for a in visible_analyses:
+        for doc_type, group in grouped.items():
             meta = self.DOCUMENT_METADATA.get(
-                a.document_type,
-                {"titulo": self._format_document_title(a.document_type), "icono": "ri-file-line", "orden": 99},
+                doc_type,
+                {"titulo": self._format_document_title(doc_type), "icono": "ri-file-line", "orden": 99},
             )
-            docs.append(
-                {
-                    "tipo": a.document_type,
-                    "titulo": meta["titulo"],
-                    "icono": meta["icono"],
-                    "nombre_archivo": a.document_name,
-                    "risk_level": a.risk_level.value,
-                    "risk_color": self._get_risk_color(a.risk_level.value),
-                    "fraud_score": f"{a.fraud_score * 100:.1f}%",
-                    "confidence": f"{a.confidence * 100:.0f}%",
-                    "analisis_completo": a.analisis_completo,
-                    "analisis": {
-                        "indicadores": self._format_indicators(a.indicators),
-                        "evidencia": a.evidence,
-                        "recomendaciones": a.recommendations,
-                        "brechas_evidencia": [
-                            gap.model_dump() if hasattr(gap, "model_dump") else gap
-                            for gap in a.evidence_gaps
-                        ],
-                        "total_indicadores": len(a.indicators),
-                        "total_brechas": len(a.evidence_gaps),
-                    },
-                }
-            )
+            if doc_type == "carta_porte_simple" and len(group) > 1:
+                docs.append(self._build_carta_porte_multi(meta, group))
+                continue
+            for analysis in group:
+                titulo = meta["titulo"]
+                if doc_type == "carta_porte_simple":
+                    titulo = meta["titulo"]
+                docs.append(self._serialize_analysis(analysis, titulo, meta["icono"]))
 
         docs.sort(key=lambda x: self.DOCUMENT_METADATA.get(x["tipo"], {}).get("orden", 99))
 
@@ -163,6 +151,105 @@ class FraudReportGenerator(AIReportGenerator):
             "correlacion_inter_documentos": correlation_data,
             "mostrar_seccion_correlacion": correlation_data.get("has_findings", False),
         }
+
+    def _serialize_analysis(
+        self,
+        analysis: FraudAnalysisResult,
+        titulo: str,
+        icono: str,
+    ) -> Dict[str, Any]:
+        return {
+            "tipo": analysis.document_type,
+            "titulo": titulo,
+            "icono": icono,
+            "nombre_archivo": analysis.document_name,
+            "risk_level": analysis.risk_level.value,
+            "risk_color": self._get_risk_color(analysis.risk_level.value),
+            "fraud_score": f"{analysis.fraud_score * 100:.1f}%",
+            "confidence": f"{analysis.confidence * 100:.0f}%",
+            "analisis_completo": analysis.analisis_completo,
+            "analisis": {
+                "indicadores": self._format_indicators(analysis.indicators),
+                "recomendaciones": analysis.recommendations,
+                "verificaciones": analysis.verificaciones,
+                "validacion_cruzada": analysis.validacion_cruzada,
+                "total_indicadores": len(analysis.indicators),
+            },
+        }
+
+    def _build_carta_porte_multi(
+        self,
+        meta: Dict[str, Any],
+        analyses: List[FraudAnalysisResult],
+    ) -> Dict[str, Any]:
+        count = len(analyses)
+        sorted_group = sorted(analyses, key=lambda item: item.document_name or "")
+        categories: List[str] = []
+        for element in sorted_group:
+            carta_layer = (element.validacion_cruzada or {}).get("carta_porte") or {}
+            categoria = carta_layer.get("categoria_bienes")
+            if categoria:
+                categories.append(str(categoria))
+        category_phrase = self._format_category_phrase(categories)
+        intro = (
+            f"Se presentan {self._number_to_spanish_word(count)} cartas de porte para la justificación del traslado de {category_phrase}."
+        )
+
+        risk_priority = {"bajo": 1, "medio": 2, "alto": 3, "critico": 4}
+        highest = max(sorted_group, key=lambda item: risk_priority.get(item.risk_level.value, 1))
+        max_score = max(element.fraud_score for element in sorted_group)
+        min_confidence = min(element.confidence for element in sorted_group)
+
+        aggregated = {
+            "tipo": "carta_porte_simple",
+            "titulo": meta["titulo"],
+            "icono": meta["icono"],
+            "nombre_archivo": f"Múltiples ({count} documentos)",
+            "risk_level": highest.risk_level.value,
+            "risk_color": self._get_risk_color(highest.risk_level.value),
+            "fraud_score": f"{max_score * 100:.1f}%",
+            "confidence": f"{min_confidence * 100:.0f}%",
+            "analisis_completo": intro,
+            "analisis": {
+                "indicadores": [],
+                "recomendaciones": [],
+                "verificaciones": {},
+                "validacion_cruzada": {},
+                "total_indicadores": 0,
+            },
+            "subanalyses": [],
+            "is_multi": True,
+        }
+
+        for idx, item in enumerate(sorted_group, start=1):
+            sub_payload = self._serialize_analysis(item, f"Carta Porte Simple {idx}", meta["icono"])
+            aggregated["subanalyses"].append(sub_payload)
+        return aggregated
+
+    def _number_to_spanish_word(self, value: int) -> str:
+        mapping = {
+            1: "una",
+            2: "dos",
+            3: "tres",
+            4: "cuatro",
+            5: "cinco",
+            6: "seis",
+            7: "siete",
+            8: "ocho",
+            9: "nueve",
+            10: "diez",
+        }
+        return mapping.get(value, str(value))
+
+    def _format_category_phrase(self, categories: List[str]) -> str:
+        unique = [item for item in dict.fromkeys(categories) if item]
+        if not unique:
+            return "mercancía"
+        if len(unique) == 1:
+            return unique[0]
+        if len(unique) == 2:
+            return f"{unique[0]} y {unique[1]}"
+        return ", ".join(unique[:-1]) + f" y {unique[-1]}"
 
     def _extract_base_data(self, consolidated_data: ConsolidatedExtraction) -> Dict[str, Any]:
         """

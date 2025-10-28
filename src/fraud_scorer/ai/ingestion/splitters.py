@@ -49,6 +49,9 @@ _TYPE_PROFILES: Dict[str, Dict[str, int | list[str]]] = {
     "informe_final_del_ajustador": {"chunk_size": 1000, "chunk_overlap": 180},
     "reporte_gps": {"chunk_size": 800, "chunk_overlap": 150},
     "analisis_fraude": {"chunk_size": 900, "chunk_overlap": 150},
+    "denuncia_de_los_hechos": {"chunk_size": 1600, "chunk_overlap": 350},
+    "denuncia": {"chunk_size": 1600, "chunk_overlap": 350},
+    "oficio_denuncia": {"chunk_size": 1600, "chunk_overlap": 350},
 }
 
 

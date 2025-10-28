@@ -219,6 +219,8 @@ class FraudDocumentCatalog:
                 continue
             if isinstance(item, dict):
                 payload = dict(item)
+                payload.pop("evidence", None)
+                payload.pop("evidence_gaps", None)
                 payload.setdefault("include_in_report", True)
                 try:
                     hydrated.append(FraudAnalysisResult.model_validate(payload))
@@ -238,9 +240,10 @@ class FraudDocumentCatalog:
                        fa.fraud_score,
                        fa.analisis_completo,
                        fa.indicators,
-                       fa.evidence,
                        COALESCE(fa.evidence_gaps, '[]') AS evidence_gaps,
                        fa.recommendations,
+                       COALESCE(fa.verificaciones, '{}') AS verificaciones,
+                       COALESCE(fa.validacion_cruzada, '{}') AS validacion_cruzada,
                        fa.confidence,
                        fa.analysis_model,
                        fa.guide_version,
@@ -262,20 +265,20 @@ class FraudDocumentCatalog:
                 risk_value = str(row["risk_level"] or "medio").lower()
                 risk_enum = RiskLevel(risk_value) if risk_value in RiskLevel._value2member_map_ else RiskLevel.MEDIO
                 indicators = _jload(row["indicators"], [])
-                evidence = _jload(row["evidence"], [])
-                evidence_gaps_raw = _jload(row.get("evidence_gaps"), []) if "evidence_gaps" in row.keys() else []
                 gaps: List[EvidenceGap] = []
-                for gap in evidence_gaps_raw:
-                    if isinstance(gap, EvidenceGap):
-                        gaps.append(gap)
-                    elif isinstance(gap, dict):
-                        try:
-                            gaps.append(EvidenceGap(**gap))
-                        except Exception:
-                            gaps.append(EvidenceGap(gap=str(gap)))
-                    elif isinstance(gap, str):
-                        gaps.append(EvidenceGap(gap=gap))
                 recommendations = _jload(row["recommendations"], [])
+                verificaciones = _jload(row.get("verificaciones"), {})
+                if not isinstance(verificaciones, dict):
+                    try:
+                        verificaciones = dict(verificaciones)
+                    except Exception:
+                        verificaciones = {}
+                validacion_cruzada = _jload(row.get("validacion_cruzada"), {})
+                if not isinstance(validacion_cruzada, dict):
+                    try:
+                        validacion_cruzada = dict(validacion_cruzada)
+                    except Exception:
+                        validacion_cruzada = {}
                 timestamp = _parse_timestamp(row["updated_at"]) or _parse_timestamp(row["created_at"]) or datetime.now()
                 include_raw = row["include_in_report"]
                 include_flag = True if include_raw is None else bool(include_raw)
@@ -292,9 +295,10 @@ class FraudDocumentCatalog:
                     confidence=float(row["confidence"] or 0.0),
                     analisis_completo=row["analisis_completo"] or "",
                     indicators=indicators,
-                    evidence=evidence,
                     evidence_gaps=gaps,
                     recommendations=recommendations,
+                    verificaciones=verificaciones,
+                    validacion_cruzada=validacion_cruzada,
                     analysis_model=row["analysis_model"] or "unknown",
                     guide_version=row["guide_version"] or "N/A",
                     processing_time_ms=0,

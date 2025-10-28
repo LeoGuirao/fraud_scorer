@@ -35,6 +35,13 @@ def _get_env_float(name: str, default: float) -> float:
         return default
 
 
+def _get_env_bool(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 @dataclass(frozen=True)
 class RickAgentConfig:
     """Valores de configuración cargados desde el entorno."""
@@ -58,6 +65,12 @@ class RickAgentConfig:
     rate_limit: int = 30
     rate_window_minutes: int = 60
     openai_residency: Optional[str] = None
+    agent_mode_enabled: bool = False
+    agent_max_iterations: int = 5
+    agent_llm_model: Optional[str] = None
+    agent_gps_preview_limit: int = 50
+    agent_gps_history_limit: int = 3
+    agent_verbose: bool = False
 
     @property
     def chroma_global_snapshot(self) -> Path:
@@ -163,6 +176,33 @@ def load_config(overrides: Optional[dict[str, object]] = None) -> RickAgentConfi
             overrides.get("openai_residency")
             or os.getenv("AGENTE_RICK_OPENAI_RESIDENCY", "")
         ).strip() or None,
+        agent_mode_enabled=bool(
+            overrides.get("agent_mode_enabled")
+            if overrides.get("agent_mode_enabled") is not None
+            else _get_env_bool("AGENTE_RICK_AGENT_MODE_ENABLED", RickAgentConfig.agent_mode_enabled)
+        ),
+        agent_max_iterations=int(
+            overrides.get("agent_max_iterations")
+            or _get_env_int("AGENTE_RICK_AGENT_MAX_ITERATIONS", RickAgentConfig.agent_max_iterations)
+        ),
+        agent_llm_model=str(
+            overrides.get("agent_llm_model")
+            or os.getenv("AGENTE_RICK_AGENT_LLM_MODEL", "")  # permite vacío
+        ).strip()
+        or None,
+        agent_gps_preview_limit=int(
+            overrides.get("agent_gps_preview_limit")
+            or _get_env_int("AGENTE_RICK_AGENT_GPS_PREVIEW_LIMIT", RickAgentConfig.agent_gps_preview_limit)
+        ),
+        agent_gps_history_limit=int(
+            overrides.get("agent_gps_history_limit")
+            or _get_env_int("AGENTE_RICK_AGENT_GPS_HISTORY_LIMIT", RickAgentConfig.agent_gps_history_limit)
+        ),
+        agent_verbose=bool(
+            overrides.get("agent_verbose")
+            if overrides.get("agent_verbose") is not None
+            else _get_env_bool("AGENTE_RICK_AGENT_VERBOSE", RickAgentConfig.agent_verbose)
+        ),
     )
 
     # Garantizar que las rutas existan

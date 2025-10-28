@@ -2,15 +2,15 @@
 
 from __future__ import annotations
 
-from collections import defaultdict
-from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, Sequence
-from decimal import Decimal, InvalidOperation
 import os
 import re
-import unicodedata
 import json
 import logging
+import unicodedata
+from collections import defaultdict
+from decimal import Decimal, InvalidOperation
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
 from langchain.schema import Document
 
@@ -20,12 +20,38 @@ from ..config import RickAgentConfig, load_config
 from .normalizer import deduplicate_documents
 from .splitters import get_default_splitter, get_splitter_for_type
 from .transformers import clean_text, combine_metadata, safe_json_dumps
+from fraud_scorer.utils.geo_reference import suggest_reference_point
 from fraud_scorer.analyzers.correlation.utils.normalization import (
     normalize_date,
     normalize_decimal_as_str,
 )
 
 logger = logging.getLogger(__name__)
+
+_DENUNCIA_TYPES = {
+    "denuncia_de_los_hechos",
+    "oficio_denuncia",
+    "denuncia",
+}
+
+_TIME_RANGE_PATTERN = re.compile(
+    r"\b\d{1,2}[:h]\d{2}(?:\s*(?:hrs?|horas?))?(?:\s*-\s*\d{1,2}[:h]\d{2}(?:\s*(?:hrs?|horas?))?)?",
+    re.IGNORECASE,
+)
+
+_PLATE_PATTERN = re.compile(r"\b(?=[A-Z0-9-]*[A-Z])(?=[A-Z0-9-]*\d)[A-Z0-9-]{4,12}\b")
+_DATE_PATTERN = re.compile(
+    r"\b\d{1,2}\s+de\s+(?:enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)"
+    r"(?:\s+de)?\s+\d{4}\b",
+    re.IGNORECASE,
+)
+
+
+def _normalize_time_string(raw: str) -> str:
+    value = raw.strip()
+    value = re.sub(r"(?<=\d)[hH](?=\d)", ":", value)
+    value = re.sub(r"\s+", " ", value)
+    return value
 
 
 class FraudCaseDocumentLoader:
@@ -40,12 +66,16 @@ class FraudCaseDocumentLoader:
         self.cache_manager = cache_manager or OCRCacheManager()
         self.config = config or load_config()
         self.last_case_id: str | None = None
+        self._denuncia_signals: dict[str, dict[str, Any]] = {}
+        self._document_alias_map: dict[str, str] = {}
 
     def load_case_documents(self, case_id: str) -> List[Document]:
         """Carga y transforma toda la información relevante de un caso."""
 
         case_id, case_index = self._resolve_case_index(case_id)
         self.last_case_id = case_id
+        self._denuncia_signals = {}
+        self._document_alias_map = {}
 
         base_metadata = {
             "case_id": case_id,
@@ -63,6 +93,8 @@ class FraudCaseDocumentLoader:
 
         consolidated_documents = self._build_consolidated_fields(case_index, base_metadata)
         raw_documents.extend(consolidated_documents)
+
+        raw_documents.extend(self._build_denuncia_highlights(case_index, base_metadata))
 
         structured_card = self._build_structured_card(case_id, case_index, base_metadata)
         if structured_card:
@@ -87,15 +119,66 @@ class FraudCaseDocumentLoader:
                 doc_type = (item.get("document_type") or "").strip()
                 if filename and doc_type:
                     mapping[filename] = doc_type
+                    base_name = Path(filename).name
+                    self._document_alias_map.setdefault(base_name, base_name)
+                    self._document_alias_map.setdefault(base_name.lower(), base_name)
 
         manual = case_index.get("manual_classifications") or {}
         for filename, doc_type in manual.items():
             if doc_type:
                 mapping[str(filename)] = str(doc_type)
+                base_name = Path(str(filename)).name
+                self._document_alias_map.setdefault(base_name, base_name)
+                self._document_alias_map.setdefault(base_name.lower(), base_name)
 
         ai_map = case_index.get("ai_classifications") or {}
         for filename, doc_type in ai_map.items():
+            base_name = Path(str(filename)).name
+            self._document_alias_map.setdefault(base_name, base_name)
+            self._document_alias_map.setdefault(base_name.lower(), base_name)
             mapping.setdefault(str(filename), str(doc_type))
+
+        alias_mapping: Dict[str, str] = {}
+        for original_name, doc_type in list(mapping.items()):
+            if not doc_type:
+                continue
+
+            base_name = Path(str(original_name)).name
+            variants: set[str] = {base_name}
+
+            variants.add(base_name.replace(" ", "_"))
+            variants.add(base_name.replace("_", " "))
+
+            try:
+                sanitized = self.cache_manager._sanitize_filename(base_name)
+                if sanitized:
+                    variants.add(sanitized)
+            except Exception:
+                pass
+
+            lower_variants = {variant.lower() for variant in variants}
+            variants.update(lower_variants)
+
+            json_aliases: set[str] = set()
+            for variant in variants:
+                if not variant:
+                    continue
+                json_aliases.add(f"ocr_results_for_{variant}.json")
+                json_aliases.add(f"ocr_results_for_{variant.replace(' ', '_')}.json")
+
+            for alias in variants.union(json_aliases):
+                if alias and alias not in mapping and alias not in alias_mapping:
+                    alias_mapping[alias] = doc_type
+                    self._document_alias_map.setdefault(alias, base_name)
+                    self._document_alias_map.setdefault(alias.lower(), base_name)
+
+            for variant in variants:
+                if variant:
+                    self._document_alias_map.setdefault(variant, base_name)
+                    self._document_alias_map.setdefault(variant.lower(), base_name)
+
+        if alias_mapping:
+            mapping.update(alias_mapping)
 
         return mapping
 
@@ -114,6 +197,13 @@ class FraudCaseDocumentLoader:
             path = Path(entry)
             filename = path.name
             doc_type = document_type_map.get(filename)
+            canonical_name = (
+                self._document_alias_map.get(filename)
+                or self._document_alias_map.get(filename.lower())
+                or filename
+            )
+            if doc_type is None and canonical_name != filename:
+                doc_type = document_type_map.get(canonical_name)
 
             try:
                 ocr_payload = self.cache_manager.get_cache(path, case_id=case_id)
@@ -133,7 +223,7 @@ class FraudCaseDocumentLoader:
                 base_metadata,
                 {
                     "source": "ocr",
-                    "source_document": filename,
+                    "source_document": canonical_name,
                     "document_type": doc_type,
                     "case_path": str(path),
                     "case_folder": str(case_folder),
@@ -142,6 +232,26 @@ class FraudCaseDocumentLoader:
                 },
             )
             metadata = self._augment_source_metadata(metadata, filename)
+
+            if doc_type and doc_type.lower() in _DENUNCIA_TYPES:
+                signals = self._extract_denuncia_signals(text)
+                contains_temporal = bool((signals or {}).get("time_ranges") or (signals or {}).get("dates"))
+                contains_location = bool((signals or {}).get("reference_point"))
+                narrative_priority = 10 if signals else 6
+
+                metadata = combine_metadata(
+                    metadata,
+                    {
+                        "content_category": "denuncia_narrative",
+                        "contains_temporal_info": contains_temporal,
+                        "contains_location_info": contains_location,
+                        "narrative_priority": narrative_priority,
+                    },
+                )
+
+                if signals:
+                    metadata = combine_metadata(metadata, {"structured_highlights": signals})
+                    self._denuncia_signals[canonical_name] = signals
 
             documents.append(Document(page_content=text, metadata=metadata))
 
@@ -167,6 +277,78 @@ class FraudCaseDocumentLoader:
             },
         )
         return [Document(page_content=payload, metadata=metadata)]
+
+    def _build_denuncia_highlights(
+        self,
+        case_index: Dict[str, Any],
+        base_metadata: Dict[str, Any],
+    ) -> List[Document]:
+        if not self._denuncia_signals:
+            return []
+
+        consolidated = (case_index.get("consolidated_data") or {}).get("consolidated_fields") or {}
+        lugar_hechos = consolidated.get("lugar_hechos")
+        hora_ocurrencia = consolidated.get("hora_ocurrencia")
+        fecha_ocurrencia = consolidated.get("fecha_ocurrencia")
+
+        documents: List[Document] = []
+        for doc_name, signals in self._denuncia_signals.items():
+            if not signals.get("reference_point") and lugar_hechos:
+                ref_from_location = suggest_reference_point(lugar_hechos)
+                if ref_from_location:
+                    signals.setdefault("reference_point", {
+                        "lat": ref_from_location[0],
+                        "lon": ref_from_location[1],
+                    })
+
+            lines = [
+                "Resumen estructurado de la denuncia de hechos",
+                f"Documento: {doc_name}",
+            ]
+            if lugar_hechos:
+                lines.append(f"Lugar declarado: {lugar_hechos}")
+            if fecha_ocurrencia:
+                lines.append(f"Fecha declarada: {fecha_ocurrencia}")
+            if hora_ocurrencia:
+                lines.append(f"Hora declarada (consolidado): {hora_ocurrencia}")
+
+            time_ranges = signals.get("time_ranges") or []
+            date_mentions = signals.get("dates") or []
+            vehicles = signals.get("vehicles") or []
+            if time_ranges:
+                lines.append("Horas mencionadas en narrativa: " + ", ".join(time_ranges))
+            if date_mentions and not fecha_ocurrencia:
+                lines.append("Fecha mencionada en narrativa: " + ", ".join(date_mentions))
+            if vehicles:
+                lines.append("Vehículos mencionados: " + ", ".join(vehicles))
+
+            reference_point = signals.get("reference_point")
+            if reference_point:
+                lines.append(
+                    "Referencia geográfica sugerida: lat={lat:.6f}, lon={lon:.6f}".format(
+                        lat=reference_point["lat"], lon=reference_point["lon"]
+                    )
+                )
+
+            if signals.get("raw_matches"):
+                lines.append("Fragmentos relevantes:")
+                for snippet in signals["raw_matches"]:
+                    lines.append(f"- {snippet}")
+
+            payload = "\n".join(lines).strip()
+            metadata = combine_metadata(
+                base_metadata,
+                {
+                    "source": "structured_highlights",
+                    "document_type": "denuncia_structured_summary",
+                    "source_document": doc_name,
+                    "origin": "analysis_pipeline",
+                    "structured_highlights": signals,
+                },
+            )
+            documents.append(Document(page_content=payload, metadata=metadata))
+
+        return documents
 
     def _build_extraction_results(
         self,
@@ -517,6 +699,44 @@ class FraudCaseDocumentLoader:
         alias_values = [alias for alias in dict.fromkeys(alias_values) if alias and alias != str(source_document).upper()]
         if alias_values:
             result["source_document_aliases"] = alias_values
+        return result
+
+    def _extract_denuncia_signals(self, text: str) -> Dict[str, Any]:
+        if not text:
+            return {}
+
+        time_matches = sorted({_normalize_time_string(match.group(0)) for match in _TIME_RANGE_PATTERN.finditer(text)})
+        plate_matches = sorted({match.group(0).upper() for match in _PLATE_PATTERN.finditer(text)})
+        date_matches = sorted({match.group(0).strip() for match in _DATE_PATTERN.finditer(text)})
+
+        snippets: list[str] = []
+        if time_matches or plate_matches or date_matches:
+            for pattern in (_TIME_RANGE_PATTERN, _PLATE_PATTERN, _DATE_PATTERN):
+                for match in pattern.finditer(text):
+                    start = max(0, match.start() - 60)
+                    end = min(len(text), match.end() + 60)
+                    snippet = " ".join(text[start:end].split())
+                    if snippet:
+                        snippets.append(snippet)
+        snippets = list(dict.fromkeys(snippets))[:5]
+
+        reference_point = suggest_reference_point(text)
+
+        if not (time_matches or plate_matches or reference_point or date_matches):
+            return {}
+
+        result: Dict[str, Any] = {
+            "time_ranges": time_matches,
+            "vehicles": plate_matches,
+            "raw_matches": snippets,
+        }
+        if date_matches:
+            result["dates"] = date_matches
+        if reference_point:
+            result["reference_point"] = {
+                "lat": reference_point[0],
+                "lon": reference_point[1],
+            }
         return result
 
     def _generate_aliases(self, value: str) -> List[str]:

@@ -1,194 +1,190 @@
 metadata:
   type: carpeta_de_investigacion
-  version: "1.0"
-  author: "Sistema Experto HDI"
-  last_updated: "2025-02-15"
-  description: "Guía especializada para auditar carpetas de investigación, validar su coherencia con el siniestro y detectar señales de fraude"
+  version: "2.0"
+  author: "Equipo Fraude HDI"
+  last_updated: "2025-03-12"
+  description: "Guía reforzada para auditar carpetas de investigación con narrativas múltiples y acreditaciones de propiedad"
 
 definition:
-  nature: "Registro oficial del Ministerio Público que documenta denuncias, actos de investigación y pruebas del delito"
-  legal_importance: "Alta - Acredita que la autoridad conoce el delito y respalda la cobertura del siniestro"
+  nature: "Expediente del Ministerio Público que concentra denuncias, actuaciones y acreditaciones relacionadas con el siniestro"
+  legal_importance: "Alta: acredita conocimiento de la autoridad, sustenta la narrativa del siniestro y documenta la legitimación del asegurado"
   critical_elements:
     - numero_carpeta
     - fiscalia
     - agente_ministerio_publico
     - fecha_apertura
-    - hora_apertura
-    - denunciante
-    - declaracion_afectado
-    - transportista_identificado
-    - operador_identificado
-    - medio_conduccion
-    - lugar_hechos
-    - modus_operandi
-    - monto_reclamado
-    - documentos_anexos
+    - denuncias
+    - declarantes
+    - fecha_siniestro
+    - narrativa_hechos
+    - vehiculos_implicados
+    - bienes_afectados
+    - acreditaciones_propiedad
+    - documentos_soporte
     - sellos_firmas
 
 methodology:
   analysis_approach: |
-    1. Verificar integridad: folios completos, sellos originales (no impresos), firmas del MP y paginación continua (sin saltos).
-    2. Confirmar que la fiscalía pertenece a la jurisdicción del lugar del siniestro y que el agente/fiscal está vigente (consulta rápida).
-    3. Analizar declaración del afectado y narrativa de hechos; validar que fechas, horas, transportista, operador, vehículo y modus operandi coinciden con Carta Porte, licencias, reportes GPS y cartas de reclamación.
-    4. Corroborar fecha y hora de la denuncia posteriores al siniestro, y que el número de carpeta corresponda al año.
-    5. Revisar anexos (facturas, pedimentos, acreditaciones de propiedad) y confirmar su concordancia con la documentación del siniestro.
-    6. Detectar alteraciones (tipografía distinta, tachaduras, hojas insertadas) y registrar acciones de seguimiento (solicitar cotejo oficial, copia certificada).
-    7. Evaluar consistencia con otras pruebas: transportista legalmente constituido, medio de conducción, ruta, cobertura de seguro, monto reclamado.
+    1. Confirmar integridad del expediente: número de carpeta, fiscalía competente, agente ministerial, fechas y sellos/firmas originales.
+    2. Identificar cuántas denuncias contiene el expediente y perfilar a cada declarante (rol, título, autoridad que recibe la denuncia).
+    3. Reconstruir la narrativa de cada denuncia (fecha de ocurrencia, descripción detallada de los hechos, ruta, placas y mercancía).
+    4. Comparar las denuncias entre sí para detectar contradicciones sustanciales en fechas, lugares, participantes, placas o montos.
+    5. Revisar las acreditaciones de propiedad y cotejarlas contra lo declarado (mercancías, montos, placas, documentos soporte).
+    6. Registrar hallazgos únicamente cuando las verificaciones arrojen discrepancias o falta de documentación.
+    7. Documentar recomendaciones cuando falte información para concluir verificaciones o se requiera soporte adicional de la autoridad.
 
   fraud_indicators:
     high_risk:
       - pattern: fiscalia_fuera_jurisdiccion
-        detection: "Fiscalía que tomó conocimiento se ubica fuera de la delimitación donde ocurrieron los hechos"
+        detection: "La fiscalía o agencia que conoció del hecho se encuentra fuera de la jurisdicción donde ocurrió el siniestro"
         severity: "alto"
-        evidence_hint: "Comparar municipio/estado con Carta Porte y denuncia"
-        follow_up: "Solicitar explicación formal y verificar traslado de competencia"
-      - pattern: hojas_faltantes
-        detection: "Paginación incompleta o saltos de folio"
-        severity: "alto"
-        evidence_hint: "Indicar folios ausentes"
-        follow_up: "Solicitar copia certificada y revisada"
-      - pattern: declaracion_no_coincide
-        detection: "Declaración difiere respecto a transportista, operador, ruta o modus operandi"
+        follow_up: "Solicitar aclaración documental sobre competencia territorial o traslado de carpeta"
+      - pattern: denuncias_inconsistentes
+        detection: "Las denuncias dentro de la carpeta se contradicen respecto a fecha, lugar, ruta, placas o modo de ocurrencia"
         severity: "critico"
-        evidence_hint: "Comparar con Carta Porte, GPS, informe ajustador"
-        follow_up: "Escalar a antifraude y requerir aclaraciones"
+        follow_up: "Escalar a unidad antifraude y requerir aclaraciones formales a los declarantes"
+      - pattern: acreditacion_no_corrobora
+        detection: "Las acreditaciones de propiedad no sustentan las placas, mercancías o montos que se declararon en la carpeta"
+        severity: "alto"
+        follow_up: "Solicitar documentación complementaria de propiedad y confirmar con el asegurado"
     medium_risk:
-      - pattern: sellos_imprenta
-        detection: "Sellos o firmas parecen impresos o digitalizados"
-        severity: "medio"
-        evidence_hint: "Describir apariencia del sello/firma"
-        follow_up: "Requerir cotejo con autoridad"
-      - pattern: apertura_previa
-        detection: "Fecha/hora de denuncia anterior al siniestro"
-        severity: "medio"
-        evidence_hint: "Comparar cronología"
-        follow_up: "Solicitar aclaración de la autoridad"
       - pattern: anexos_incompletos
-        detection: "Carpeta menciona anexos que no se incluyen"
+        detection: "Se citan anexos o constancias que no se localizan dentro del expediente digital"
         severity: "medio"
-        evidence_hint: "Listar anexos faltantes"
-        follow_up: "Requerir anexos y validar contenido"
+        follow_up: "Requerir digitalización completa de anexos mencionados"
+      - pattern: autoridad_no_identificada
+        detection: "No se identifica con precisión la autoridad o agente ministerial que tomó la declaración"
+        severity: "medio"
+        follow_up: "Confirmar con la fiscalía quién tomó conocimiento y solicitar constancia"
     low_risk:
-      - pattern: tipografia_variada_no_critica
-        detection: "Fuentes distintas en anexos pero no en evidencias clave"
+      - pattern: narrativa_general
+        detection: "La narrativa describe los hechos de manera genérica pero sin contradicciones relevantes"
         severity: "bajo"
-        evidence_hint: "Identificar secciones"
-        follow_up: "Recomendar revisión formal"
+        follow_up: "Recomendar ampliar narrativa para expediente interno"
 
   validation_rules:
     numero_carpeta:
       type: pattern
-      pattern: "^[A-Z0-9-]{6,20}$"
+      pattern: "^[A-Z0-9/_-]{6,30}$"
     fecha_apertura:
       type: pattern
       pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
-    hora_apertura:
+    fecha_siniestro:
       type: pattern
-      pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$'
-    monto_reclamado:
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
+    agente_ministerio_publico:
       type: pattern
-      pattern: '^[0-9]+(\.[0-9]{2})?$'
+      pattern: "^.{3,}$"
 
   cross_reference_documents:
+    - denuncia_de_los_hechos
     - carta_de_reclamacion_formal_a_la_aseguradora
     - carta_de_reclamacion_formal_al_transportista
     - cfdi_carta_porte
     - carta_porte_simple
     - pedimento_importacion
-    - licencia_del_operador
-    - informe_final_del_ajustador
-    - reporte_gps
     - facturas_comerciales_internacionales
+    - informe_final_del_ajustador
+    - acreditacion_de_propiedad_y_representacion
 
   evidence_expectations:
-    - "Narrativa del siniestro alineada con Carta Porte, denuncias y GPS"
-    - "Transportista, operador y vehículo coinciden con documentos logísticos"
-    - "Anexos (facturas, acreditación de propiedad) presentes"
-    - "Fecha y hora de denuncia posteriores al siniestro"
-    - "Firmas y sellos originales"
+    - "Denuncias fechadas y firmadas por autoridad competente"
+    - "Narrativas consistentes con ruta, placas y mercancía reportada en el siniestro"
+    - "Acreditaciones de propiedad que documenten mercancías y unidades involucradas"
+    - "Documentación soporte citada en la carpeta (pedimentos, facturas, cartas porte)"
 
   red_flags:
     critical:
-      - clue: "Fiscalía fuera de jurisdicción sin justificación"
-        why: "Sugiere posible simulación"
-      - clue: "Declaración contradictoria"
-        why: "Indica riesgo de fraude"
+      - clue: "Denuncias contradictorias respecto a la cronología o los participantes"
+        why: "Sugiere intento de manipular la narrativa del siniestro"
+      - clue: "Acreditaciones que no sustentan la mercancía o vehículos declarados"
+        why: "Compromete la legitimación de la reclamación"
     medium:
-      - clue: "Anexos faltantes"
-        why: "Impide validar propiedad"
-      - clue: "Sellos sospechosos"
-        why: "Puede indicar manipulación"
+      - clue: "Fiscalía distinta sin justificación documental"
+        why: "Podría indicar carpeta simulada o radicada fuera de jurisdicción"
+      - clue: "Constancias o anexos ausentes"
+        why: "Impide corroborar la veracidad de la documentación"
 
 response_template:
   output_format:
     documento_analizado: "carpeta_de_investigacion"
     analisis_completo: |
-      De acuerdo al documento se confirma la ocurrencia en cuestión de la declaración del operador con la documentación proporcionada. Se confirma el robo de la mercancía reclamada por parte del asegurado, así como todos los hechos, como todos los datos que conllevaron al delito objeto de la reclamación a la aseguradora.
-      1) Jurisdicción y autoridad que tomó conocimiento (verificar vigencia del fiscal y competencia territorial).
-      2) Cronología y narrativa del siniestro vs Carta Porte, GPS, denuncias y cartas de reclamación.
-      3) Identificación de transportista, operador, medios de conducción y mercancía (match con documentos logísticos).
-      4) Revisión de anexos (facturas, pedimentos, acreditaciones) y sellos/firmas originales.
-      5) Observaciones de inconsistencias y recomendaciones para seguimiento o escalamiento antifraude.
+      Describir la narrativa consolidada siguiendo la estructura solicitada para las denuncias y acreditaciones.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
-    evidence: []
     recommendations: []
 
-    integridad_documento:
-      numero_carpeta: ""
-      fiscalia: ""
-      agente_mp: ""
-      fecha_apertura: ""
-      hora_apertura: ""
-      paginacion_completa: false
-      sellos_originales: false
-      firmas_presentes: []
-      observaciones: ""
+    denuncias:
+      - orden: 1
+        declarante_titulo: ""
+        declarante_nombre: ""
+        declarante_rol: ""
+        fiscalia: ""
+        numero_carpeta: ""
+        fecha_inicio: ""
+        fecha_siniestro: ""
+        autoridad: ""
+        descripcion_evento: ""
+        narrativa_detallada: ""
+        ruta: ""
+        vehiculos: []
+        mercancias: []
+        conclusion: ""
 
-    narrativa_hechos:
-      declaracion_afectado: ""
-      transportista: ""
-      operador: ""
-      medio_conduccion: []
-      lugar: ""
-      modus_operandi: ""
-      monto_reclamado: 0.0
-      coincide_con_documentos: []
-      discrepancias_detectadas: []
+    acreditaciones:
+      - tipo_bien: ""
+        presentante_titulo: ""
+        presentante_nombre: ""
+        presentante_rol: ""
+        documentos: []
+        observaciones: ""
 
-    anexos:
-      facturas_presentes: false
-      pedimentos_presentes: false
-      acreditacion_propiedad: false
-      otros_anexos: []
-      observaciones: ""
+    verificaciones:
+      coherencia_denuncias:
+        resultado: "desconocido"
+        diferencias: []
+        detalle: ""
+      competencia_jurisdiccion:
+        resultado: "desconocido"
+        fiscalia_estado: []
+        ubicaciones_detectadas: []
+        detalle: ""
+      narrativa_vs_acreditacion:
+        resultado: "desconocido"
+        mercancias_coincidentes: []
+        mercancias_pendientes: []
+        mercancias_extras: []
+        documentos_validados: []
+        documentos_pendientes: []
+        documentos_sin_fuente: []
+        documentos_soporte: []
+        detalle: ""
 
-    jurisdiccion:
-      competencia_territorial: false
-      justificacion_fuera_jurisdiccion: ""
-      fiscal_vigente: false
-      fuente_verificacion: ""
-
-    conclusion_correspondencia:
-      corresponde_con_documentacion: false
-      justificacion: ""
+    validacion_cruzada:
+      denuncias:
+        total_declarantes: 0
+        coincidencias_clave: []
+        resumen: ""
+      acreditaciones:
+        documentos_soporte: []
+        observaciones: ""
+      jurisdiccion:
+        fiscalia: ""
+        estados_detectados: []
+        observaciones: ""
 
     validation_tasks:
-      - tarea: "Verificar competencia territorial de la fiscalía"
-        fuente: "Registro oficial / sitio web de fiscalías"
+      - tarea: "Confirmar competencia territorial y autoridad que recibió la denuncia"
+        fuente: "Fiscalía y constancias oficiales"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Cotejar narrativa con Carta Porte, GPS y cartas de reclamación"
-        fuente: "Expediente del siniestro"
+      - tarea: "Corroborar narrativa del siniestro con cartas, Carta Porte y reportes GPS"
+        fuente: "Documentación logística del caso"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Confirmar autenticidad de sellos y firmas"
-        fuente: "Autoridad emisora / cotejo notarial"
-        prioridad: "media"
-        estado: "pendiente"
-      - tarea: "Revisar anexos de acreditación de propiedad"
-        fuente: "Expediente / facturas"
+      - tarea: "Verificar acreditaciones de propiedad versus mercancía y unidades declaradas"
+        fuente: "Pedimentos, facturas y cartas porte"
         prioridad: "media"
         estado: "pendiente"

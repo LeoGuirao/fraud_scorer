@@ -1,156 +1,159 @@
 metadata:
   type: carta_aclatoria_comprobantes_peaje
-  version: "1.0"
-  author: "Sistema Experto HDI"
-  last_updated: "2025-02-15"
-  description: "Guía especializada para analizar cartas aclaratorias de comprobantes de peaje y validar su coherencia con la documentación del siniestro"
+  version: "2.0"
+  author: "Equipo Fraude HDI"
+  last_updated: "2025-03-12"
+  description: "Guía renovada para validar cartas aclaratorias de comprobantes de peaje correlacionando ruta, horarios y narrativa con el monitoreo GPS del caso"
 
 definition:
-  nature: "Documento emitido por el asegurado o representante para aclarar circunstancias relacionadas con comprobantes de peaje"
-  legal_importance: "Media - Brinda contexto y soporte a la trazabilidad del traslado ante la aseguradora"
+  nature: "Carta emitida por el asegurado o su representante para aclarar la ausencia o extravío de tickets de caseta asociados a un traslado específico"
+  legal_importance: "Media: sirve como declaración formal para justificar gastos de peaje dentro del expediente del siniestro y sustenta la trazabilidad del traslado"
   critical_elements:
     - fecha_carta
-    - asegurado
-    - transportista
-    - operador
-    - unidad
-    - ruta_manifestada
+    - emisor_carta
+    - firmante_nombre
+    - firmante_cargo
+    - destinatario_nombre
+    - destinatario_cargo
+    - asunto_principal
+    - descripcion_evento
+    - consecuencia_evento
     - casetas_involucradas
-    - motivo_aclaracion
-    - evidencia_peajes
+    - horarios_reportados
+    - evidencia_respaldo
+    - proposito_notificacion
     - firmas
 
 methodology:
   analysis_approach: |
-    1. Revisar integridad de la carta: fecha, destinatario, firmas y anexos (tickets, bitácoras, capturas).
-    2. Identificar el motivo de la aclaración (extravío, robo, ausencia de tickets) y confirmar que la explicación resuelva la inconsistencia.
-    3. Corroborar casetas y ruta declarada con ticket, Carta Porte, reporte GPS, denuncia y pedimento.
-    4. Verificar datos del transportista, operador y unidad contra Carta Porte y licencias.
-    5. Evaluar la legitimidad de los tickets o evidencia alternativa (facturas, estados de cuenta, bitácoras) y conectar con la narrativa del siniestro.
-    6. Detectar contradicciones (tiempos, ubicaciones diferentes) y recomendar acciones (solicitar más evidencia, entrevistas, cotejo con empresa de autopistas).
+    1. Confirmar integridad documental: fecha, destinatario, firmas y anexos que respalden la aclaración.
+    2. Identificar el asunto principal y la narrativa del evento (robo, extravío, falta de tickets) con sus consecuencias.
+    3. Normalizar casetas y horarios declarados para compararlos contra el monitoreo GPS del caso (tolerancia de distancia ≤150 m; tolerancia de tiempo ≤20 minutos).
+    4. Confirmar que la ruta declarada sea consistente con la Carta Porte, la denuncia y otros documentos de logística.
+    5. Documentar hallazgos sólo cuando existan discrepancias en las verificaciones; las recomendaciones deben centrarse en faltantes documentales o datos no corroborados.
 
   fraud_indicators:
     high_risk:
       - pattern: casetas_no_coinciden
-        detection: "Casetas/ubicaciones no coinciden con ruta declarada"
+        detection: "Las casetas declaradas no se localizan en los registros del monitoreo GPS dentro del umbral permitido"
         severity: "alto"
-        evidence_hint: "Comparar con Carta Porte y GPS"
-        follow_up: "Solicitar aclaración y evidencia adicional"
-      - pattern: motivo_injustificado
-        detection: "Explicación insuficiente para la ausencia de tickets"
+        evidence_hint: "Comparar cada caseta, hora y coordenada con el dataset GPS"
+        follow_up: "Solicitar evidencia adicional (bitácora, tickets, reportes de autopista) y entrevista con el operador"
+      - pattern: ruta_inconsistente_gps
+        detection: "La ruta descrita en la carta es incompatible con la secuencia de posiciones GPS (desviaciones no justificadas)"
         severity: "alto"
-        evidence_hint: "Resaltar falta de soporte"
-        follow_up: "Requerir documentación o entrevista"
+        evidence_hint: "Contrastar segmentos de ruta/casetas con tramos GPS visibles"
+        follow_up: "Escalar revisión y solicitar reconstrucción detallada del trayecto"
     medium_risk:
-      - pattern: evidencia_incompleta
-        detection: "Carta menciona tickets pero no los anexa"
+      - pattern: horarios_sin_soporte
+        detection: "Los horarios declarados difieren significativamente de los registros GPS o no se pueden comparar"
         severity: "medio"
-        evidence_hint: "Listar evidencias faltantes"
-        follow_up: "Solicitar anexos"
-      - pattern: datos_operador_inconsistentes
-        detection: "Operador/unidad difiere de Carta Porte"
+        evidence_hint: "Resaltar diferencias >20 minutos o ausencia de horas"
+        follow_up: "Requerir bitácora de operador o registros adicionales"
+      - pattern: evidencia_peaje_incompleta
+        detection: "Se mencionan tickets o facturas de peaje pero no se anexan copias ni comprobantes"
         severity: "medio"
-        evidence_hint: "Comparar datos"
-        follow_up: "Requerir confirmación"
+        evidence_hint: "Listar documentos citados vs. presentes"
+        follow_up: "Solicitar documentación digitalizada o confirmación con la concesionaria"
     low_risk:
-      - pattern: explicacion_general
-        detection: "Narrativa general sin detalles, pero sin contradicciones"
+      - pattern: narrativa_generica
+        detection: "La carta describe el evento de manera general sin contradicciones evidentes pero con poco detalle operativo"
         severity: "bajo"
-        evidence_hint: "Documentar necesidad de más detalle"
-        follow_up: "Recomendar completar"
+        evidence_hint: "Señalar elementos narrativos que podrían ampliarse"
+        follow_up: "Recomendar ampliar contexto para futuras validaciones"
 
   validation_rules:
     fecha_carta:
       type: pattern
       pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
-    ruta_manifestada:
-      type: pattern
-      pattern: "^.{3,}$"
+    casetas_involucradas:
+      type: list
+      values: []
 
   cross_reference_documents:
+    - reporte_monitoreo_gps
     - cfdi_carta_porte
-    - carta_porte_simple
-    - reporte_gps
-    - pedimento_importacion
-    - carpeta_de_investigacion
     - carta_de_reclamacion_formal_a_la_aseguradora
     - carta_de_reclamacion_formal_al_transportista
+    - denuncia_de_los_hechos
 
   evidence_expectations:
-    - "Motivo de la aclaración descrito"
-    - "Lista de casetas y horarios"
-    - "Evidencia de pago o cruce (tickets, facturas, estados de cuenta)"
-    - "Coherencia con ruta declarada"
-    - "Datos del transportista y operador coinciden"
+    - "Listado de casetas, horarios aproximados y unidades involucradas"
+    - "Narrativa que explique el extravío o ausencia de tickets de peaje"
+    - "Referencia a medios de respaldo (bitácoras, reportes internos, folios de autopista)"
+    - "Conexión explícita con la ruta asignada en Carta Porte y monitoreo GPS"
 
   red_flags:
     critical:
-      - clue: "Casetas inexistentes o ruta incoherente"
-        why: "Sugiere manipulación"
-      - clue: "Motivo sin soporte"
-        why: "Indica debilidad probatoria"
+      - clue: "Casetas declaradas no aparecen en GPS ni en la ruta logística"
+        why: "Sugiere alteración de la ruta o intento de justificar gastos inexistentes"
+      - clue: "Explicación del robo/extravío sin soporte documental ni registro adicional"
+        why: "Debilita la legitimidad de la reclamación por peajes"
     medium:
-      - clue: "Tickets mencionados no anexados"
-        why: "Requiere seguimiento"
-      - clue: "Inconsistencia de operadores"
-        why: "Riesgo de falsedad"
+      - clue: "Horarios declarados incompatibles con los tiempos de tránsito"
+        why: "Indica posible manipulación del relato o desconocimiento del trayecto real"
+      - clue: "Ausencia de evidencia alternativa cuando no existen tickets"
+        why: "Reduce capacidad de verificación y puede encubrir sobrecostos"
 
 response_template:
   output_format:
     documento_analizado: "carta_aclatoria_comprobantes_peaje"
     analisis_completo: |
-      El asegurado presenta este documento en donde expone el porqué no presentó y/o no cuenta con los tickets de casetas. Información que se coteja con documentación del expediente (Carta Porte, GPS, pedimento, denuncias). El asegurado presenta este documento en donde amplia información relacionada con el tema de los peajes.
-      1) Motivo de la aclaración y documentos citados.
-      2) Casetas, horarios y ruta comparados con GPS y denuncias.
-      3) Datos del transportista, operador y unidad vs Carta Porte.
-      4) Evidencia de peajes (tickets, facturas, estados) y su legitimidad.
-      5) Observaciones y recomendaciones (solicitar más evidencia, entrevistas, confirmación con concesionaria).
+      Se presentó una carta de {descripcion_paginas} de {nombre_emisor}, firmada por {nombre_firmante} ({cargo_firmante}). La carta está dirigida a {nombre_destinatario} ({cargo_destinatario}).
+      El asunto principal de la carta es {asunto_principal}. En ella, se informa sobre {descripcion_resumen}. Como resultado de este hecho, {impacto_resumen}.
+      La carta detalla: {detalle_notificacion}.
+      La empresa enfatiza que el propósito de esta notificación es: {proposito_notificacion}.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
-    evidence: []
     recommendations: []
 
     aclaracion:
       fecha_carta: ""
-      motivo: ""
-      casetas: []
-      horarios: []
-      ruta_manifestada: []
-      coincide_con_documentos: []
-      observaciones: ""
+      nombre_emisor: ""
+      firmante_nombre: ""
+      firmante_cargo: ""
+      destinatario_nombre: ""
+      destinatario_cargo: ""
+      asunto_principal: ""
+      descripcion_evento: ""
+      consecuencia_evento: ""
+      detalle_carta: ""
+      proposito_notificacion: ""
+      casetas_involucradas: []
+      horarios_reportados: []
+      evidencia_respaldo: []
 
-    participantes:
-      asegurado: ""
-      transportista: ""
-      operador: ""
-      unidad: ""
-      coincide_con_carta_porte: false
-      observaciones: ""
+    verificaciones:
+      ruta_vs_gps:
+        resultado: "desconocido"
+        casetas_validadas: []
+        casetas_pendientes: []
+        tolerancia_metros: 150
+        detalle: ""
+      horarios_vs_gps:
+        resultado: "desconocido"
+        diferencia_max_minutos: null
+        tolerancia_minutos: 20
+        detalle: ""
 
-    evidencia_peajes:
-      tickets_adjuntos: []
-      facturas_peaje: []
-      estados_cuenta: []
-      evidencia_alternativa: []
-      legitimidad_confirmada: false
-      observaciones: ""
-
-    conclusion_aclaracion:
-      aclaracion_suficiente: false
-      justificacion: ""
+    validacion_cruzada:
+      monitoreo_gps:
+        documentos_consultados: []
+        casetas_validadas: []
+        observaciones: ""
 
     validation_tasks:
-      - tarea: "Cruzar casetas y horarios con GPS/denuncia"
-        fuente: "Reporte GPS / denuncia"
+      - tarea: "Cruzar cada caseta y horario declarado contra el monitoreo GPS del caso"
+        fuente: "Datasets GPS indexados"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Verificar veracidad de tickets o facturas"
-        fuente: "Concesionaria / facturas"
+      - tarea: "Solicitar evidencia complementaria cuando el GPS no respalde casetas u horarios"
+        fuente: "Bitácoras de operación / concesionarias"
         prioridad: "media"
         estado: "pendiente"
-      - tarea: "Confirmar operador y unidad con Carta Porte"
-        fuente: "Carta Porte / licencias"
+      - tarea: "Confirmar que la ruta declarada coincide con Carta Porte y documentación logística"
+        fuente: "CFDI Carta Porte / protocolo de acción"
         prioridad: "media"
         estado: "pendiente"

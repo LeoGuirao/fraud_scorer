@@ -811,7 +811,108 @@ def _map_row_to_canonical(raw_row: Dict[str, Any]) -> Dict[str, Any]:
                 break
         if target:
             canonical[target] = value
+    _enrich_canonical_from_raw(raw_row, canonical)
     return canonical
+
+
+_PREFERRED_TIMESTAMP_KEYS = {
+    "col8",
+    "column8",
+    "tiempodeposicion",
+    "tiempoposicion",
+    "fechahora",
+    "fechaevento",
+    "hora",
+    "horaregistro",
+}
+
+_COORDINATE_PATTERN = re.compile(
+    r"(-?\d{1,3}(?:[\.,]\d+))\s*(?:[/,\s])\s*(-?\d{1,3}(?:[\.,]\d+))"
+)
+
+
+def _enrich_canonical_from_raw(raw_row: Dict[str, Any], canonical: Dict[str, Any]) -> None:
+    """Completa campos faltantes (timestamp, coordenadas, evento) usando el raw payload."""
+
+    if "timestamp" not in canonical or canonical.get("timestamp") in (None, ""):
+        ts_candidate = _extract_timestamp_from_raw(raw_row)
+        if ts_candidate:
+            canonical["timestamp"] = ts_candidate
+
+    lat = canonical.get("latitude")
+    lon = canonical.get("longitude")
+    if (lat in (None, "", "nan")) or (lon in (None, "", "nan")):
+        coords = _extract_coordinates_from_raw(raw_row)
+        if coords:
+            canonical["latitude"], canonical["longitude"] = coords
+
+    if "event_label" not in canonical or not canonical.get("event_label"):
+        event = _extract_event_from_raw(raw_row)
+        if event:
+            canonical["event_label"] = event
+
+
+def _extract_timestamp_from_raw(raw_row: Dict[str, Any]) -> Optional[datetime]:
+    # Prefer columnas con nombre reconocible
+    for key, value in raw_row.items():
+        normalized = _normalize_key(str(key))
+        if normalized in _PREFERRED_TIMESTAMP_KEYS:
+            ts = _coerce_timestamp(value)
+            if ts:
+                return ts
+
+    # Buscar patrones explícitos YYYY-MM-DD HH:MM:SS en valores de texto
+    for value in raw_row.values():
+        if not isinstance(value, str):
+            continue
+        match = _TIMESTAMP_PATTERN.search(value)
+        if not match:
+            continue
+        ts = _coerce_timestamp(match.group("ts"))
+        if ts:
+            return ts
+
+    # Fallback: buscar cualquier valor con formato ISO
+    for value in raw_row.values():
+        if isinstance(value, str):
+            stripped = value.strip()
+            if stripped.isdigit() and len(stripped) <= 4:
+                # Ignorar folios numéricos que suelen ser índices de fila
+                continue
+        ts = _coerce_timestamp(value)
+        if ts:
+            return ts
+    return None
+
+
+def _extract_coordinates_from_raw(raw_row: Dict[str, Any]) -> Optional[Tuple[str, str]]:
+    for value in raw_row.values():
+        if not isinstance(value, str):
+            continue
+        match = _COORDINATE_PATTERN.search(value.replace(" ", ""))
+        if not match:
+            continue
+        lat_raw, lon_raw = match.group(1), match.group(2)
+        lat = _coerce_float(lat_raw)
+        lon = _coerce_float(lon_raw)
+        if lat is None or lon is None:
+            continue
+        if abs(lat) <= 90 and abs(lon) <= 180:
+            return str(lat), str(lon)
+    return None
+
+
+def _extract_event_from_raw(raw_row: Dict[str, Any]) -> Optional[str]:
+    for value in raw_row.values():
+        if not isinstance(value, str):
+            continue
+        event = clean_cell(value)
+        if not event:
+            continue
+        canonical = _match_event_label(event)
+        if canonical and canonical.lower() != "unknown":
+            return canonical
+    return None
 
 
 def _normalize_key(value: str) -> str:
@@ -826,14 +927,16 @@ def _coerce_timestamp(value: Any) -> Optional[datetime]:
     if value in (None, "", "nan", "NA"):
         return None
     try:
-        ts = pd.to_datetime(value, errors="coerce")
+        ts = pd.to_datetime(value, errors="coerce", utc=True)
         if pd.isna(ts):
             return None
-        if ts.tzinfo is None:
-            ts = ts.tz_localize(timezone.utc)
-        else:
-            ts = ts.astimezone(timezone.utc)
-        return ts.to_pydatetime()
+        if getattr(ts, "tzinfo", None) is not None:
+            ts = ts.tz_localize(None)
+        dt = ts.to_pydatetime() if hasattr(ts, "to_pydatetime") else ts
+        if isinstance(dt, datetime):
+            if not (datetime(2000, 1, 1) <= dt <= datetime(2100, 12, 31)):
+                return None
+        return dt
     except Exception:
         return None
 

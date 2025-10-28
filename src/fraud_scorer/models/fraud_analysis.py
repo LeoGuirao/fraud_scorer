@@ -55,9 +55,10 @@ class FraudAnalysisResult(BaseModel):
 
     # Detalles estructurados
     indicators: List[FraudIndicator] = Field(default_factory=list)
-    evidence: List[str] = Field(default_factory=list)
     evidence_gaps: List[EvidenceGap] = Field(default_factory=list)
     recommendations: List[str] = Field(default_factory=list)
+    verificaciones: Dict[str, Any] = Field(default_factory=dict)
+    validacion_cruzada: Dict[str, Any] = Field(default_factory=dict)
 
     # Metadata
     analysis_model: str
@@ -92,6 +93,12 @@ class FraudAnalysisResult(BaseModel):
             elif isinstance(item, str):
                 normalized_gaps.append(EvidenceGap(gap=item))
         self.evidence_gaps = normalized_gaps
+
+        # Normalización defensiva de estructuras dict
+        if not isinstance(self.verificaciones, dict):
+            self.verificaciones = dict(self.verificaciones or {})
+        if not isinstance(self.validacion_cruzada, dict):
+            self.validacion_cruzada = dict(self.validacion_cruzada or {})
         return self
 
 

@@ -187,7 +187,7 @@ class ReplayUI:
         
         # Análisis por documento
         if use_ai:
-            console.print("[cyan]2. Análisis detallado:[/cyan]")
+            console.print("[cyan]2. Análisis por documento:[/cyan]")
             console.print("   [dim]Analiza cada documento individualmente (más lento)[/dim]")
             per_doc = Confirm.ask("   ¿Realizar análisis por documento?", default=False)
             options['per_doc'] = per_doc

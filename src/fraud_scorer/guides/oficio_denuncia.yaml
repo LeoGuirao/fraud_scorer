@@ -125,7 +125,6 @@ response_template:
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
-    evidence: []
     recommendations: []
 
     integridad_documento:

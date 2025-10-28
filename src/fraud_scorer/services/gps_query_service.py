@@ -259,12 +259,15 @@ class GPSDirectQueryService:
     ) -> pd.DataFrame:
         df = dataframe.copy()
 
+        start_ts = _normalize_datetime(start_time)
+        end_ts = _normalize_datetime(end_time)
+
         if "timestamp" in df.columns:
             df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
-            if start_time:
-                df = df[df["timestamp"] >= pd.Timestamp(start_time)]
-            if end_time:
-                df = df[df["timestamp"] <= pd.Timestamp(end_time)]
+            if start_ts is not None:
+                df = df[df["timestamp"] >= start_ts]
+            if end_ts is not None:
+                df = df[df["timestamp"] <= end_ts]
 
         if event_labels:
             df = df[df["event_label"].isin(event_labels)]
@@ -289,6 +292,15 @@ def _serialize_preview(df: pd.DataFrame) -> List[Dict[str, Any]]:
             lambda ts: ts.isoformat() if hasattr(ts, "isoformat") else ts
         )
     return safe_df.to_dict(orient="records")
+
+
+def _normalize_datetime(value: Optional[datetime]) -> Optional[pd.Timestamp]:
+    if value is None:
+        return None
+    ts = pd.Timestamp(value)
+    if ts.tzinfo is not None:
+        ts = ts.tz_convert("UTC").tz_localize(None)
+    return ts
 
 
 __all__ = ["GPSDirectQueryService"]
