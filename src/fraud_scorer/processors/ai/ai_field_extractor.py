@@ -9,6 +9,7 @@ import os
 import re
 import json
 import logging
+import base64
 from typing import Dict, Any, Optional, List, Union
 from pathlib import Path
 import asyncio
@@ -758,6 +759,26 @@ class AIFieldExtractor:
         if fields.get("monto_reclamacion") is not None:
             fields["monto_reclamacion"] = self._format_amount(fields["monto_reclamacion"])
 
+        for rfc_field in ("issuer_rfc", "recipient_rfc"):
+            if fields.get(rfc_field):
+                fields[rfc_field] = self._normalize_rfc(fields[rfc_field])
+
+        sello = fields.get("sello_digital_sat")
+        if sello:
+            sanitized = self._sanitize_sello_digital(sello)
+            if sanitized:
+                fields["sello_digital_sat"] = sanitized
+                fields["signature_last_8"] = sanitized[-8:]
+            else:
+                logger.debug("Sello digital inválido, descartando valor")
+                fields["sello_digital_sat"] = None
+                fields.pop("signature_last_8", None)
+
+        if not fields.get("signature_last_8") and fields.get("sello_digital_sat"):
+            sello_clean = fields["sello_digital_sat"]
+            if sello_clean and len(sello_clean) >= 8:
+                fields["signature_last_8"] = sello_clean[-8:]
+
         extraction.extracted_fields = fields
         return extraction
 
@@ -787,6 +808,28 @@ class AIFieldExtractor:
             except Exception:
                 return None
         return None
+
+    def _normalize_rfc(self, value: Any) -> Optional[str]:
+        if not value:
+            return None
+        candidate = "".join(str(value).strip().upper().split())
+        return candidate or None
+
+    def _sanitize_sello_digital(self, value: Any) -> Optional[str]:
+        if not value:
+            return None
+        candidate = "".join(str(value).strip().split())
+        if len(candidate) < 8:
+            return None
+        # Rellenar padding si hace falta
+        padding = len(candidate) % 4
+        if padding:
+            candidate += "=" * (4 - padding)
+        try:
+            base64.b64decode(candidate, validate=True)
+        except Exception:
+            return None
+        return candidate
 
     def _generate_cache_key(self, document_name: str, ocr_result: Any) -> str:
         """Genera una clave única para el cache a partir de nombre+texto."""

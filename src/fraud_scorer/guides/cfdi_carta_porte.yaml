@@ -1,9 +1,9 @@
 metadata:
   type: cfdi_carta_porte
-  version: "1.1"
-  author: "Sistema Experto HDI"
-  last_updated: "2025-02-15"
-  description: "Guía reforzada para auditar CFDI Carta Porte, validar timbrado, trayectoria logística y consistencia documental para prevenir fraude"
+  version: "2.0"
+  author: "Equipo Fraude HDI"
+  last_updated: "2025-04-18"
+  description: "Guía actualizada para auditar CFDI Carta Porte con narrativa estandarizada, validación SAT y verificaciones cruzadas contra denuncias y logística"
 
 definition:
   nature: "Documento fiscal y de transporte que acredita la legalidad, trazabilidad y condiciones del traslado de mercancías"
@@ -11,6 +11,8 @@ definition:
   critical_elements:
     - emisor
     - receptor
+    - issuer_rfc
+    - recipient_rfc
     - asegurado
     - folio_fiscal_uuid
     - nombre_operador
@@ -31,20 +33,23 @@ definition:
     - subtotal
     - iva
     - total
+    - sello_digital_cfdi
+    - sello_digital_sat
+    - cadena_original_complemento
     - numero_pedimento
     - seguro_transporte
     - aseguradora_transporte
 
 methodology:
   analysis_approach: |
-    1. Verificar integridad fiscal del CFDI: folio fiscal (UUID), sello digital, cadena original y estatus vigente ante el SAT.
-    2. Confirmar autenticidad del Complemento Carta Porte (versión, nodos obligatorios, relaciones con CFDI de ingreso si aplica).
-    3. Validar coherencia temporal entre emisión/timbrado del CFDI y la ocurrencia del siniestro, registrando cualquier desfase relevante.
-    4. Contrastar datos de transporte (operador, licencia, placas, serie, capacidad) con la denuncia, tarjeta de circulación y póliza.
-    5. Revisar consistencia de la mercancía: descripción, cantidades, peso, unidad de medida y valores vs facturas y pedimentos.
-    6. Confirmar concordancia de ruta (origen/destino, puntos intermedios) con manifiestos, carta de reclamación y evidence de viaje.
-    7. Auditar cobertura de seguros del transporte (existencia, aseguradora, vigencia, suma asegurada) frente a lo declarado.
-    8. Identificar alteraciones visuales o metadatos sospechosos (formato no estándar, secciones omitidas, timbrado duplicado o cancelado).
+    1. Redactar el análisis con el formato estándar: encabezado “CARTA DE PORTE TIMBRADA FOLIO …”, párrafo narrativo con emisor, transportista, fecha vs siniestro, mercancía y valor; subsección “VALIDACIÓN” con estado SAT y tabla; subsección “COMPLEMENTO CARTA DE PORTE” describiendo unidades, ruta y operador.
+    2. Valorar la integridad fiscal (UUID, sello, totales) y consultar el estatus en SAT; documentar el resultado en la tabla y mencionar expresamente si está vigente o cancelado (incluyendo fecha de cancelación cuando exista).
+    3. Calcular la diferencia temporal entre la fecha de expedición/timbrado y la fecha del siniestro; señalarla en días dentro del párrafo narrativo.
+    4. Validar que el operador declarado coincida con al menos una denuncia o la carpeta de investigación; si no hay coincidencia, registrar el hallazgo como indicador.
+    5. Corroborar que las placas del tractocamión y de los remolques coincidan con las denunciadas; reportar coincidencia parcial o discrepancia según aplique.
+    6. Comparar origen y destino del CFDI contra denuncia/carpeta; aceptar equivalencias semánticas y ubicaciones dentro de ±500 m, en otro caso describir la desviación.
+    7. Confirmar que la mercancía, cantidades y pesos correspondan a lo declarado (facturas, pedimentos, cartas previas) y que el valor monetario sea consistente.
+    8. Limitar recomendaciones a faltantes documentales o validaciones manuales pendientes (por ejemplo, captura de fecha de cancelación SAT).
 
   fraud_indicators:
     high_risk:
@@ -83,6 +88,16 @@ methodology:
         severity: "alto"
         evidence_hint: "Comparar pedimento declarado vs. sistema aduanal; citar folio correcto"
         follow_up: "Solicitar copia certificada del pedimento y validarlo con agente aduanal"
+      - pattern: placas_no_coinciden_denuncia
+        detection: "Las placas del tractocamión o remolques declaradas en el CFDI no se localizan en las denuncias o carpeta"
+        severity: "alto"
+        evidence_hint: "Citar placas del CFDI y contra qué documento se contrastaron"
+        follow_up: "Solicitar aclaración al transportista y evidencia del registro vehicular"
+      - pattern: ruta_inconsistente_denuncia
+        detection: "Origen y/o destino del CFDI difiere de lo asentado en denuncias o está a más de 500 m de la ruta denunciada"
+        severity: "alto"
+        evidence_hint: "Comparar texto de origen/destino contra denuncias y documentar distancia estimada"
+        follow_up: "Solicitar bitácora de viaje o GPS que justifique la variación de ruta"
     medium_risk:
       - pattern: descripcion_incompleta
         detection: "Información incompleta de mercancía (cantidad, valor, peso o unidad de medida faltante)"
@@ -125,10 +140,25 @@ methodology:
       pattern: '^(?:[01]\d|2[0-3]):[0-5]\d$'
     fecha_timbrado:
       type: pattern
-      pattern: '^(19|20)\d{2}-\d{2}-\d{2}$'
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}:\d{2})?$'
+    fecha_certificacion_sat:
+      type: pattern
+      pattern: '^(19|20)\d{2}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$'
     folio_fiscal_uuid:
       type: pattern
       pattern: "^[A-F0-9]{8}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{4}-[A-F0-9]{12}$"
+    sello_digital_cfdi:
+      type: pattern
+      pattern: "^[A-Za-z0-9+/]{80,}={0,2}$"
+      min_length: 100
+    sello_digital_sat:
+      type: pattern
+      pattern: "^[A-Za-z0-9+/]{80,}={0,2}$"
+      min_length: 100
+    cadena_original_complemento:
+      type: pattern
+      pattern: '^\|.*\|$'
+      min_length: 50
     placas_transporte:
       type: pattern
       pattern: "^[A-Z0-9-]{5,10}$"
@@ -199,93 +229,80 @@ response_template:
   output_format:
     documento_analizado: "cfdi_carta_porte"
     analisis_completo: |
-      Redactar 3-5 párrafos técnicos que cubran:
-      1) Validación del timbrado, UUID y concordancia con el Complemento Carta Porte.
-      2) Coherencia temporal entre emisión/timbrado y el siniestro, incluyendo brecha cuantificada.
-      3) Consistencia de operador, unidad, capacidad y ruta con documentos de soporte.
-      4) Evaluación económica (valores declarados vs. facturas/pedimentos) y cobertura de seguros.
-      5) Indicadores de fraude detectados, evidencias puntuales y acciones de seguimiento recomendadas.
-      Fundamentar hallazgos con citas textuales, tablas o montos específicos del CFDI y documentos relacionados.
+      CARTA DE PORTE TIMBRADA FOLIO {{folio_cfdi}}
+      Se ha recibido la carta de porte con folio {{folio_cfdi}}, emitida por {{representante_emisor}}, representante de la transportista {{nombre_transportista}}. Esta carta fue expedida el {{fecha_expedicion}}, es decir, {{delta_siniestro}}. El contenido de la mercancía, según este documento, consiste en {{descripcion_mercancia}}, con un valor declarado de {{valor_declarado}}.
+      Podemos encontrar en esta carta porte los datos del operador {{nombre_operador}}, y la información de las unidades de transporte que este operaba en el momento del incidente.
+      VALIDACIÓN
+      {{texto_validacion}}
+      | Campo | Valor |
+      | --- | --- |
+      | RFC del emisor | {{rfc_emisor}} |
+      | Nombre o razón social del emisor | {{razon_social_emisor}} |
+      | RFC del receptor | {{rfc_receptor}} |
+      | Nombre o razón social del receptor | {{razon_social_receptor}} |
+      | Folio fiscal (UUID) | {{uuid_cfdi}} |
+      | Fecha de expedición | {{fecha_expedicion}} |
+      | Fecha certificación SAT | {{fecha_certificacion_sat}} |
+      | PAC que certificó | {{pac_certificador}} |
+      | Total del CFDI | {{total_cfdi}} |
+      | Estado CFDI | {{estatus_cfdi}} |
+      | Estatus de cancelación | {{estatus_cancelacion}} |
+      | Fecha de cancelación | {{fecha_cancelacion}} |
+      COMPLEMENTO CARTA DE PORTE
+      {{texto_complemento}}
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
     recommendations: []
 
-    integridad_documental:
-      timbrado_valido: false
-      folio_fiscal_uuid: ""
-      validacion_sat: "pendiente"
-      estructura_correcta: false
-      alteraciones_detectadas: []
-      observaciones: ""
-    coherencia_temporal:
-      timbrado_antes_siniestro: false
-      fecha_coherente: false
-      brecha_horas: 0
-      detalle_temporal: ""
-    consistencia_transporte:
-      operador_coincidente: false
-      licencia_vigente: false
-      placas_coinciden: false
-      serie_valida: false
-      capacidad_vs_peso: "pendiente"
-      seguro_transporte:
-        existe: false
-        aseguradora: ""
-        poliza: ""
-        vigencia_valida: false
-    ruta_logistica:
-      origen: ""
-      destino: ""
-      puntos_intermedios: []
-      concordancia_con_denuncia: false
-      concordancia_con_reclamacion: false
-      observaciones: ""
-    mercancia:
-      descripcion: ""
-      cantidad: 0
-      unidad_medida: ""
-      peso: 0
-      valor_mercancia: 0.0
-      coincidencia_con_facturas: false
-      coincidencia_con_pedimentos: false
-    emisor_receptor:
-      emisor: ""
-      receptor: ""
-      coincide_con_asegurado: false
-      transporte_propio: false
-      observaciones: ""
-    pedimentos_y_facturas:
-      numero_pedimento: ""
-      pedimento_valido: false
-      facturas_relacionadas: []
-      observaciones: ""
+    verificaciones:
+      operador_vs_denuncia:
+        resultado: "desconocido"
+        operador_carta: ""
+        operador_denuncia: ""
+        detalle: ""
+      placas_vs_denuncia:
+        resultado: "desconocido"
+        placas_cfdi: []
+        placas_coincidentes: []
+        detalle: ""
+      ruta_vs_denuncia:
+        resultado: "desconocido"
+        origen_cfdi: ""
+        origen_referencia: ""
+        destino_cfdi: ""
+        destino_referencia: ""
+        distancia_origen_m: null
+        distancia_destino_m: null
+        detalle: ""
+
     validacion_cruzada:
-      denuncia: "pendiente"
-      carta_reclamacion: "pendiente"
-      tarjeta_circulacion: "pendiente"
-      dictamen_tecnico: "pendiente"
-      observaciones: ""
+      cfdi_carta_porte:
+        folio: ""
+        representante: ""
+        transportista: ""
+        operador: ""
+        origen: ""
+        destino: ""
+        valor_declarado: ""
+        placas: []
+        unidades: ""
 
     validation_tasks:
-      - tarea: "Validar UUID y estatus del CFDI Carta Porte en el portal SAT"
-        fuente: "SAT - validador CFDI"
+      - tarea: "Verificar en el portal SAT el estatus del CFDI y documentar la fecha de cancelación cuando aplique."
+        fuente: "Portal SAT / FiscalAPI"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Contrastar peso y capacidad con la tarjeta de circulación y bitácoras de carga"
-        fuente: "Tarjeta de circulación / bitácoras"
+      - tarea: "Confirmar coincidencia del operador y placas contra denuncias o carpeta de investigación."
+        fuente: "Carpeta de investigación / Denuncia de los hechos"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Cotejar datos de operador (nombre, RFC, licencia) con registros del transportista"
-        fuente: "Recursos Humanos o Contratos del transportista"
-        prioridad: "alta"
-        estado: "pendiente"
-      - tarea: "Verificar pedimento y facturas asociadas para confirmar mercancía y valores"
-        fuente: "Agente aduanal / Documentación de respaldo"
+      - tarea: "Corroborar origen y destino con evidencia logística (GPS, manifiesto, carta porte simple)."
+        fuente: "Monitoreo GPS / manifiestos / cartas porte simples"
         prioridad: "media"
         estado: "pendiente"
-      - tarea: "Confirmar vigencia y suma asegurada de la póliza del transporte"
-        fuente: "Póliza del transportista / área técnica"
+      - tarea: "Conciliar valores y mercancías contra facturas o pedimentos relacionados."
+        fuente: "Facturas comerciales / pedimento"
         prioridad: "media"
         estado: "pendiente"

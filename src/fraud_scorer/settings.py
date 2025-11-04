@@ -195,19 +195,37 @@ class ExtractionConfig:
             "monto_reclamacion"
         ],
         "carta_porte": [
+            "serie_cfdi",
+            "folio_cfdi",
             "numero_interno_documento",
             "empresa_transportista",
+            "nombre_transportista",
+            "representante_emisor",
+            "emisor_nombre",
             "destinatario",
+            "issuer_rfc",
+            "recipient_rfc",
+            "receptor_nombre",
             "uuid_fiscal",
             "fecha_emision",
             "fecha_timbrado",
+            "fecha_certificacion_sat",
+            "pac_certificador",
+            "sello_digital_cfdi",
             "placas",
             "vin",
             "operador_nombre",
             "licencia_operador",
             "peso_bruto",
+            "cantidad",
+            "unidad_medida",
+            "descripcion_mercancia",
+            "mercancias",
             "valor_mercancia",
             "monto_total",
+            "sello_digital_sat",
+            "cadena_original_complemento",
+            "signature_last_8",
             "ruta_planeada",
             "origen",
             "destino",
@@ -253,24 +271,52 @@ class ExtractionConfig:
         "constancia_imss_del_operador": [],
         "factura_comercial_cfdi": [
             "numero_factura",
+            "issuer_rfc",
+            "recipient_rfc",
             "monto_total",
             "valor_mercancia",
             "fecha_emision",
             "moneda",
+            "uuid_fiscal",
+            "fecha_timbrado",
+            "sello_digital_sat",
+            "cadena_original_complemento",
+            "signature_last_8",
         ],
         "pedido_por_correo": [],
         "reporte_de_costos_y_rendimientos": [],
         "facturas_comerciales_internacionales": [
             "numero_factura",
+            "issuer_rfc",
+            "recipient_rfc",
             "monto_total",
             "valor_mercancia",
             "fecha_emision",
             "moneda",
+            "uuid_fiscal",
+            "fecha_timbrado",
+            "sello_digital_sat",
+            "cadena_original_complemento",
+            "signature_last_8",
         ],
         "pedimento_importacion": [
             "numero_pedimento",
+            "importador",
+            "razon_social_importador",
+            "aduana_numero",
+            "aduana_nombre",
             "fecha_emision",
+            "fecha_pago",
+            "fecha_entrada",
+            "descripcion_mercancias",
+            "mercancias",
+            "cantidad",
+            "cantidad_total",
+            "unidad_medida",
+            "peso_neto",
+            "peso_bruto",
             "valor_mercancia",
+            "valor_aduana",
         ],
         "pedimentos_aduanales": [
             "numero_pedimento",
@@ -282,9 +328,26 @@ class ExtractionConfig:
             "lugar_hechos"
         ],
         "conocimiento_de_embarque": [
-            "bien_reclamado",
+            "numero_conocimiento",
+            "fecha_salida",
+            "hora_salida",
+            "emisor_documento",
+            "agente_aduanal",
+            "nombre_transportista",
+            "operador_nombre",
+            "identificacion_unidad",
+            "placas_unidad",
+            "semirremolques",
+            "descripcion_mercancia",
+            "cantidad_mercancia",
+            "peso",
             "valor_mercancia",
-            "monto_reclamacion"
+            "numero_pedimento",
+            "cliente",
+            "destino",
+            "buque",
+            "hora_inicio",
+            "hora_termino"
         ],
         "contrato_prestacion_servicio_transportista": [
             "nombre_asegurado",
@@ -482,6 +545,60 @@ class ExtractionConfig:
         ],
         "ruta_planeada": [
             "Ruta", "Trayecto", "Itinerario", "Ruta planeada"
+        ],
+        "numero_conocimiento": [
+            "Número de conocimiento", "No. de conocimiento", "Folio", "Folio tarja", "Conocimiento No.", "Tarja No."
+        ],
+        "fecha_salida": [
+            "Fecha de salida", "Fecha", "Fecha tarja", "Fecha operación", "Fecha expedición"
+        ],
+        "hora_salida": [
+            "Hora de salida", "Hora", "Hora tarja", "Hora operación"
+        ],
+        "emisor_documento": [
+            "Emisor", "Empresa", "Terminal", "Razón social emite", "Steel terminal"
+        ],
+        "agente_aduanal": [
+            "Agente aduanal", "Agencia aduanal", "Agte. Aduanal", "AA"
+        ],
+        "nombre_transportista": [
+            "Transportista", "Empresa transportista", "Transportista responsable", "Transportista emisor"
+        ],
+        "operador_nombre": [
+            "Operador", "Nombre del operador", "Chofer", "Conductor", "Operador responsable"
+        ],
+        "identificacion_unidad": [
+            "No. Económico", "Número económico", "Unidad", "Unidad No.", "No. ECO"
+        ],
+        "placas_unidad": [
+            "Placas", "Placa del tractor", "Placa unidad", "Tractor", "No. placa unidad"
+        ],
+        "semirremolques": [
+            "Semirremolque", "Remolque", "Góndola", "Plana", "Remolque No."
+        ],
+        "cantidad_mercancia": [
+            "Cantidad", "Cantidad de mercancía", "Bultos", "Piezas", "Cantidad declarada"
+        ],
+        "peso": [
+            "Peso neto", "Peso bruto", "Peso", "Peso total"
+        ],
+        "numero_pedimento": [
+            "Pedimento", "No. pedimento", "Pedimento No.", "Número de pedimento", "Pedimento aduanal"
+        ],
+        "cliente": [
+            "Cliente", "Consignatario", "Destinatario", "Cliente destino", "Razón social cliente"
+        ],
+        "destino": [
+            "Destino", "Ubicación de entrega", "Lugar de destino", "Destino final"
+        ],
+        "buque": [
+            "Buque", "Vapor", "Barco", "Buque transporta", "Nombre del buque"
+        ],
+        "hora_inicio": [
+            "Hora inicio", "Hora de inicio", "Hora carga inicia"
+        ],
+        "hora_termino": [
+            "Hora termino", "Hora de término", "Hora carga termina", "Hora fin"
         ]
     }
     
@@ -491,6 +608,10 @@ class ExtractionConfig:
             "regex": r"^\d{14}$",
             "format": "14 dígitos exactos",
             "transform": normalize_numero_siniestro
+        },
+        "signature_last_8": {
+            "regex": r"^[A-Za-z0-9+/=]{8}$",
+            "format": "8 caracteres finales del sello digital"
         },
         "nombre_asegurado": {
             "min_length": 3,
@@ -534,9 +655,50 @@ class ExtractionConfig:
             "max_length": 40,
             "format": "Texto alfanumérico corto (folio de carta porte)"
         },
+        "fecha_salida": {
+            "format": "YYYY-MM-DD",
+            "type": "date_iso"
+        },
+        "hora_salida": {
+            "regex": r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+            "format": "HH:MM"
+        },
+        "hora_inicio": {
+            "regex": r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+            "format": "HH:MM"
+        },
+        "hora_termino": {
+            "regex": r"^(?:[01]\d|2[0-3]):[0-5]\d$",
+            "format": "HH:MM"
+        },
+        "numero_pedimento": {
+            "regex": r"^\d{6,20}$",
+            "format": "Secuencia de dígitos continuos del pedimento"
+        },
         "fecha_emision": {
             "format": "YYYY-MM-DD",
             "type": "date_iso"
+        },
+        "issuer_rfc": {
+            "regex": r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$",
+            "format": "RFC emisor valido (3-4 letras + fecha + homoclave)"
+        },
+        "recipient_rfc": {
+            "regex": r"^[A-ZÑ&]{3,4}\d{6}[A-Z0-9]{3}$",
+            "format": "RFC receptor valido (3-4 letras + fecha + homoclave)"
+        },
+        "sello_digital_sat": {
+            "min_length": 100,
+            "regex": r"^[A-Za-z0-9+/]{80,}={0,2}$",
+            "format": "Cadena Base64 del sello digital"
+        },
+        "cadena_original_complemento": {
+            "min_length": 50,
+            "format": "Cadena de texto plano con '|' delimitadores"
+        },
+        "uuid_fiscal": {
+            "regex": r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "format": "UUID con guiones"
         }
     }
     

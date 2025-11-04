@@ -10,6 +10,7 @@ __all__ = [
     "ReplayService",
     "FraudDocumentCatalog",
     "FraudDocumentReprocessService",
+    "FiscalAPIService",
 ]
 
 
@@ -26,4 +27,8 @@ def __getattr__(name: str) -> Any:  # pragma: no cover - trivial
         from .fraud_document_service import FraudDocumentReprocessService
 
         return FraudDocumentReprocessService
+    if name == "FiscalAPIService":
+        from .fiscal_api_service import FiscalAPIService
+
+        return FiscalAPIService
     raise AttributeError(f"module 'fraud_scorer.services' has no attribute '{name}'")

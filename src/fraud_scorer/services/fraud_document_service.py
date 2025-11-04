@@ -182,6 +182,12 @@ class FraudDocumentCatalog:
     ) -> List[Dict[str, Any]]:
         preview: List[Dict[str, Any]] = []
         for res in results:
+            fiscal_status = None
+            if getattr(res, "fiscal_validation", None):
+                try:
+                    fiscal_status = res.fiscal_validation.status.value
+                except Exception:
+                    fiscal_status = None
             preview.append(
                 {
                     "document_id": res.document_id,
@@ -190,6 +196,7 @@ class FraudDocumentCatalog:
                     "risk_level": res.risk_level.value,
                     "fraud_score": res.fraud_score,
                     "include_in_report": res.include_in_report,
+                    "fiscal_status": fiscal_status,
                 }
             )
         return preview
@@ -539,18 +546,21 @@ class FraudDocumentReprocessService:
         raw_entities = _jload(row["e_entities"], {})
         extracted_entities = raw_entities if isinstance(raw_entities, dict) else {}
         raw_extra = _jload(row["extra"], {})
-        extra_payload = raw_extra if isinstance(raw_extra, dict) else {}
+        extra_payload = dict(raw_extra) if isinstance(raw_extra, dict) else {}
         document_type = self._resolve_document_type(
             row["document_type"], case_index, document_name
         )
         merged_fields = dict(extracted_fields)
+        metadata_payload = {}
+        if "extraction_metadata" in extra_payload and isinstance(extra_payload["extraction_metadata"], dict):
+            metadata_payload = dict(extra_payload.pop("extraction_metadata"))
         if extra_payload:
             merged_fields.update(extra_payload)
         extraction = DocumentExtraction(
             source_document=document_name,
             document_type=document_type or "otro",
             extracted_fields=merged_fields,
-            extraction_metadata={"entities": extracted_entities},
+            extraction_metadata={**metadata_payload, "entities": extracted_entities},
         )
         return FraudDocumentContext(
             document_id=document_id,

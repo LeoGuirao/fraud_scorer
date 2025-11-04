@@ -89,6 +89,10 @@ class DocumentExtraction(BaseModelCompat):
             'peso_total',
             'peso',
         }
+        seal_fields = {
+            'sello_digital_cfdi',
+            'sello_digital_sat',
+        }
 
         for field in date_fields:
             if field in normalized and normalized[field] is not None:
@@ -106,6 +110,12 @@ class DocumentExtraction(BaseModelCompat):
                 elif isinstance(normalized[field], str):
                     cleaned = re.sub(r'[^\d.,-]', '', normalized[field]).strip()
                     normalized[field] = cleaned or normalized[field]
+
+        for field in seal_fields:
+            value = normalized.get(field)
+            if isinstance(value, str):
+                cleaned = re.sub(r"\s+", "", value)
+                normalized[field] = cleaned
 
         return normalized
 

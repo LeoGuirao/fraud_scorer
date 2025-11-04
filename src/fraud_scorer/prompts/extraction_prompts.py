@@ -245,14 +245,31 @@ Eres un asistente experto en la extracción de datos de documentos de siniestros
             "horarios_reportados": "Fechas y horas asociadas a las casetas",
             "evidencia_respaldo": "Documentos o soportes mencionados",
             "numero_interno_documento": "Folio interno o número de control de la carta porte",
+            "serie_cfdi": "Serie del CFDI tal como aparece en el encabezado (ej. \"A\")",
+            "folio_cfdi": "Número de folio consecutivo del CFDI (ej. \"499\")",
             "empresa_transportista": "Nombre de la empresa transportista que emite el documento",
+            "nombre_transportista": "Nombre comercial o marca del transportista destacado en el membrete",
+            "representante_emisor": "Nombre completo de la persona física que firma o representa al emisor del CFDI",
+            "emisor_nombre": "Razón social o nombre legal del emisor del CFDI",
             "destinatario": "Nombre del cliente o consignatario al que se entrega la mercancía",
+            "issuer_rfc": "RFC del emisor exactamente como aparece en el CFDI",
+            "recipient_rfc": "RFC del receptor exactamente como aparece en el CFDI",
+            "receptor_nombre": "Nombre o razón social del receptor indicado en el CFDI",
             "fecha_emision": "Fecha de emisión de la carta porte en formato YYYY-MM-DD",
             "uuid_fiscal": "UUID o folio fiscal cuando exista",
-            "fecha_timbrado": "Fecha de timbrado fiscal del CFDI o carta porte",
+            "fecha_timbrado": "Fecha de timbrado fiscal del CFDI en formato YYYY-MM-DD (sin hora)",
+            "fecha_certificacion_sat": "Fecha y hora de certificación por el SAT si se muestra",
+            "pac_certificador": "Nombre del PAC que certificó el CFDI",
+            "sello_digital_cfdi": "Sello digital del CFDI (emisor) completo, sin saltos de línea",
+            "sello_digital_sat": "Sello digital completo del CFDI en Base64 (sin recortar)",
+            "cadena_original_complemento": "Cadena original del complemento con separadores '|' si aparece en el documento",
             "operador_nombre": "Nombre del operador o chofer responsable del traslado",
             "licencia_operador": "Número de licencia o permiso SCT del operador",
-            "placas": "Placas de la unidad (tractor y/o remolques)",
+            "placas": "Placas de la unidad (tractor y/o remolques) en formato alfanumérico limpio",
+            "cantidad": "Cantidad principal de mercancía declarada como número",
+            "unidad_medida": "Unidad de medida asociada a la cantidad de mercancía",
+            "descripcion_mercancia": "Descripción principal de la mercancía declarada (ej. \"placas de acero\")",
+            "mercancias": "Lista de mercancías con claves: descripcion, cantidad, unidad, peso y valor declarado",
             "origen": "Lugar exacto de origen del traslado",
             "destino": "Lugar exacto de destino del traslado",
             "ruta_planeada": "Ruta o trayecto planeado para la unidad"
@@ -436,6 +453,9 @@ DETALLES POR CAMPO PERMITIDO:
         elif field == "numero_interno_documento":
             guide += """
    Regla especial: Identifica folios como "Folio", "No. Carta Porte" o "Folio interno". Conserva el texto exacto."""
+        elif field == "numero_conocimiento":
+            guide += """
+   Regla especial: Usa el folio literal del conocimiento/tarja (ej. "BOL-001" o "Folio 02"). Conserva letras, guiones y ceros iniciales."""
         elif field == "empresa_transportista":
             guide += """
    Regla especial: Usa la razón social/literal del transportista que emite el documento (encabezado o sello)."""
@@ -448,6 +468,9 @@ DETALLES POR CAMPO PERMITIDO:
         elif field == "placas":
             guide += """
    Regla especial: Devuelve todas las placas asociadas a la unidad. Formato alfanumérico sin espacios adicionales."""
+        elif field in {"placas_unidad", "semirremolques"}:
+            guide += """
+   Regla especial: Devuelve cada placa como elemento independiente en una lista JSON (ej. ["16BC2T","34UL2C"]). Limpia espacios, guiones y repeticiones."""
         elif field == "licencia_operador":
             guide += """
    Regla especial: Captura el número de licencia o permiso SCT del operador, si aparece."""
@@ -460,6 +483,60 @@ DETALLES POR CAMPO PERMITIDO:
         elif field == "fecha_emision":
             guide += """
    Regla especial: Convierte cualquier formato textual a YYYY-MM-DD (ej. "12 de febrero de 2024" → 2024-02-12)."""
+        elif field == "fecha_salida":
+            guide += """
+   Regla especial: Convierte la fecha del encabezado ("12-02-24") a formato YYYY-MM-DD (ej. 2024-02-12)."""
+        elif field in {"hora_salida", "hora_inicio", "hora_termino"}:
+            guide += """
+   Regla especial: Normaliza a formato 24h HH:MM (ej. "17:38"). Usa campos "Hora inicio/termino" si aparecen."""
+        elif field == "emisor_documento":
+            guide += """
+   Regla especial: Toma la razón social del encabezado (terminal o empresa emisora) tal como aparece impresa."""
+        elif field == "agente_aduanal":
+            guide += """
+   Regla especial: Extrae el nombre del agente aduanal reportado (línea 'Agente Aduanal')."""
+        elif field == "nombre_transportista":
+            guide += """
+   Regla especial: Prefiere la razón social completa del transportista; si solo hay alias, devuelve el texto literal indicado."""
+        elif field == "numero_pedimento":
+            guide += """
+   Regla especial: Devuelve únicamente los dígitos consecutivos del pedimento (sin espacios ni guiones)."""
+        elif field == "importador":
+            guide += """
+   Regla especial: Usa la razón social completa del importador tal como aparece en el recuadro 'Importador' del pedimento (sin abreviarla ni traducirla)."""
+        elif field in {"aduana_numero", "aduana_codigo"}:
+            guide += """
+   Regla especial: Captura el código numérico de la aduana (normalmente 2 dígitos) exactamente como aparece en el encabezado."""
+        elif field == "aduana_nombre":
+            guide += """
+   Regla especial: Devuelve el nombre de la aduana o sección aduanera literal, incluyendo ciudad y entidad si se mencionan."""
+        elif field == "fecha_entrada":
+            guide += """
+   Regla especial: Convierte la 'Fecha de entrada/pago' del pedimento a formato YYYY-MM-DD."""
+        elif field == "fecha_pago":
+            guide += """
+   Regla especial: Normaliza la fecha de pago a formato YYYY-MM-DD."""
+        elif field == "cantidad_mercancia":
+            guide += """
+   Regla especial: Resume la cantidad total (ej. "28 bultos" o "90.36 toneladas"). Incluye unidad si se especifica."""
+        elif field in {"cantidad", "cantidad_total"}:
+            guide += """
+   Regla especial: Toma el valor numérico total registrado en el pedimento; si la tabla incluye varias fracciones, suma solo cuando el documento lo indica de forma explícita."""
+        elif field == "unidad_medida":
+            guide += """
+   Regla especial: Devuelve la unidad de medida asociada a la cantidad (ej. KG, TON, PZA)."""
+        elif field in {"descripcion_mercancias", "mercancias"}:
+            guide += """
+   Regla especial: Resume la descripción comercial de las mercancías; si existen varios renglones, sintetiza en una frase clara (ej. "Placas de acero laminado en caliente")."""
+        elif field == "peso":
+            guide += """
+   Regla especial: Prioriza el peso neto principal (ej. "47068 kg"). Si hay neto/bruto, usa el neto."""
+        elif field in {"peso_neto", "peso_bruto"}:
+            guide += """
+   Regla especial: Extrae el valor numérico con su unidad (kg, t, etc.) tal como aparece en el pedimento."""
+        elif field in {"valor_mercancia", "valor_aduana"}:
+            guide += """
+   Regla especial: Devuelve el monto numérico con decimales (sin signo $); respeta los separadores decimales del documento."""
 
         guide += "\n"
         return guide
@@ -483,6 +560,22 @@ DETALLES POR CAMPO PERMITIDO:
 - El número de póliza puede tener guiones o espacios
 - La suma asegurada suele mencionarse como "Límite máximo por embarque" o "Límite de responsabilidad"
 """
+        elif document_type == "conocimiento_de_embarque":
+            instructions += """
+- Usa el encabezado (TARJA/terminal) para identificar `emisor_documento` y `nombre_transportista`.
+- Convierte fechas como "12-02-24" a formato YYYY-MM-DD y horas a HH:MM.
+- El pedimento debe entregarse solo con dígitos consecutivos (sin espacios).
+- Devuelve cada placa (tractor y remolques) como elementos independientes en una lista.
+- Extrae la mercancía principal más su cantidad/peso declarados; si hay varios renglones, consólidalos en una frase breve.
+- Si existen varios conocimientos de embarque en el expediente, verifica que la fecha de salida coincida con los demás."""
+        elif document_type == "pedimento_importacion":
+            instructions += """
+- Asegúrate de capturar el número de pedimento completo (15 dígitos: aduana + ejercicio + patente + progresivo) sin guiones ni espacios.
+- Identifica la razón social del importador en el recuadro correspondiente y devuélvela literal, respetando mayúsculas/abreviaturas.
+- Normaliza `fecha_pago` y `fecha_entrada` a formato YYYY-MM-DD (ej. 24/01/2024 → 2024-01-24).
+- Resume la mercancía declarada en una frase clara; si hay varias fracciones arancelarias, sintetiza los conceptos relevantes.
+- Extrae cantidades, unidad de medida, pesos neto/bruto y valores (valor aduana, valor mercancía) como números con decimales cuando existan.
+- Si el pedimento lista varias partidas, conserva los valores tal como vienen; no inventes sumas que el documento no muestre expresamente."""
         elif document_type == "informe_final_del_ajustador":
             instructions += """
 INSTRUCCIONES ESPECÍFICAS PARA INFORME FINAL DEL AJUSTADOR:
@@ -552,6 +645,24 @@ INSTRUCCIONES ESPECÍFICAS PARA INFORME FINAL DEL AJUSTADOR:
 - `placas`: extrae todas las placas indicadas (tractor y/o remolques) en formato alfanumérico limpio, separadas por comas si hay varias.
 - `origen` y `destino`: transcribe la ubicación completa (ciudad, estado y referencias) tal como aparece en el documento.
 - Si algún campo no aparece, devuélvelo como null (no lo infieras)."""
+        elif document_type == "cfdi_carta_porte":
+            instructions += """
+- `numero_interno_documento`: captura el folio interno o número de control impreso; si solo aparece el UUID, deja este campo en null.
+- `serie_cfdi` y `folio_cfdi`: conserva exactamente la serie y el folio que aparecen en el encabezado. Si solo hay folio, deja `serie_cfdi` en null.
+- `representante_emisor`: identifica a la persona física que firma o aparece como responsable de la emisión (normalmente debajo del domicilio del emisor).
+- `nombre_transportista`: prioriza el nombre comercial visible en el membrete (ej. "LC&+ Transportaciones"); si no existe, reutiliza la razón social destacada.
+- `emisor_nombre`: captura la razón social legal indicada en el campo "Razón Social" del CFDI.
+- `receptor_nombre`: registra el nombre o razón social del receptor textual, sin RFC.
+- `descripcion_mercancia`: resume la mercancía principal en minúsculas (ej. "placas de acero"), sin repetir cantidades.
+- `mercancias`: si existe tabla, devuelve lista de objetos con `descripcion`, `cantidad`, `unidad`, `peso` (en kilogramos) y `valor`.
+- `operador_nombre`: captura el nombre completo con apellidos tal como se muestra en el CFDI.
+- `placas`: incluye tanto el tractor como los remolques, separados por comas y sin etiquetas adicionales.
+- `sello_digital_sat`: copia el sello completo sin recortarlo; elimina saltos de línea.
+- `sello_digital_cfdi`: captura íntegro el sello digital del emisor (sello del CFDI), sin espacios ni saltos de línea.
+- `sello_digital_sat`: copia el sello completo del SAT sin recortarlo; elimina saltos de línea.
+- `origen` y `destino`: transcribe la dirección completa de las ubicaciones del complemento (calle, número, colonia, municipio, estado y país).
+- `fecha_certificacion_sat` y `pac_certificador`: captura literalmente lo indicado en la sección del timbre fiscal digital.
+- Si un dato no aparece de forma explícita, devuélvelo como null (no lo inventes)."""
         elif document_type == "carta_aclatoria_comprobantes_peaje":
             instructions += """
 - Extrae `fecha_carta` en formato YYYY-MM-DD exactamente como aparece en la carta.

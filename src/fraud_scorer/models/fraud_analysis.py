@@ -7,6 +7,8 @@ from datetime import datetime
 from pydantic import BaseModel, Field, model_validator
 from enum import Enum
 
+from fraud_scorer.models.fiscal_validation import FiscalValidationResult
+
 
 class RiskLevel(str, Enum):
     BAJO = "bajo"
@@ -59,6 +61,10 @@ class FraudAnalysisResult(BaseModel):
     recommendations: List[str] = Field(default_factory=list)
     verificaciones: Dict[str, Any] = Field(default_factory=dict)
     validacion_cruzada: Dict[str, Any] = Field(default_factory=dict)
+    fiscal_validation: Optional[FiscalValidationResult] = Field(
+        default=None,
+        description="Resultado estructurado de FiscalAPI si aplica",
+    )
 
     # Metadata
     analysis_model: str
@@ -99,6 +105,9 @@ class FraudAnalysisResult(BaseModel):
             self.verificaciones = dict(self.verificaciones or {})
         if not isinstance(self.validacion_cruzada, dict):
             self.validacion_cruzada = dict(self.validacion_cruzada or {})
+
+        if self.fiscal_validation and not isinstance(self.fiscal_validation, FiscalValidationResult):
+            self.fiscal_validation = FiscalValidationResult.model_validate(self.fiscal_validation)
         return self
 
 

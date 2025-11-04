@@ -10,6 +10,7 @@ import hashlib
 import uuid
 import re
 import unicodedata
+from difflib import SequenceMatcher
 import math
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from datetime import datetime, date, timedelta
@@ -33,6 +34,13 @@ from fraud_scorer.settings import get_model_for_task
 from fraud_scorer.analyzers.unified_data_layer import UnifiedDataLayer
 from fraud_scorer.services.exchange_rate_service import ExchangeRateService
 from fraud_scorer.utils.geo_reference import suggest_reference_point
+from fraud_scorer.config.feature_flags import get_fiscal_validation_stage
+from fraud_scorer.models.fiscal_validation import (
+    CFDIValidationRequest,
+    FiscalValidationResult,
+    FiscalValidationStatus,
+)
+from fraud_scorer.services.fiscal_api_service import FiscalAPIService
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +184,16 @@ class FraudAnalyzer:
         self.model_fallback = os.getenv("FRAUD_ANALYSIS_MODEL_FALLBACK") or "gpt-4o-mini"
         self.confidence_threshold = float(os.getenv("FRAUD_CONFIDENCE_THRESHOLD", "0.7"))
 
+        try:
+            self.fiscal_service = FiscalAPIService()
+        except Exception as exc:  # pragma: no cover - best effort
+            logger.warning("Fiscal validation service unavailable: %s", exc)
+            self.fiscal_service = None
+        self.fiscal_stage = (
+            self.fiscal_service.stage if getattr(self, "fiscal_service", None) else get_fiscal_validation_stage()
+        )
+        logger.info("Fiscal validation stage: %s", self.fiscal_stage)
+
     async def analyze_document(
         self,
         document_id: str,
@@ -213,6 +231,26 @@ class FraudAnalyzer:
                 "resolved_fields": extraction.extracted_fields,
             }
 
+        fiscal_result: Optional[FiscalValidationResult] = None
+        if self.fiscal_service:
+            fiscal_result = await self._maybe_validate_fiscal(
+                extraction,
+                document_type=document_type,
+                document_name=document_name,
+                case_id=case_id,
+                document_id=document_id,
+            )
+            if fiscal_result:
+                try:
+                    document_context.setdefault("fiscal_validation", fiscal_result.to_case_index())
+                except Exception:
+                    logger.debug("No se pudo adjuntar fiscal_validation a document_context")
+                try:
+                    case_context.setdefault("fiscal_validation", {})
+                    case_context["fiscal_validation"][document_id] = fiscal_result.to_case_index()
+                except Exception:
+                    logger.debug("No se pudo incorporar fiscal_validation en case_context")
+
         indicator_prompt = self.prompts.build_indicator_prompt(
             document_type=document_type,
             document_name=document_name,
@@ -249,6 +287,9 @@ class FraudAnalyzer:
             )
             # Trazabilidad
             analysis.analysis_id = str(uuid.uuid4())
+
+            if fiscal_result:
+                analysis = self._apply_fiscal_enrichment(analysis, fiscal_result)
 
             analysis = await self._enrich_analysis(
                 analysis,
@@ -610,6 +651,18 @@ class FraudAnalyzer:
                 )
             except Exception as exc:  # pragma: no cover - defensivo
                 logger.warning("Fallback en carta al transportista: %s", exc)
+        elif extraction.document_type == "cfdi_carta_porte":
+            try:
+                analysis = self._postprocess_cfdi_carta_porte(
+                    analysis,
+                    extraction,
+                    data_layer=data_layer,
+                    document_context=document_context or {},
+                    case_context=case_context or {},
+                    ocr_text=ocr_text,
+                )
+            except Exception as exc:  # pragma: no cover - defensivo
+                logger.warning("Fallback en CFDI carta porte: %s", exc)
         elif extraction.document_type == "carta_porte_simple":
             try:
                 analysis = self._postprocess_carta_porte_simple(
@@ -622,6 +675,30 @@ class FraudAnalyzer:
                 )
             except Exception as exc:  # pragma: no cover - defensivo
                 logger.warning("Fallback en carta porte simple: %s", exc)
+        elif extraction.document_type == "pedimento_importacion":
+            try:
+                analysis = self._postprocess_pedimento_importacion(
+                    analysis,
+                    extraction,
+                    data_layer=data_layer,
+                    document_context=document_context or {},
+                    case_context=case_context or {},
+                    ocr_text=ocr_text,
+                )
+            except Exception as exc:  # pragma: no cover - defensivo
+                logger.warning("Fallback en pedimento de importación: %s", exc)
+        elif extraction.document_type == "conocimiento_de_embarque":
+            try:
+                analysis = self._postprocess_conocimiento_embarque(
+                    analysis,
+                    extraction,
+                    data_layer=data_layer,
+                    document_context=document_context or {},
+                    case_context=case_context or {},
+                    ocr_text=ocr_text,
+                )
+            except Exception as exc:  # pragma: no cover - defensivo
+                logger.warning("Fallback en conocimiento de embarque: %s", exc)
         elif extraction.document_type == "carta_aclatoria_comprobantes_peaje":
             try:
                 analysis = self._postprocess_carta_aclaratoria_peaje(
@@ -647,6 +724,335 @@ class FraudAnalyzer:
             except Exception as exc:  # pragma: no cover - defensivo
                 logger.warning("Fallback en carpeta de investigación: %s", exc)
         return analysis
+
+    async def _maybe_validate_fiscal(
+        self,
+        extraction: DocumentExtraction,
+        *,
+        document_type: str,
+        document_name: str,
+        case_id: str,
+        document_id: str,
+    ) -> Optional[FiscalValidationResult]:
+        service = getattr(self, "fiscal_service", None)
+        if not service:
+            return None
+        if not service.should_validate_document(document_type):
+            return None
+
+        request = self._build_cfdi_request(
+            extraction=extraction,
+            document_type=document_type,
+            case_id=case_id,
+            document_id=document_id,
+        )
+        if not request:
+            logger.debug("Fiscal validation omitted for %s (datos incompletos)", document_name)
+            return None
+        logger.debug(
+            "Fiscal validation request for %s → issuer=%s recipient=%s total=%s uuid=%s signature=%s",
+            document_name,
+            request.issuer_rfc,
+            request.recipient_rfc,
+            request.total,
+            request.uuid,
+            request.signature_last_8,
+        )
+        try:
+            result = await service.validate_cfdi_status(request)
+            return result
+        except Exception as exc:  # pragma: no cover - resiliencia
+            logger.warning("Fiscal validation failed for %s: %s", document_name, exc)
+            return FiscalValidationResult.pending(request, error=str(exc))
+
+    def _build_cfdi_request(
+        self,
+        *,
+        extraction: DocumentExtraction,
+        document_type: str,
+        case_id: str,
+        document_id: str,
+    ) -> Optional[CFDIValidationRequest]:
+        fields = dict(extraction.extracted_fields or {})
+
+        issuer = fields.get("issuer_rfc") or fields.get("emisor_rfc") or fields.get("emisor")
+        recipient = fields.get("recipient_rfc") or fields.get("receptor_rfc") or fields.get("receptor")
+        uuid_value = fields.get("uuid_fiscal") or fields.get("folio_fiscal_uuid")
+        sello_cfdi = (
+            fields.get("sello_digital_cfdi")
+            or fields.get("sello_digital_emisor")
+            or fields.get("sello_digital")
+        )
+        sello_sat = fields.get("sello_digital_sat")
+        sello = sello_cfdi or sello_sat
+        signature_field = fields.get("signature_last_8")
+        signature = None
+        if signature_field:
+            signature_text = str(signature_field).strip()
+            if len(signature_text) >= 8:
+                signature = signature_text[-8:]
+        if not signature and sello_cfdi:
+            signature = str(sello_cfdi)[-8:]
+        if not signature and sello_sat:
+            signature = str(sello)[-8:]
+        if signature:
+            signature = re.sub(r"\s+", "", signature).strip().upper()
+
+        if (not recipient) or str(recipient).strip().upper() in {"XAXX010101000", "XEXX010101000"}:
+            guessed_rfc = self._guess_recipient_rfc(extraction, issuer)
+            if guessed_rfc:
+                recipient = guessed_rfc
+
+        total_value = None
+        for candidate in (
+            fields.get("monto_total"),
+            fields.get("valor_mercancia"),
+            fields.get("monto_reclamacion"),
+        ):
+            total_value = self._coerce_decimal(candidate)
+            if total_value is not None:
+                break
+
+        if not all([issuer, recipient, uuid_value, signature, total_value]):
+            return None
+
+        metadata = self._extract_cfdi_metadata(
+            extraction=extraction,
+            issuer=str(issuer),
+            recipient=str(recipient),
+        )
+        if total_value is not None:
+            metadata.setdefault("invoice_total", format(total_value, "f"))
+
+        try:
+            return CFDIValidationRequest(
+                issuer_rfc=str(issuer),
+                recipient_rfc=str(recipient),
+                total=total_value,
+                uuid=str(uuid_value),
+                signature_last_8=str(signature),
+                document_type=document_type,
+                sello_digital=str(sello) if sello else None,
+                case_id=case_id,
+                document_id=document_id,
+                metadata=metadata,
+            )
+        except Exception as exc:  # pragma: no cover - validaciones internas
+            logger.debug("No se pudo construir CFDIValidationRequest: %s", exc)
+            return None
+
+    def _extract_cfdi_metadata(
+        self,
+        *,
+        extraction: DocumentExtraction,
+        issuer: str,
+        recipient: str,
+    ) -> Dict[str, Any]:
+        metadata: Dict[str, Any] = {}
+        fields = extraction.extracted_fields or {}
+
+        def _first_field(*keys: str) -> Optional[str]:
+            for key in keys:
+                value = fields.get(key)
+                if value:
+                    text = str(value).strip()
+                    if text:
+                        return text
+            return None
+
+        issuer_name = _first_field("emisor_nombre", "razon_social_emisor", "nombre_emisor")
+        if issuer_name:
+            metadata["issuer_name"] = issuer_name
+
+        recipient_name = _first_field("receptor_nombre", "razon_social_receptor", "nombre_receptor")
+        if recipient_name:
+            metadata["recipient_name"] = recipient_name
+
+        issue_date = _first_field("fecha_emision", "fecha_expedicion")
+        if issue_date:
+            metadata["issue_date"] = issue_date
+
+        sat_cert_date = _first_field("fecha_certificacion_sat", "fecha_timbrado")
+        if sat_cert_date:
+            metadata["sat_certification_date"] = sat_cert_date
+
+        invoice_effect = _first_field("efecto_del_comprobante", "tipo_comprobante")
+        if invoice_effect:
+            metadata["invoice_effect"] = invoice_effect
+
+        raw_text = extraction.extraction_metadata.get("raw_text") or ""
+        if raw_text:
+            raw_text = str(raw_text)
+            if "recipient_name" not in metadata:
+                match = re.search(r"Raz[oó]n\s+Social:\s*([^\n]+)", raw_text, flags=re.IGNORECASE)
+                if match:
+                    metadata.setdefault("recipient_name", match.group(1).strip())
+
+            if "fecha" in raw_text.lower():
+                issue_match = re.search(
+                    r"Fecha[^\n]*?(?:emisi[oó]n|expedici[oó]n)[^0-9]*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})",
+                    raw_text,
+                    flags=re.IGNORECASE,
+                )
+                if issue_match:
+                    metadata.setdefault("issue_date", issue_match.group(1).strip())
+
+                cert_match = re.search(
+                    r"Fecha[^\n]*?certificaci[oó]n[^0-9]*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})",
+                    raw_text,
+                    flags=re.IGNORECASE,
+                )
+                if cert_match:
+                    metadata.setdefault("sat_certification_date", cert_match.group(1).strip())
+
+            effect_match = re.search(r"\b([IEP])\s*-\s*(Ingreso|Egreso|Pago)\b", raw_text, flags=re.IGNORECASE)
+            if effect_match:
+                canonical = f"{effect_match.group(1).upper()} - {effect_match.group(2).capitalize()}"
+                metadata.setdefault("invoice_effect", canonical)
+
+            rfc_pattern = re.compile(r"RFC:\s*{}".format(re.escape(issuer)), flags=re.IGNORECASE)
+            issuer_match = rfc_pattern.search(raw_text)
+            if issuer_match and "issuer_name" not in metadata:
+                candidates = raw_text[:issuer_match.start()].split("\n")
+                for line in reversed(candidates):
+                    candidate = line.strip()
+                    if candidate:
+                        metadata["issuer_name"] = candidate
+                        break
+
+            cadena_idx = raw_text.find("CADENA ORIGINAL")
+            if cadena_idx != -1 and "pac_certifier" not in metadata:
+                segment = raw_text[cadena_idx:]
+                rfc_candidates = re.findall(r"\|([A-Z0-9&Ñ]{12,13})\|", segment)
+                issuer_upper = issuer.upper()
+                recipient_upper = recipient.upper()
+                for candidate in rfc_candidates:
+                    upper_candidate = candidate.upper()
+                    if upper_candidate not in {issuer_upper, recipient_upper}:
+                        metadata["pac_certifier"] = upper_candidate
+                        break
+
+        return {key: value for key, value in metadata.items() if value}
+
+    def _normalize_rfc_token(self, value: Optional[Any]) -> str:
+        if value is None:
+            return ""
+        text = str(value).strip().upper()
+        return re.sub(r"[^A-Z0-9&]", "", text)
+
+    def _guess_recipient_rfc(self, extraction: DocumentExtraction, issuer: Optional[Any]) -> Optional[str]:
+        metadata = getattr(extraction, "extraction_metadata", {}) or {}
+        raw_text = metadata.get("raw_text") or metadata.get("raw_text_snippet")
+        if not raw_text:
+            return None
+
+        normalized_text = self._strip_accents(str(raw_text))
+        normalized_text_upper = normalized_text.upper()
+        issuer_norm = self._normalize_rfc_token(issuer)
+
+        pattern = re.compile(r"RFC\s*[:=]?\s*([A-Z&]{3,4}[0-9]{6}[A-Z0-9]{3})", re.IGNORECASE)
+        candidates = [match.group(1) for match in pattern.finditer(normalized_text)]
+        if not candidates:
+            uppercase_text = normalized_text_upper
+            fallback_matches = re.findall(r"[A-Z&]{3,4}[0-9]{6}[A-Z0-9]{3}", uppercase_text)
+            candidates = fallback_matches
+
+        for candidate in candidates:
+            norm = self._normalize_rfc_token(candidate)
+            if not norm or norm == issuer_norm:
+                continue
+            if norm in {"XAXX010101000", "XEXX010101000"}:
+                continue
+            if norm.endswith("000") and "RFC REMITENTE DESTINATARIO" in normalized_text_upper:
+                # Complement entries suelen repetir RFC genéricos; evita priorizarlos
+                continue
+            logger.debug("RFC receptor detectado %s para %s", norm, extraction.source_document)
+            return norm
+        return None
+
+    def _coerce_decimal(self, value: Any) -> Optional[Decimal]:
+        if value is None:
+            return None
+        if isinstance(value, Decimal):
+            return value.quantize(Decimal("0.000001"))
+        if isinstance(value, (int, float)):
+            return Decimal(str(value)).quantize(Decimal("0.000001"))
+        text = str(value).strip()
+        if not text:
+            return None
+        cleaned = re.sub(r"[^\d.,-]", "", text)
+        if cleaned.count(",") == 1 and cleaned.count(".") == 0:
+            cleaned = cleaned.replace(".", "").replace(",", ".")
+        else:
+            cleaned = cleaned.replace(",", "")
+        try:
+            decimal_value = Decimal(cleaned)
+            return decimal_value.quantize(Decimal("0.000001"))
+        except (InvalidOperation, ValueError):
+            return None
+
+    def _apply_fiscal_enrichment(
+        self,
+        analysis: FraudAnalysisResult,
+        fiscal_result: FiscalValidationResult,
+    ) -> FraudAnalysisResult:
+        analysis.fiscal_validation = fiscal_result
+
+        fiscal_payload = fiscal_result.to_case_index()
+        analysis.verificaciones = analysis.verificaciones or {}
+        analysis.verificaciones["fiscal_api"] = fiscal_payload
+
+        analysis.validacion_cruzada = analysis.validacion_cruzada or {}
+        analysis.validacion_cruzada.setdefault("fiscal_api", {})
+        analysis.validacion_cruzada["fiscal_api"].update(
+            {
+                "uuid": fiscal_result.request.uuid,
+                "status": fiscal_result.status.value,
+                "status_code": fiscal_result.status_code,
+                "matches_total": fiscal_result.matches_total,
+                "is_efos": fiscal_result.is_efos(),
+                "timestamp": fiscal_result.validation_timestamp.isoformat(),
+            }
+        )
+
+        service = getattr(self, "fiscal_service", None)
+        if not service or service.stage in {"shadow", "disabled"}:
+            return analysis
+
+        patterns = service.config.fraud_patterns if service else {}
+        flags = fiscal_result.get_fraud_flags()
+
+        for flag in flags:
+            meta = patterns.get(flag, {})
+            severity = str(meta.get("severity", "alto"))
+            weight = float(meta.get("weight", 0.6))
+            description = self._describe_fiscal_flag(flag, fiscal_result)
+            indicator = FraudIndicator(
+                pattern=flag,
+                description=description,
+                severity=severity,
+                confidence=0.9,
+                evidence=f"SAT status={fiscal_result.status.value} code={fiscal_result.status_code or 'N/A'}",
+            )
+            analysis.indicators.append(indicator)
+            if flag not in {"validacion_error"}:
+                analysis.fraud_score = min(1.0, analysis.fraud_score + weight)
+
+        if flags:
+            analysis.risk_level = RiskLevel(self._derive_risk_level(analysis.fraud_score))
+
+        return analysis
+
+    def _describe_fiscal_flag(self, flag: str, result: FiscalValidationResult) -> str:
+        descriptions = {
+            "cfdi_cancelado": "CFDI reportado como cancelado ante el SAT.",
+            "uuid_no_encontrado": "SAT no reconoce el UUID proporcionado.",
+            "emisor_efos": f"RFC {result.request.issuer_rfc} aparece listado como EFOS.",
+            "totales_no_coinciden": "Total del CFDI difiere del registrado ante SAT.",
+            "sello_no_valido": "Sello digital no coincide con la verificación SAT.",
+            "validacion_error": "FiscalAPI no pudo validar el CFDI; se requiere verificación manual.",
+        }
+        return descriptions.get(flag, f"Anomalía fiscal detectada: {flag}")
 
     def _postprocess_carpeta_investigacion(
         self,
@@ -4900,6 +5306,1102 @@ class FraudAnalyzer:
         analysis.indicators = indicators
         return analysis
 
+    def _postprocess_pedimento_importacion(
+        self,
+        analysis: FraudAnalysisResult,
+        extraction: DocumentExtraction,
+        *,
+        data_layer: Optional[UnifiedDataLayer],
+        document_context: Dict[str, Any],
+        case_context: Dict[str, Any],
+        ocr_text: str,
+    ) -> FraudAnalysisResult:
+        fields = dict(extraction.extracted_fields or {})
+        metadata = dict(extraction.extraction_metadata or {})
+        resolved_fields = dict(document_context.get("resolved_fields") or {})
+        consolidated = dict(getattr(data_layer, "consolidated_fields", {}) or {})
+        case_core = {}
+        if isinstance(case_context, dict):
+            case_core = case_context.get("core_fields") or {}
+
+        pedimento_text = self._get_document_text(
+            data_layer,
+            extraction.document_type,
+            source_document=extraction.source_document,
+        ) or ocr_text or ""
+
+        missing_tokens = {"", "null", "ninguna", "none", "sin dato", "s/d", "na", "n/a"}
+
+        def _normalize_token(value: Any) -> str:
+            text = self._stringify_value(value).strip()
+            return "" if text.lower() in missing_tokens else text
+
+        def _pick(*keys: str, default: str = "") -> str:
+            for key in keys:
+                if key in fields and fields[key]:
+                    candidate = _normalize_token(fields[key])
+                    if candidate:
+                        return candidate
+                if key in resolved_fields and resolved_fields[key]:
+                    candidate = _normalize_token(resolved_fields[key])
+                    if candidate:
+                        return candidate
+                if key in metadata and metadata[key]:
+                    candidate = _normalize_token(metadata[key])
+                    if candidate:
+                        return candidate
+                if key in consolidated and consolidated[key]:
+                    candidate = _normalize_token(consolidated[key])
+                    if candidate:
+                        return candidate
+            return default
+
+        def _format_pedimento_display(value: Optional[str]) -> str:
+            if not value:
+                return ""
+            text = str(value).strip()
+            digits = re.sub(r"\D+", "", text)
+            if len(digits) >= 15:
+                base = f"{digits[:2]} {digits[2:4]} {digits[4:8]} {digits[8:15]}"
+                remainder = digits[15:]
+                if remainder:
+                    base = f"{base} {remainder}"
+                return base.strip()
+            return text
+
+        pedimento_raw = _pick("numero_pedimento", "folio", "numero_documento", default="")
+        pedimento_digits = re.sub(r"\D+", "", pedimento_raw or "")
+        pedimento_display = _format_pedimento_display(pedimento_raw)
+        if not pedimento_display:
+            pedimento_display = pedimento_raw.strip() or "sin número identificado"
+
+        importador_raw = _pick(
+            "importador",
+            "razon_social_importador",
+            "importador_nombre",
+            "empresa_importadora",
+            default="",
+        )
+        importador_value = self._format_entity_name(importador_raw)
+        importador_display = importador_value or "no identificado"
+
+        goods_candidates: List[str] = []
+        for key in ("descripcion_mercancias", "descripcion_mercancia", "mercancias"):
+            value = fields.get(key) or resolved_fields.get(key) or metadata.get(key)
+            for entry in self._ensure_list(value):
+                text = ""
+                if isinstance(entry, dict):
+                    descripcion = (
+                        entry.get("descripcion")
+                        or entry.get("descripcion_mercancia")
+                        or entry.get("detalle")
+                        or entry.get("mercancia")
+                    )
+                    cantidad = entry.get("cantidad") or entry.get("cantidad_total")
+                    unidad = entry.get("unidad") or entry.get("unidad_medida")
+                    peso = entry.get("peso") or entry.get("peso_neto")
+                    parts: List[str] = []
+                    if descripcion:
+                        parts.append(self._stringify_value(descripcion))
+                    if cantidad:
+                        cantidad_text = self._stringify_value(cantidad)
+                        if unidad:
+                            cantidad_text = f"{cantidad_text} {self._stringify_value(unidad)}"
+                        parts.append(cantidad_text)
+                    if peso:
+                        parts.append(f"peso {self._stringify_value(peso)}")
+                    text = ", ".join(part for part in parts if part)
+                else:
+                    text = _normalize_token(entry)
+                if not isinstance(entry, dict):
+                    text = text
+                else:
+                    text = _normalize_token(text)
+                if text:
+                    goods_candidates.append(text)
+        if not goods_candidates:
+            fallback_goods = self._extract_pedimento_goods_lines(pedimento_text)
+            if fallback_goods:
+                goods_candidates.extend(fallback_goods)
+        if not goods_candidates:
+            fallback_goods = _pick("mercancia", "descripcion_producto", default="")
+            if fallback_goods:
+                goods_candidates.append(fallback_goods)
+        mercancia_value = goods_candidates[0] if goods_candidates else ""
+
+        def _sanitize_goods_label(value: Optional[str]) -> str:
+            text = self._stringify_value(value).strip()
+            if not text:
+                return "mercancía no identificada"
+            text = text.rstrip(" ,")
+            if text.endswith("("):
+                text = text[:-1].strip()
+            if "(" in text and ")" not in text:
+                text = f"{text})"
+            return text
+
+        mercancia_value = _sanitize_goods_label(mercancia_value)
+        mercancia_display = mercancia_value
+        mercancia_known = mercancia_value.lower() != "mercancía no identificada"
+
+        fecha_entrada_raw = _pick("fecha_entrada", "fecha_pago", "fecha_emision", default="")
+        fecha_entrada_dt = self._parse_iso_date(fecha_entrada_raw)
+        fecha_entrada_display = (
+            self._format_date_long(fecha_entrada_dt) if fecha_entrada_dt else (fecha_entrada_raw or "fecha no identificada")
+        )
+
+        def _limit_entries(items: Iterable[str], *, limit: int = 3, max_len: int = 120) -> List[str]:
+            cleaned: List[str] = []
+            seen: Set[str] = set()
+            for item in items:
+                raw = self._stringify_value(item).strip()
+                if not raw or raw in seen:
+                    continue
+                seen.add(raw)
+                display = raw
+                if len(display) > max_len:
+                    display = display[:max_len].rstrip(" ,.;") + "..."
+                cleaned.append(display)
+            if len(cleaned) <= limit:
+                return cleaned
+            return cleaned[:limit] + [f"... (+{len(cleaned) - limit} más)"]
+
+        indicators: List[FraudIndicator] = []
+        recommendations: List[str] = []
+        verificaciones: Dict[str, Dict[str, Any]] = {}
+        validacion_cruzada: Dict[str, Dict[str, Any]] = {}
+
+        insured_core_entry = case_core.get("nombre_asegurado")
+        insured_core_value = ""
+        if isinstance(insured_core_entry, dict):
+            insured_core_value = insured_core_entry.get("value") or ""
+        insured_name_context = ""
+        if isinstance(case_context, dict):
+            insured_name_context = case_context.get("insured_name") or ""
+        insured_principal_value = (
+            consolidated.get("nombre_asegurado")
+            or insured_core_value
+            or insured_name_context
+        )
+        insured_principal = self._format_entity_name(insured_principal_value or "")
+
+        # ------------------------------------------------------------------
+        # Importador vs póliza
+        # ------------------------------------------------------------------
+        poliza_text = self._get_document_text(data_layer, "poliza_de_la_aseguradora") or ""
+        adicionales = self._extract_additional_insured(poliza_text)
+        poliza_candidates = [name for name in [insured_principal] if name] + adicionales
+        poliza_result = "desconocido"
+        poliza_detail = "Sin información suficiente para determinar coincidencia."
+        poliza_coincidencia = "pendiente"
+        poliza_observaciones = poliza_detail
+        poliza_match = ""
+        if importador_value and poliza_candidates:
+            matched = None
+            for candidate in poliza_candidates:
+                if self._company_names_match(importador_value, candidate):
+                    matched = candidate
+                    break
+            if matched:
+                poliza_result = "coincide"
+                poliza_coincidencia = "coincide"
+                match_display = _limit_entries([matched], limit=1)[0]
+                poliza_detail = f"Coincide con {match_display} registrado en póliza."
+                poliza_observaciones = poliza_detail
+                poliza_match = match_display
+            else:
+                poliza_result = "discrepancia"
+                poliza_coincidencia = "no_coincide"
+                poliza_detail = "El importador no figura entre los asegurados o adicionales."
+                poliza_observaciones = poliza_detail
+                indicators.append(
+                    FraudIndicator(
+                        pattern="importador_no_coincide",
+                        description="El importador declarado en el pedimento no coincide con las razones sociales registradas en la póliza.",
+                        severity="alto",
+                        confidence=0.8,
+                    )
+                )
+        elif importador_value and not poliza_candidates:
+            poliza_result = "desconocido"
+            poliza_detail = "La póliza cargada no contiene asegurado ni adicionales para cotejar."
+            poliza_observaciones = poliza_detail
+            recommendations.append(
+                "Solicitar a la aseguradora el endoso o póliza donde conste la razón social importadora para validar el pedimento."
+            )
+        elif not importador_value:
+            poliza_result = "desconocido"
+            poliza_detail = "El pedimento no especifica la razón social del importador."
+            poliza_observaciones = poliza_detail
+
+        verificaciones["importador_vs_poliza"] = {
+            "resultado": poliza_result,
+            "importador": importador_value or "",
+            "contraparte": poliza_match or insured_principal or "",
+            "detalle": poliza_detail,
+        }
+        validacion_cruzada["poliza"] = {
+            "asegurado_principal": insured_principal or "",
+            "asegurados_adicionales": _limit_entries(adicionales),
+            "coincidencia": poliza_coincidencia,
+            "observaciones": poliza_observaciones,
+        }
+
+        # ------------------------------------------------------------------
+        # Importador vs denuncia/carpeta
+        # ------------------------------------------------------------------
+        carpeta_text = self._get_document_text(data_layer, "carpeta_de_investigacion") or ""
+        denuncia_text = self._get_document_text(data_layer, "denuncia_de_los_hechos") or ""
+
+        def _extract_companies_from_text(*texts: str) -> List[str]:
+            results: List[str] = []
+            patterns = [
+                r"([A-ZÁÉÍÓÚÑ0-9&.,' ]+S\.?\s*A\.?\s*DE\s*C\.?\s*V\.?)",
+                r"([A-ZÁÉÍÓÚÑ0-9&.,' ]+S\.?\s*DE\s*R\.?\s*L\.?)",
+                r"([A-ZÁÉÍÓÚÑ0-9&.,' ]+SOCIEDAD\s+ANONIMA[^,\n]*)",
+            ]
+            for text in texts:
+                if not text:
+                    continue
+                for pattern in patterns:
+                    for match in re.findall(pattern, text, re.IGNORECASE):
+                        formatted = self._format_entity_name(match)
+                        if formatted and formatted not in results:
+                            results.append(formatted)
+            return results
+
+        denuncia_candidates = []
+        if insured_principal:
+            denuncia_candidates.append(insured_principal)
+        denuncia_candidates.extend(_extract_companies_from_text(carpeta_text, denuncia_text))
+        denuncia_candidates = list(dict.fromkeys([name for name in denuncia_candidates if name]))
+
+        denuncia_result = "desconocido"
+        denuncia_detail = "Sin razón social documentada en carpeta."
+        denuncia_coincidencia = "pendiente"
+        if importador_value and denuncia_candidates:
+            matched_denuncia = None
+            for candidate in denuncia_candidates:
+                if self._company_names_match(importador_value, candidate):
+                    matched_denuncia = candidate
+                    break
+            if matched_denuncia:
+                denuncia_result = "coincide"
+                denuncia_coincidencia = "coincide"
+                match_display = _limit_entries([matched_denuncia], limit=1)[0]
+                denuncia_detail = f"Coincide con {match_display} en denuncia/carpeta."
+            else:
+                denuncia_result = "discrepancia"
+                denuncia_coincidencia = "no_coincide"
+                denuncia_detail = "El importador difiere de la razón social denunciada."
+                indicators.append(
+                    FraudIndicator(
+                        pattern="importador_denuncia_no_coincide",
+                        description="El importador del pedimento no coincide con la razón social que presenta la denuncia en carpeta.",
+                        severity="alto",
+                        confidence=0.75,
+                    )
+                )
+        elif importador_value and not denuncia_candidates:
+            denuncia_result = "desconocido"
+            denuncia_detail = "La carpeta de investigación no detalla la razón social denunciante."
+            recommendations.append(
+                "Solicitar la denuncia ratificada o el acta ministerial donde conste la razón social denunciante para cotejarla con el pedimento."
+            )
+        elif not importador_value:
+            denuncia_result = "desconocido"
+            denuncia_detail = "El pedimento no detalla el importador, por lo que no se puede comparar con la denuncia."
+
+        verificaciones["importador_vs_denuncia"] = {
+            "resultado": denuncia_result,
+            "importador": importador_value or "",
+            "referencias": _limit_entries(denuncia_candidates),
+            "detalle": denuncia_detail,
+        }
+
+        carpeta_cross = {
+            "empresa_referencias": _limit_entries(denuncia_candidates),
+            "coincidencia_importador": denuncia_coincidencia,
+            "observaciones": denuncia_detail,
+        }
+        validacion_cruzada["denuncia"] = {
+            "razones_sociales": _limit_entries(denuncia_candidates),
+            "coincidencia": denuncia_coincidencia,
+            "observaciones": denuncia_detail,
+        }
+
+        # ------------------------------------------------------------------
+        # Mercancía vs documentos asociados
+        # ------------------------------------------------------------------
+        comparables: List[Tuple[str, str]] = []
+        carpeta_ext = self._find_extraction_by_type(data_layer, "carpeta_de_investigacion") if data_layer else None
+        carta_simple_ext = self._find_extraction_by_type(data_layer, "carta_porte_simple") if data_layer else None
+        cfdi_ext = self._find_extraction_by_type(data_layer, "cfdi_carta_porte") if data_layer else None
+        carta_transportista_ext = (
+            self._find_extraction_by_type(data_layer, "carta_de_reclamacion_formal_al_transportista") if data_layer else None
+        )
+
+        if carpeta_ext:
+            for denuncia_entry in self._ensure_list(carpeta_ext.extracted_fields.get("denuncias")):
+                if not isinstance(denuncia_entry, dict):
+                    continue
+                for item in self._ensure_list(denuncia_entry.get("mercancias")):
+                    text = self._stringify_value(item).strip()
+                    if text:
+                        comparables.append(("carpeta_de_investigacion", text))
+            resumen = self._stringify_value(carpeta_ext.extracted_fields.get("resumen_conjunto"))
+            if resumen:
+                comparables.append(("carpeta_de_investigacion", resumen))
+
+        if carta_simple_ext:
+            carta_simple_goods = (
+                carta_simple_ext.extracted_fields.get("descripcion_mercancia")
+                or carta_simple_ext.extracted_fields.get("detalle_mercancia")
+            )
+            text = self._stringify_value(carta_simple_goods).strip()
+            if text:
+                comparables.append(("carta_porte_simple", text))
+
+        if cfdi_ext:
+            cfdi_goods = (
+                cfdi_ext.extracted_fields.get("descripcion_mercancias")
+                or cfdi_ext.extracted_fields.get("mercancias")
+                or cfdi_ext.extracted_fields.get("mercancia_detalle")
+            )
+            text = self._stringify_value(cfdi_goods).strip()
+            if text:
+                comparables.append(("cfdi_carta_porte", text))
+
+        if carta_transportista_ext:
+            carta_detalle = (
+                carta_transportista_ext.extracted_fields.get("detalle_mercancia")
+                or carta_transportista_ext.extracted_fields.get("descripcion_evento")
+            )
+            text = self._stringify_value(carta_detalle).strip()
+            if text:
+                comparables.append(("carta_reclamacion_transportista", text))
+
+        mercancias_coinciden = False
+        referencias_mercancia: List[str] = []
+        if mercancia_value and comparables:
+            for source, comparable_text in comparables:
+                if comparable_text and self._goods_match(mercancia_value, comparable_text):
+                    mercancias_coinciden = True
+                    referencias_mercancia.append(source)
+        referencias_mercancia = sorted(set(referencias_mercancia))
+
+        if mercancia_known and comparables and not mercancias_coinciden:
+            verificaciones["mercancia_vs_documentos"] = {
+                "resultado": "discrepancia",
+                "mercancia_pedimento": mercancia_display,
+                "referencias": _limit_entries(text for _, text in comparables),
+                "detalle": "La mercancía declarada no coincide con los documentos revisados.",
+            }
+            indicators.append(
+                FraudIndicator(
+                    pattern="mercancia_no_coincide",
+                    description="La mercancía del pedimento no coincide con la registrada en carpeta o cartas porte.",
+                    severity="medio",
+                    confidence=0.7,
+                )
+            )
+        elif mercancia_known and mercancias_coinciden:
+            verificaciones["mercancia_vs_documentos"] = {
+                "resultado": "coincide",
+                "mercancia_pedimento": mercancia_display,
+                "referencias": _limit_entries(referencias_mercancia),
+                "detalle": "La mercancía coincide con la documentación logística.",
+            }
+        elif mercancia_known and not comparables:
+            verificaciones["mercancia_vs_documentos"] = {
+                "resultado": "desconocido",
+                "mercancia_pedimento": mercancia_display,
+                "referencias": [],
+                "detalle": "No se localizaron documentos con detalle de mercancía para comparar con el pedimento.",
+            }
+            recommendations.append(
+                "Solicitar carta porte y soportes de carga digitalizados para cotejar la mercancía del pedimento."
+            )
+        else:
+            verificaciones["mercancia_vs_documentos"] = {
+                "resultado": "desconocido",
+                "mercancia_pedimento": "",
+                "referencias": [],
+                "detalle": "El pedimento no detalla la mercancía importada para realizar comparativos.",
+            }
+
+        if not mercancia_value and comparables:
+            mercancia_display = _sanitize_goods_label(self._shorten_goods_reference(comparables[0][1]))
+        else:
+            mercancia_display = _sanitize_goods_label(mercancia_value)
+
+        # ------------------------------------------------------------------
+        # Fecha vs carpeta de investigación
+        # ------------------------------------------------------------------
+        carpeta_date_candidates: List[Tuple[date, str]] = []
+        if carpeta_ext:
+            for key in ("fecha_inicio_viaje", "fecha_evento", "fecha_salida"):
+                dt_value = self._parse_iso_date(carpeta_ext.extracted_fields.get(key))
+                if dt_value:
+                    carpeta_date_candidates.append((dt_value, key))
+            for denuncia_entry in self._ensure_list(carpeta_ext.extracted_fields.get("denuncias")):
+                if not isinstance(denuncia_entry, dict):
+                    continue
+                for key in ("fecha_inicio", "fecha_siniestro", "fecha_evento"):
+                    dt_value = self._parse_iso_date(denuncia_entry.get(key))
+                    if dt_value:
+                        carpeta_date_candidates.append((dt_value, f"denuncia_{key}"))
+                        break
+        carpeta_fecha_dt: Optional[date] = None
+        if carpeta_date_candidates:
+            carpeta_fecha_dt = min(carpeta_date_candidates, key=lambda item: item[0])[0]
+
+        fecha_vs_carpeta_result = "desconocido"
+        fecha_vs_carpeta_detalle = "Sin datos suficientes para comparar fechas."
+        if fecha_entrada_dt and carpeta_fecha_dt:
+            delta = (carpeta_fecha_dt - fecha_entrada_dt).days
+            carpeta_fecha_text = self._format_date_long(carpeta_fecha_dt)
+            if delta > 0:
+                fecha_vs_carpeta_result = "coincide"
+                fecha_vs_carpeta_detalle = f"La fecha del pedimento es {delta} día(s) anterior al inicio del viaje."
+            elif delta == 0:
+                fecha_vs_carpeta_result = "coincide"
+                fecha_vs_carpeta_detalle = "La fecha del pedimento coincide con el inicio documentado del viaje."
+            else:
+                fecha_vs_carpeta_result = "discrepancia"
+                fecha_vs_carpeta_detalle = "La fecha del pedimento es posterior al inicio del viaje descrito en carpeta."
+                indicators.append(
+                    FraudIndicator(
+                        pattern="fecha_entrada_posterior",
+                        description="La fecha de entrada del pedimento es posterior al inicio del viaje declarado en carpeta.",
+                        severity="medio",
+                        confidence=0.7,
+                    )
+                )
+        elif fecha_entrada_dt and not carpeta_fecha_dt:
+            fecha_vs_carpeta_result = "desconocido"
+            fecha_vs_carpeta_detalle = "La carpeta no precisa la fecha de inicio del viaje para comparar."
+            recommendations.append(
+                "Solicitar la constancia ministerial o acta de hechos con la fecha de inicio del viaje para validar la temporalidad del pedimento."
+            )
+        elif not fecha_entrada_dt and carpeta_fecha_dt:
+            fecha_vs_carpeta_result = "desconocido"
+            fecha_vs_carpeta_detalle = "El pedimento no consigna fecha de entrada para comparar."
+
+        verificaciones["fecha_vs_carpeta"] = {
+            "resultado": fecha_vs_carpeta_result,
+            "fecha_pedimento": fecha_entrada_display,
+            "fecha_carpeta": self._format_date_long(carpeta_fecha_dt) if carpeta_fecha_dt else "",
+            "detalle": fecha_vs_carpeta_detalle,
+        }
+        carpeta_cross["fecha_inicio_viaje"] = self._format_date_slash(carpeta_fecha_dt) if carpeta_fecha_dt else ""
+        carpeta_cross["observaciones_fecha"] = fecha_vs_carpeta_detalle
+
+        # ------------------------------------------------------------------
+        # Fecha vs monitoreo GPS
+        # ------------------------------------------------------------------
+        gps_points = self._collect_gps_points(data_layer, limit=5000) if data_layer else []
+        gps_docs = sorted((getattr(data_layer, "gps_documents", {}) or {}).keys()) if data_layer else []
+        gps_dates: List[date] = []
+        for point in gps_points:
+            ts = point.get("timestamp")
+            if isinstance(ts, datetime):
+                gps_dates.append(ts.date())
+        gps_fecha_inicio = min(gps_dates) if gps_dates else None
+
+        fecha_vs_gps_result = "desconocido"
+        fecha_vs_gps_detalle = "Sin datos GPS para cotejar."
+        if fecha_entrada_dt and gps_fecha_inicio:
+            delta = (gps_fecha_inicio - fecha_entrada_dt).days
+            gps_fecha_text = self._format_date_long(gps_fecha_inicio)
+            if delta > 0:
+                fecha_vs_gps_result = "coincide"
+                fecha_vs_gps_detalle = f"La fecha del pedimento es {delta} día(s) anterior al arranque del monitoreo GPS."
+            elif delta == 0:
+                fecha_vs_gps_result = "coincide"
+                fecha_vs_gps_detalle = "La fecha del pedimento coincide con el inicio del monitoreo GPS."
+            else:
+                fecha_vs_gps_result = "discrepancia"
+                fecha_vs_gps_detalle = "La fecha del pedimento es posterior al arranque del monitoreo GPS."
+                indicators.append(
+                    FraudIndicator(
+                        pattern="fecha_gps_inconsistente",
+                        description="El pedimento se emitió después de la fecha de arranque registrada en GPS.",
+                        severity="medio",
+                        confidence=0.65,
+                    )
+                )
+        elif fecha_entrada_dt and not gps_fecha_inicio and gps_docs:
+            fecha_vs_gps_result = "desconocido"
+            fecha_vs_gps_detalle = "Los datasets GPS cargados no contienen fecha de arranque para comparar."
+        elif fecha_entrada_dt and not gps_docs:
+            fecha_vs_gps_result = "desconocido"
+            fecha_vs_gps_detalle = "No se encontraron datasets GPS vinculados al caso."
+            recommendations.append(
+                "Solicitar al área de monitoreo el reporte GPS del viaje para cotejar la temporalidad del pedimento."
+            )
+        elif not fecha_entrada_dt and gps_fecha_inicio:
+            fecha_vs_gps_result = "desconocido"
+            fecha_vs_gps_detalle = "El pedimento no señala fecha de entrada para compararla con el monitoreo GPS."
+
+        verificaciones["fecha_vs_gps"] = {
+            "resultado": fecha_vs_gps_result,
+            "fecha_pedimento": fecha_entrada_display,
+            "fecha_inicio_gps": self._format_date_long(gps_fecha_inicio) if gps_fecha_inicio else "",
+            "documentos_gps": gps_docs,
+            "detalle": fecha_vs_gps_detalle,
+        }
+        validacion_cruzada["gps"] = {
+            "documentos_consultados": gps_docs,
+            "fecha_inicio_dataset": self._format_date_slash(gps_fecha_inicio) if gps_fecha_inicio else "",
+            "observaciones": fecha_vs_gps_detalle,
+        }
+
+        validacion_cruzada["carpeta_investigacion"] = carpeta_cross
+        if pedimento_digits:
+            validacion_cruzada["pedimento"] = {
+                "numero_normalizado": pedimento_digits,
+                "observaciones": "Número de pedimento analizado para correlaciones.",
+            }
+
+        permanent_recommendation = (
+            "Validar el pedimento directamente en el portal del SAT y conservar la evidencia de la consulta, "
+            "ya que todavía no contamos con una verificación automática vía API."
+        )
+        if permanent_recommendation not in recommendations:
+            recommendations.append(permanent_recommendation)
+
+        analysis.analisis_completo = (
+            f"Se cuenta con pedimento {pedimento_display}, donde se aprecia al importador {importador_display}, "
+            f"se observa el contenido de mercancía, consistente en {mercancia_display}, fecha de entrada {fecha_entrada_display}."
+        ).replace("  ", " ").strip()
+
+        cleaned_recs = sorted({rec.strip() for rec in recommendations if rec.strip()})
+        analysis.recommendations = cleaned_recs
+
+        if indicators:
+            severities = {"bajo": 1, "medio": 2, "alto": 3, "critico": 4}
+            top_indicator = max(indicators, key=lambda item: severities.get(item.severity, 2))
+            if top_indicator.severity == "critico":
+                analysis.fraud_score = max(analysis.fraud_score, 0.88)
+            elif top_indicator.severity == "alto":
+                analysis.fraud_score = max(analysis.fraud_score, 0.72)
+            elif top_indicator.severity == "medio":
+                analysis.fraud_score = max(analysis.fraud_score, 0.48)
+            analysis.risk_level = RiskLevel(self._derive_risk_level(analysis.fraud_score))
+            analysis.confidence = max(analysis.confidence, 0.78)
+        else:
+            analysis.fraud_score = max(analysis.fraud_score, 0.26)
+            analysis.risk_level = RiskLevel.BAJO
+            analysis.confidence = max(analysis.confidence, 0.85)
+
+        analysis.indicators = indicators
+        analysis.verificaciones = verificaciones
+        analysis.validacion_cruzada = validacion_cruzada
+        return analysis
+
+    def _postprocess_conocimiento_embarque(
+        self,
+        analysis: FraudAnalysisResult,
+        extraction: DocumentExtraction,
+        *,
+        data_layer: Optional[UnifiedDataLayer],
+        document_context: Dict[str, Any],
+        case_context: Dict[str, Any],
+        ocr_text: str,
+    ) -> FraudAnalysisResult:
+        fields = dict(extraction.extracted_fields or {})
+        metadata = dict(extraction.extraction_metadata or {})
+        resolved_fields = dict(document_context.get("resolved_fields") or {})
+
+        def _pick(*keys: str, default: str = "") -> str:
+            for key in keys:
+                if key in fields and fields[key]:
+                    return self._stringify_value(fields[key])
+                if key in resolved_fields and resolved_fields[key]:
+                    return self._stringify_value(resolved_fields[key])
+                if key in metadata and metadata[key]:
+                    return self._stringify_value(metadata[key])
+            return default
+
+        emisor_raw = _pick(
+            "emisor_documento",
+            "empresa_emitente",
+            "agente_aduanal",
+            "nombre_transportista",
+            "transportista",
+            default=case_context.get("insured_name", ""),
+        )
+        emisor = self._format_entity_name(emisor_raw or "el emisor del conocimiento de embarque")
+        if not emisor:
+            emisor = "el emisor del conocimiento de embarque"
+
+        fecha_raw = _pick("fecha_salida", "fecha_documento", "fecha_emision", "fecha")
+        fecha_dt = self._parse_iso_date(fecha_raw)
+        fecha_fmt_long = self._format_date_long(fecha_dt) if fecha_dt else (fecha_raw or "fecha no identificada")
+
+        analysis.analisis_completo = (
+            f"Se cuenta con comprobante emitido por {emisor}, fechado el {fecha_fmt_long}. "
+            "El documento detalla la información del transportista, los datos de las unidades que trasladaban la mercancía, "
+            "los operadores asignados a cada una, y el contenido y peso de cada cargamento."
+        )
+
+        indicators: List[FraudIndicator] = []
+        recommendations: List[str] = []
+        verificaciones: Dict[str, Dict[str, Any]] = {}
+
+        def _normalize_digits(value: Optional[str]) -> str:
+            return re.sub(r"\D+", "", value or "")
+
+        def _collect_plates() -> Tuple[List[str], List[str], Dict[str, str]]:
+            plates_display: List[str] = []
+            plates_norm: List[str] = []
+            plates_map: Dict[str, str] = {}
+            plate_candidates: List[Any] = []
+            for key in (
+                "placas_unidad",
+                "placas",
+                "placas_remolque",
+                "placas_semirremolques",
+                "semirremolques",
+                "remolques",
+                "identificacion_unidad",
+            ):
+                value = fields.get(key) or resolved_fields.get(key)
+                if value:
+                    plate_candidates.extend(self._ensure_list(value))
+            for candidate in plate_candidates:
+                token = ""
+                if isinstance(candidate, dict):
+                    token = (
+                        candidate.get("placa")
+                        or candidate.get("placas")
+                        or candidate.get("identificador")
+                        or candidate.get("numero")
+                        or ""
+                    )
+                else:
+                    token = self._stringify_value(candidate)
+                token = token.strip()
+                if not token:
+                    continue
+                fragments = re.split(r"[,\n;/]+", token) if re.search(r"[,\n;/]", token) else [token]
+                for fragment in fragments:
+                    plate_token = fragment.strip()
+                    if not plate_token:
+                        continue
+                    norm = self._normalize_plate(plate_token)
+                    if not norm:
+                        continue
+                    if norm not in plates_norm:
+                        plates_norm.append(norm)
+                        plates_display.append(plate_token)
+                        plates_map[norm] = plate_token
+            return plates_display, plates_norm, plates_map
+
+        plates_display, plates_norm, plates_map = _collect_plates()
+        placas_label = ", ".join(plates_display) if plates_display else "placas no registradas"
+
+        descripcion_mercancia = _pick("descripcion_mercancia", "contenido", "detalle_mercancia", default="")
+        cantidad_mercancia = _pick("cantidad_mercancia", "cantidad", default="")
+        peso_mercancia = _pick("peso", "peso_total", "peso_kg", default="")
+        resumen_conocimiento = descripcion_mercancia
+        if cantidad_mercancia:
+            resumen_conocimiento = f"{cantidad_mercancia} de {descripcion_mercancia or 'mercancía declarada'}".strip()
+        if peso_mercancia:
+            if resumen_conocimiento:
+                resumen_conocimiento = f"{resumen_conocimiento} ({peso_mercancia})"
+            else:
+                resumen_conocimiento = peso_mercancia
+
+        # ------------------------------------------------------------------
+        # Fechas entre conocimientos
+        # ------------------------------------------------------------------
+        fechas_detectadas: List[str] = []
+        base_iso = fecha_dt.isoformat() if fecha_dt else (_normalize_digits(fecha_raw) or "")
+        if base_iso:
+            fechas_detectadas.append(f"{fecha_raw or base_iso} ({extraction.source_document})")
+
+        comparison_isos: List[str] = [base_iso] if base_iso else []
+        if data_layer:
+            for other_name, other_ext in self._iter_document_sources(data_layer, "conocimiento_de_embarque"):
+                if other_name == extraction.source_document:
+                    continue
+                if other_ext is None:
+                    continue
+                other_fields = dict(other_ext.extracted_fields or {})
+                other_date_raw = self._stringify_value(
+                    other_fields.get("fecha_salida")
+                    or other_fields.get("fecha_documento")
+                    or other_fields.get("fecha_emision")
+                )
+                other_date_dt = self._parse_iso_date(other_date_raw)
+                iso_value = other_date_dt.isoformat() if other_date_dt else _normalize_digits(other_date_raw)
+                if iso_value:
+                    comparison_isos.append(iso_value)
+                    fechas_detectadas.append(f"{other_date_raw or iso_value} ({other_ext.source_document})")
+
+        fechas_result = "desconocido"
+        fechas_detalle = "No existen otros conocimientos de embarque en el expediente para comparar."
+        if len(comparison_isos) > 1:
+            unique_dates = {item for item in comparison_isos if item}
+            if len(unique_dates) == 1:
+                fechas_result = "coincide"
+                fechas_detalle = "Las fechas de los conocimientos de embarque coinciden."
+            else:
+                fechas_result = "discrepancia"
+                fechas_detalle = "Se detectan fechas distintas entre conocimientos de embarque."
+                indicators.append(
+                    FraudIndicator(
+                        pattern="fechas_conocimientos_divergen",
+                        description="Las fechas de expedición entre conocimientos de embarque difieren.",
+                        severity="medio",
+                        confidence=0.75,
+                    )
+                )
+        verificaciones["fechas_entre_conocimientos"] = {
+            "resultado": fechas_result,
+            "fecha_documento": fecha_raw,
+            "fechas_detectadas": fechas_detectadas,
+            "detalle": fechas_detalle,
+        }
+
+        # ------------------------------------------------------------------
+        # Pedimento vs pedimento de importación
+        # ------------------------------------------------------------------
+        pedimento_doc = self._find_extraction_by_type(data_layer, "pedimento_importacion") if data_layer else None
+        conocimiento_ped = _pick("numero_pedimento", "pedimento", "pedimento_numero", default="")
+        pedimento_ref = ""
+        if pedimento_doc:
+            pedimento_ref = self._stringify_value(
+                pedimento_doc.extracted_fields.get("numero_pedimento")
+                or pedimento_doc.extracted_fields.get("folio")
+                or pedimento_doc.extracted_fields.get("numero_documento")
+            )
+
+        ped_result = "desconocido"
+        ped_detalle = "Sin información suficiente para cotejar el pedimento."
+        ped_resumen = ""
+        ped_coincidencia = "pendiente"
+
+        conocimiento_digits = _normalize_digits(conocimiento_ped)
+        pedimento_digits = _normalize_digits(pedimento_ref)
+        if conocimiento_digits and pedimento_digits:
+            if conocimiento_digits == pedimento_digits:
+                ped_result = "coincide"
+                ped_coincidencia = "coincide"
+                ped_resumen = "Coinciden todos los dígitos del pedimento."
+                ped_detalle = "El número de pedimento del conocimiento coincide plenamente con el pedimento de importación."
+            elif conocimiento_digits and conocimiento_digits in pedimento_digits:
+                ped_result = "parcial"
+                ped_coincidencia = "parcial"
+                ped_resumen = f"Coinciden {len(conocimiento_digits)} dígitos consecutivos ({conocimiento_digits})."
+                ped_detalle = "El conocimiento cita una porción del pedimento; se recomienda confirmar los dígitos restantes."
+            else:
+                ped_result = "discrepancia"
+                ped_coincidencia = "no_coincide"
+                ped_resumen = "No coinciden los dígitos del pedimento."
+                ped_detalle = "El número de pedimento citado en el conocimiento difiere del pedimento de importación."
+                indicators.append(
+                    FraudIndicator(
+                        pattern="pedimento_no_coincide",
+                        description="El número de pedimento del conocimiento de embarque difiere del pedimento de importación.",
+                        severity="alto",
+                        confidence=0.75,
+                    )
+                )
+        elif conocimiento_digits and not pedimento_digits:
+            ped_detalle = "El pedimento de importación no está disponible para cotejar."
+            ped_result = "desconocido"
+            ped_coincidencia = "pendiente"
+            recommendations.append(
+                "Solicitar copia íntegra del pedimento de importación para validar el número citado en el conocimiento de embarque."
+            )
+        elif not conocimiento_digits and pedimento_digits:
+            ped_detalle = "El conocimiento de embarque no cita pedimento para comparar."
+            ped_result = "desconocido"
+            ped_coincidencia = "pendiente"
+            recommendations.append(
+                "Solicitar al transportista o agente aduanal que el conocimiento de embarque incluya el número de pedimento completo."
+            )
+
+        verificaciones["pedimento_vs_pedimento"] = {
+            "resultado": ped_result,
+            "pedimento_conocimiento": conocimiento_ped,
+            "pedimento_referencia": pedimento_ref,
+            "coincidencia_digitos": ped_resumen,
+            "detalle": ped_detalle,
+        }
+
+        # ------------------------------------------------------------------
+        # Operador vs denuncias
+        # ------------------------------------------------------------------
+        denuncias_summary = self._collect_denuncia_summary(data_layer)
+        operador = self._format_entity_name(
+            _pick("operador_nombre", "nombre_operador", "operador", "operador_asignado", default="")
+        )
+        operador_result = "desconocido"
+        operador_detalle = "No se localizaron denuncias para cotejar el operador."
+        operador_referencia = ""
+        coincidencias_operador = "pendiente"
+        placas_carpeta: List[str] = []
+        placas_coincidentes: List[str] = []
+
+        operator_entry = None
+        operador_tokens = self._person_name_token_list(operador)
+        operador_norm = self._normalize_person_name(operador)
+        if operador_norm:
+            for entry in denuncias_summary:
+                if entry.get("nombre_norm") == operador_norm:
+                    operator_entry = entry
+                    break
+        if operator_entry is None and operador_tokens:
+            for entry in denuncias_summary:
+                entry_tokens_list = entry.get("tokens") or self._person_name_token_list(entry.get("nombre"))
+                if self._person_names_match_loose(operador_tokens, entry_tokens_list):
+                    operator_entry = entry
+                    break
+
+        for entry in denuncias_summary:
+            for plate in entry.get("placas_display") or []:
+                if plate not in placas_carpeta:
+                    placas_carpeta.append(plate)
+
+        carpeta_norm_map: Dict[str, str] = {}
+        for plate in placas_carpeta:
+            variants = self._plate_variants(plate)
+            if not variants:
+                norm_plate = self._normalize_plate(plate)
+                if norm_plate and norm_plate not in carpeta_norm_map:
+                    carpeta_norm_map[norm_plate] = plate
+                continue
+            for variant in variants:
+                if variant and variant not in carpeta_norm_map:
+                    carpeta_norm_map[variant] = plate
+
+        if operator_entry:
+            operador_referencia = operator_entry.get("nombre") or ""
+            coincidencias_operador = "coincide"
+            denuncia_plates = operator_entry.get("placas_norm") or []
+            for norm in plates_norm:
+                if norm in denuncia_plates:
+                    display_value = plates_map.get(norm, norm)
+                    if display_value not in placas_coincidentes:
+                        placas_coincidentes.append(display_value)
+            if placas_coincidentes or not plates_norm:
+                operador_result = "coincide"
+                operador_detalle = "El operador coincide con la denuncia y las placas corresponden al expediente."
+            elif plates_norm and not placas_coincidentes and denuncia_plates:
+                operador_result = "discrepancia"
+                coincidencias_operador = "no_coincide"
+                operador_detalle = "El operador coincide pero las placas difieren respecto a la denuncia."
+                indicators.append(
+                    FraudIndicator(
+                        pattern="operador_placas_inconsistentes",
+                        description="El operador coincide con la denuncia, pero las placas declaradas difieren de las registradas.",
+                        severity="alto",
+                        confidence=0.8,
+                    )
+                )
+            else:
+                operador_result = "desconocido"
+                operador_detalle = "El operador coincide, pero la denuncia no detalla placas para validar."
+                recommendations.append(
+                    "Solicitar ampliación de denuncia o carpeta que documente las placas asignadas al operador."
+                )
+        elif operador:
+            operador_result = "desconocido"
+            coincidencias_operador = "pendiente"
+            operador_detalle = "No se localizaron denuncias con el operador citado en el conocimiento."
+            recommendations.append(
+                f"Solicitar denuncia o carpeta que acredite la participación de {operador} como operador del embarque."
+            )
+
+        matched_norms_global = [norm for norm in plates_norm if norm in carpeta_norm_map]
+        global_matches_display = [carpeta_norm_map[norm] for norm in matched_norms_global]
+        if not placas_coincidentes and global_matches_display:
+            placas_coincidentes = list(dict.fromkeys(global_matches_display))
+        else:
+            for plate_value in global_matches_display:
+                if plate_value not in placas_coincidentes:
+                    placas_coincidentes.append(plate_value)
+
+        verificaciones["operador_vs_denuncia"] = {
+            "resultado": operador_result,
+            "operador_conocimiento": operador,
+            "operador_denuncia": operador_referencia,
+            "detalle": operador_detalle,
+        }
+
+        # ------------------------------------------------------------------
+        # Placas vs carpeta
+        # ------------------------------------------------------------------
+        placas_result = "desconocido"
+        placas_detalle = "No se cuenta con placas suficientes para comparar contra la carpeta."
+        faltantes_display: List[str] = []
+        if plates_norm and placas_carpeta:
+            missing_norms = [norm for norm in plates_norm if norm not in carpeta_norm_map]
+            faltantes_display = [plates_map.get(norm, norm) for norm in missing_norms]
+            if not missing_norms:
+                placas_result = "coincide"
+                placas_detalle = "Las placas del conocimiento coinciden con las registradas en la carpeta de investigación."
+            elif placas_coincidentes:
+                placas_result = "parcial"
+                faltantes_text = ", ".join(faltantes_display)
+                placas_detalle = (
+                    "Algunas placas del conocimiento coinciden con la carpeta de investigación; faltan por confirmar: "
+                    f"{faltantes_text}."
+                )
+            else:
+                placas_result = "discrepancia"
+                placas_detalle = "Las placas del conocimiento no se localizaron en la carpeta de investigación."
+        elif plates_norm and not placas_carpeta:
+            placas_result = "desconocido"
+            placas_detalle = "La carpeta no detalla placas para validar contra el conocimiento de embarque."
+            recommendations.append(
+                "Solicitar a la autoridad copia de la carpeta de investigación con el detalle de placas para cotejo."
+            )
+
+        if placas_result == "discrepancia" and not any((ind.pattern or "").lower() == "operador_placas_inconsistentes" for ind in indicators):
+            indicators.append(
+                FraudIndicator(
+                    pattern="operador_placas_inconsistentes",
+                    description="Las placas declaradas en el conocimiento de embarque difieren de las asentadas en la carpeta de investigación.",
+                    severity="alto",
+                    confidence=0.8,
+                )
+            )
+
+        verificaciones["placas_vs_carpeta"] = {
+            "resultado": placas_result,
+            "placas_conocimiento": plates_display,
+            "placas_carpeta": placas_carpeta,
+            "coincidencias": placas_coincidentes,
+            "placas_faltantes": faltantes_display,
+            "detalle": placas_detalle,
+        }
+
+        # ------------------------------------------------------------------
+        # Cantidades vs otros documentos
+        # ------------------------------------------------------------------
+        referencias_cantidades: List[str] = []
+        coincidencia_mercancia = False
+        carta_goods = ""
+
+        carta_ext = self._find_extraction_by_type(data_layer, "carta_porte_simple") if data_layer else None
+        if carta_ext:
+            carta_goods = self._stringify_value(
+                carta_ext.extracted_fields.get("descripcion_mercancia")
+                or carta_ext.extracted_fields.get("detalle_mercancia")
+            )
+            if descripcion_mercancia and carta_goods and self._goods_match(descripcion_mercancia, carta_goods):
+                coincidencia_mercancia = True
+                referencias_cantidades.append(carta_ext.source_document)
+
+        denuncia_text = self._get_document_text(data_layer, "denuncia_de_los_hechos") if data_layer else ""
+        if descripcion_mercancia and denuncia_text and self._goods_match(descripcion_mercancia, denuncia_text):
+            coincidencia_mercancia = True
+            if "denuncia" not in referencias_cantidades:
+                referencias_cantidades.append("denuncia")
+
+        carpeta_text = self._get_document_text(data_layer, "carpeta_de_investigacion") if data_layer else ""
+        if descripcion_mercancia and carpeta_text and self._goods_match(descripcion_mercancia, carpeta_text):
+            coincidencia_mercancia = True
+            if "carpeta_investigacion" not in referencias_cantidades:
+                referencias_cantidades.append("carpeta_investigacion")
+
+        cantidades_result = "desconocido"
+        cantidades_detalle = "Sin referencias suficientes para validar la mercancía."
+        if descripcion_mercancia and coincidencia_mercancia:
+            cantidades_result = "coincide"
+            cantidades_detalle = "La mercancía y cantidades coinciden con los documentos logísticos del caso."
+        elif descripcion_mercancia:
+            cantidades_result = "discrepancia"
+            cantidades_detalle = "La mercancía declarada no se localiza en Carta Porte o denuncias."
+            indicators.append(
+                FraudIndicator(
+                    pattern="mercancia_no_coincide",
+                    description="La mercancía declarada en el conocimiento de embarque no coincide con Carta Porte o denuncias.",
+                    severity="alto",
+                    confidence=0.78,
+                )
+            )
+        else:
+            recomendaciones_text = (
+                "Solicitar que el conocimiento de embarque describa la mercancía y cantidades para validar contra Carta Porte y denuncias."
+            )
+            recommendations.append(recomendaciones_text)
+
+        verificaciones["cantidades_vs_documentos"] = {
+            "resultado": cantidades_result,
+            "resumen_conocimiento": resumen_conocimiento,
+            "referencias": referencias_cantidades,
+            "detalle": cantidades_detalle,
+        }
+
+        # ------------------------------------------------------------------
+        # Validación cruzada
+        # ------------------------------------------------------------------
+        validacion_cruzada = dict(analysis.validacion_cruzada or {})
+        validacion_cruzada["pedimento"] = {
+            "numero_en_pedimento": pedimento_ref,
+            "coincidencia": ped_coincidencia,
+            "observaciones": ped_detalle,
+        }
+        validacion_cruzada["denuncia"] = {
+            "operadores": [entry.get("nombre") for entry in denuncias_summary],
+            "coincidencia_operador": coincidencias_operador,
+            "observaciones": operador_detalle,
+        }
+        validacion_cruzada["carpeta_investigacion"] = {
+            "placas_registradas": placas_carpeta,
+            "coincidencia_placas": (
+                "coincide"
+                if placas_result == "coincide"
+                else "parcial"
+                if placas_result == "parcial"
+                else "pendiente"
+                if placas_result == "desconocido"
+                else "no_coincide"
+            ),
+            "observaciones": placas_detalle,
+        }
+        validacion_cruzada["carta_porte"] = {
+            "mercancia_declarada": carta_goods,
+            "coincidencia": "coincide" if coincidencia_mercancia else ("pendiente" if not descripcion_mercancia else "no_coincide"),
+            "observaciones": cantidades_detalle,
+        }
+
+        # ------------------------------------------------------------------
+        # Estado final
+        # ------------------------------------------------------------------
+        if recommendations:
+            cleaned_recs = sorted({rec.strip() for rec in recommendations if rec.strip()})
+            analysis.recommendations = cleaned_recs
+        else:
+            analysis.recommendations = []
+
+        if indicators:
+            severities = {"bajo": 1, "medio": 2, "alto": 3, "critico": 4}
+            top_indicator = max(indicators, key=lambda item: severities.get(item.severity, 2))
+            if top_indicator.severity == "critico":
+                analysis.fraud_score = max(analysis.fraud_score, 0.88)
+            elif top_indicator.severity == "alto":
+                analysis.fraud_score = max(analysis.fraud_score, 0.72)
+            elif top_indicator.severity == "medio":
+                analysis.fraud_score = max(analysis.fraud_score, 0.48)
+            analysis.risk_level = RiskLevel(self._derive_risk_level(analysis.fraud_score))
+            analysis.confidence = max(analysis.confidence, 0.75)
+        else:
+            analysis.fraud_score = 0.24
+            analysis.risk_level = RiskLevel.BAJO
+            analysis.confidence = max(analysis.confidence, 0.88)
+
+        analysis.indicators = indicators
+        analysis.verificaciones = verificaciones
+        analysis.validacion_cruzada = validacion_cruzada
+        return analysis
+
     def _postprocess_carta_aclaratoria_peaje(
         self,
         analysis: FraudAnalysisResult,
@@ -6032,6 +7534,9 @@ class FraudAnalyzer:
             )
             if not nombre:
                 return None
+            nombre_tokens_list = self._person_name_token_list(nombre)
+            if not nombre_tokens_list:
+                return None
             nombre_norm = self._normalize_person_name(nombre)
             if not nombre_norm:
                 return None
@@ -6075,6 +7580,7 @@ class FraudAnalyzer:
                 "nombre_norm": nombre_norm,
                 "placas_norm": sorted(set(plates_norm)),
                 "placas_display": plates_display,
+                "tokens": nombre_tokens_list,
                 "fecha_inicio": fecha_dt,
             }
 
@@ -8076,6 +9582,899 @@ class FraudAnalyzer:
             ordered.append(f"{formatted} {label}")
         return "; ".join(ordered)
 
+    def _collect_case_route_points(
+        self,
+        data_layer: Optional[UnifiedDataLayer],
+    ) -> Tuple[List[str], List[str]]:
+
+        origins: List[str] = []
+        destinations: List[str] = []
+
+        if not data_layer:
+            return origins, destinations
+
+        for doc_type in ("carpeta_de_investigacion", "denuncia_de_los_hechos"):
+            extraction = self._find_extraction_by_type(data_layer, doc_type)
+            if not extraction:
+                continue
+            denuncias = self._ensure_list(extraction.extracted_fields.get("denuncias"))
+            for item in denuncias:
+                if not isinstance(item, dict):
+                    continue
+                origin = self._stringify_value(
+                    item.get("origen")
+                    or item.get("origen_declarado")
+                    or item.get("salida")
+                    or item.get("ubicacion_origen")
+                )
+                destination = self._stringify_value(
+                    item.get("destino")
+                    or item.get("destino_declarado")
+                    or item.get("llegada")
+                    or item.get("ubicacion_destino")
+                )
+                if origin:
+                    origins.append(origin)
+                if destination:
+                    destinations.append(destination)
+
+        carta_reclamacion = self._find_extraction_by_type(
+            data_layer,
+            "carta_de_reclamacion_formal_a_la_aseguradora",
+        )
+        if carta_reclamacion:
+            origin = self._stringify_value(carta_reclamacion.extracted_fields.get("origen"))
+            destination = self._stringify_value(carta_reclamacion.extracted_fields.get("destino"))
+            if origin:
+                origins.append(origin)
+            if destination:
+                destinations.append(destination)
+
+        return origins, destinations
+
+    def _summarize_cfdi_goods(
+        self,
+        fields: Dict[str, Any],
+    ) -> Tuple[str, str, Optional[Decimal], Dict[str, Decimal]]:
+
+        def _clean_description(text: str) -> str:
+            cleaned = re.sub(r"\s+", " ", text).strip()
+            if cleaned.isupper():
+                return cleaned.lower()
+            return cleaned
+
+        description_raw = self._stringify_value(
+            fields.get("descripcion_mercancia")
+            or fields.get("mercancia")
+            or fields.get("descripcion")
+            or ""
+        )
+        description = _clean_description(description_raw) if description_raw else ""
+        units: Dict[str, Decimal] = {}
+        value_decimal: Optional[Decimal] = None
+
+        mercancias = self._ensure_list(fields.get("mercancias"))
+        for item in mercancias:
+            if not isinstance(item, dict):
+                continue
+            desc_candidate = self._stringify_value(
+                item.get("descripcion")
+                or item.get("descripcion_mercancia")
+                or ""
+            )
+            if desc_candidate:
+                cleaned_desc = _clean_description(desc_candidate)
+                if not description:
+                    description = cleaned_desc
+            qty_candidate = self._parse_decimal(
+                item.get("cantidad")
+                or item.get("cantidad_total")
+            )
+            if qty_candidate is not None and qty_candidate > 0:
+                units["piezas"] = max(units.get("piezas", Decimal("0")), qty_candidate)
+            weight_candidate = self._parse_decimal(
+                item.get("peso")
+                or item.get("peso_bruto")
+                or item.get("peso_bruto_total")
+                or item.get("peso_kg")
+                or item.get("peso_neto")
+            )
+            if weight_candidate is not None and weight_candidate > 0:
+                units["kilogramos"] = max(units.get("kilogramos", Decimal("0")), weight_candidate)
+            unit_label = self._stringify_value(item.get("unidad") or item.get("unidad_medida"))
+            if unit_label:
+                normalized = self._normalize_unit_label(unit_label)
+                if normalized and normalized not in {"piezas", "kilogramos"}:
+                    unit_amount = self._parse_decimal(item.get("cantidad"))
+                    if unit_amount is not None and unit_amount > 0:
+                        units[normalized] = max(units.get(normalized, Decimal("0")), unit_amount)
+            value_candidate = self._parse_decimal(
+                item.get("valor")
+                or item.get("valor_mercancia")
+                or item.get("importe")
+            )
+            if value_candidate is not None and value_candidate > 0:
+                value_decimal = value_candidate if value_decimal is None else max(value_decimal, value_candidate)
+
+        qty_general = self._parse_decimal(
+            fields.get("cantidad")
+            or fields.get("cantidad_total")
+            or fields.get("cantidad_mercancia")
+        )
+        if qty_general is not None and qty_general > 0:
+            units["piezas"] = max(units.get("piezas", Decimal("0")), qty_general)
+        unit_label_general = self._stringify_value(fields.get("unidad_medida"))
+        if unit_label_general:
+            normalized_label = self._normalize_unit_label(unit_label_general)
+            if normalized_label and normalized_label not in {"piezas", "kilogramos"} and qty_general is not None and qty_general > 0:
+                units[normalized_label] = max(units.get(normalized_label, Decimal("0")), qty_general)
+
+        weight_general = self._parse_decimal(
+            fields.get("peso")
+            or fields.get("peso_total")
+            or fields.get("peso_bruto")
+        )
+        if weight_general is not None and weight_general > 0:
+            units["kilogramos"] = max(units.get("kilogramos", Decimal("0")), weight_general)
+
+        tons_general = self._parse_decimal(fields.get("toneladas") or fields.get("tonelaje"))
+        if tons_general is not None and tons_general > 0:
+            units["toneladas"] = max(units.get("toneladas", Decimal("0")), tons_general)
+
+        primary_total = self._parse_decimal(fields.get("monto_total"))
+        if primary_total is not None:
+            value_decimal = primary_total
+        else:
+            fallback_value = self._parse_decimal(
+                fields.get("valor_mercancia")
+                or fields.get("valor_total_mercancia")
+                or fields.get("total")
+                or fields.get("subtotal")
+            )
+            if fallback_value is not None and (value_decimal is None or fallback_value > value_decimal):
+                value_decimal = fallback_value
+
+        units_summary = self._format_units_summary(units) if units else ""
+        if units_summary and description:
+            goods_summary = f"{units_summary} de {description}"
+        elif units_summary:
+            goods_summary = units_summary
+        elif description:
+            goods_summary = description
+        else:
+            goods_summary = "la mercancía declarada en el CFDI"
+
+        complement_detail = goods_summary
+        return goods_summary, complement_detail, value_decimal, units
+
+    def _format_day_delta(self, delta_days: int) -> str:
+        if delta_days == 0:
+            return "el mismo día del siniestro"
+        direction = "después" if delta_days > 0 else "antes"
+        days = abs(delta_days)
+        words = {
+            1: "un día",
+            2: "dos días",
+            3: "tres días",
+            4: "cuatro días",
+            5: "cinco días",
+            6: "seis días",
+            7: "siete días",
+            8: "ocho días",
+            9: "nueve días",
+            10: "diez días",
+        }
+        quantity = words.get(days, f"{days} días")
+        return f"{quantity} {direction} de la fecha del siniestro"
+
+    def _distance_between_locations(
+        self,
+        location_a: Optional[str],
+        location_b: Optional[str],
+    ) -> Optional[float]:
+        if not location_a or not location_b:
+            return None
+        coord_a = suggest_reference_point(location_a)
+        coord_b = suggest_reference_point(location_b)
+        if not coord_a or not coord_b:
+            return None
+        return self._haversine_meters(coord_a, coord_b)
+
+    def _haversine_meters(
+        self,
+        coord_a: Tuple[float, float],
+        coord_b: Tuple[float, float],
+    ) -> float:
+        lat1, lon1 = coord_a
+        lat2, lon2 = coord_b
+        radius = 6_371_000.0
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lon2 - lon1)
+        a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+        c = 2 * math.atan2(math.sqrt(a), math.sqrt(max(0.0, 1 - a)))
+        return radius * c
+
+    def _postprocess_cfdi_carta_porte(
+        self,
+        analysis: FraudAnalysisResult,
+        extraction: DocumentExtraction,
+        *,
+        data_layer: Optional[UnifiedDataLayer],
+        document_context: Dict[str, Any],
+        case_context: Dict[str, Any],
+        ocr_text: str,
+    ) -> FraudAnalysisResult:
+
+        fields = dict(extraction.extracted_fields or {})
+        resolved_fields = dict(document_context.get("resolved_fields") or {})
+        consolidated = dict(getattr(data_layer, "consolidated_fields", {}) or {})
+        case_core = {}
+        if isinstance(case_context, dict):
+            case_core = case_context.get("core_fields") or {}
+
+        def _has_content(value: Any) -> bool:
+            if value is None:
+                return False
+            if isinstance(value, str):
+                return bool(value.strip())
+            if isinstance(value, (list, tuple, dict)):
+                return bool(value)
+            return True
+
+        def _pick_value(*keys: str, default: str = "") -> str:
+            for key in keys:
+                if key in fields and _has_content(fields[key]):
+                    return self._stringify_value(fields[key])
+                if key in resolved_fields and _has_content(resolved_fields[key]):
+                    return self._stringify_value(resolved_fields[key])
+                if key in consolidated and _has_content(consolidated[key]):
+                    return self._stringify_value(consolidated[key])
+            return default
+
+        def _pick_sequence(*keys: str) -> List[Any]:
+            for key in keys:
+                if key in fields and _has_content(fields[key]):
+                    return self._ensure_list(fields[key])
+                if key in resolved_fields and _has_content(resolved_fields[key]):
+                    return self._ensure_list(resolved_fields[key])
+            return []
+
+        def _render_table(rows: List[Tuple[str, Any]]) -> str:
+            cleaned: List[Tuple[str, str]] = []
+            for name, value in rows:
+                if value in (None, ""):
+                    continue
+                text = self._stringify_value(value).replace("\n", " ").strip()
+                if not text:
+                    continue
+                cleaned.append((name, text))
+            if not cleaned:
+                return ""
+            lines = ["| Campo | Valor |", "| --- | --- |"]
+            for name, value in cleaned:
+                lines.append(f"| {name} | {value} |")
+            return "\n".join(lines)
+
+        serie_raw = _pick_value("serie", "serie_cfdi", "serie_folio", default="")
+        folio_raw = _pick_value(
+            "folio",
+            "folio_cfdi",
+            "numero_interno_documento",
+            "folio_documento",
+            "folio_interno",
+            "numero_folio",
+            default="",
+        )
+        folio_uuid = _pick_value("folio_fiscal_uuid", "uuid_fiscal", "uuid", default="")
+        serie_clean = serie_raw.strip()
+        folio_clean = folio_raw.strip()
+        if serie_clean and folio_clean:
+            if folio_clean.startswith(serie_clean):
+                remainder = folio_clean[len(serie_clean):].strip(" -")
+                if remainder:
+                    folio_display = f"{serie_clean}-{remainder}"
+                else:
+                    folio_display = serie_clean
+            elif serie_clean.endswith("-") or folio_clean.startswith("-"):
+                folio_display = f"{serie_clean}{folio_clean}"
+            else:
+                folio_display = f"{serie_clean}-{folio_clean}"
+        elif folio_clean:
+            folio_display = folio_clean
+        elif serie_clean:
+            folio_display = serie_clean
+        elif folio_uuid:
+            folio_display = folio_uuid.upper()
+        else:
+            folio_display = extraction.document_name or "SIN FOLIO"
+        folio_display = folio_display.strip()
+
+        goods_summary, goods_complement, declared_value, goods_units = self._summarize_cfdi_goods(fields)
+
+        representante = self._format_entity_name(
+            _pick_value(
+                "emisor_representante",
+                "representante_emisor",
+                "representante",
+                "expedidor_nombre",
+                "emisor_contacto",
+                "emisor_nombre",
+                "emisor",
+            )
+        )
+        if not representante:
+            representante = self._format_entity_name(_pick_value("emisor_nombre"))
+        transportista = self._format_entity_name(
+            _pick_value(
+                "nombre_transportista",
+                "transportista",
+                "emisor_empresa",
+                "razon_social_emisor",
+                "issuer_name",
+                "emisor",
+            )
+        )
+        if not transportista:
+            transportista = self._format_entity_name(
+                _pick_value("empresa_transportista", "cliente_transportista")
+            )
+        if not transportista and ocr_text:
+            transportista = self._format_entity_name(self._extract_transportista_from_text(ocr_text))
+        if transportista:
+            tokens = transportista.split()
+            adjusted_tokens = [
+                token.upper() if any(char in token for char in "&+") else token
+                for token in tokens
+            ]
+            transportista = " ".join(adjusted_tokens)
+
+        operador = self._format_entity_name(
+            _pick_value(
+                "nombre_operador",
+                "operador_nombre",
+                "operador",
+                "operador_asignado",
+                "operador_cfdi",
+            )
+        )
+
+        fecha_emision_raw = _pick_value(
+            "fecha_expedicion",
+            "fecha_emision",
+            "fecha_certificacion_sat",
+            "fecha_timbrado",
+            default="",
+        )
+        fecha_emision_dt = self._parse_datetime(fecha_emision_raw)
+        if fecha_emision_dt:
+            fecha_emision_date = fecha_emision_dt.date()
+        else:
+            fecha_emision_date = self._parse_iso_date(fecha_emision_raw)
+        fecha_emision_text = (
+            self._format_date_long(fecha_emision_date)
+            if fecha_emision_date
+            else (fecha_emision_raw or "****")
+        )
+
+        siniestro_raw = None
+        if isinstance(case_core, dict):
+            entry = case_core.get("fecha_ocurrencia")
+            if isinstance(entry, dict):
+                siniestro_raw = entry.get("value")
+        if not siniestro_raw:
+            siniestro_raw = consolidated.get("fecha_ocurrencia") or resolved_fields.get("fecha_ocurrencia")
+        siniestro_date = self._parse_iso_date(siniestro_raw)
+        if fecha_emision_date and siniestro_date:
+            delta_days = (fecha_emision_date - siniestro_date).days
+            day_delta_phrase = self._format_day_delta(delta_days)
+        else:
+            day_delta_phrase = "sin referencia temporal del siniestro"
+
+        moneda = self._normalize_currency_token(
+            _pick_value("moneda", "moneda_cfdi", "moneda_comprobante", default="")
+        )
+        if declared_value is not None:
+            formatted_value = self._format_currency(declared_value)
+            if moneda == "MXN":
+                value_text = f"{formatted_value} M.N."
+            elif moneda:
+                value_text = f"{formatted_value} {moneda}"
+            else:
+                value_text = formatted_value
+        else:
+            value_text = _pick_value("valor_mercancia_texto", default="sin especificar")
+        if not value_text:
+            value_text = "sin especificar"
+
+        origen_cfdi = _pick_value(
+            "punto_origen",
+            "origen",
+            "domicilio_origen",
+            "origen_nombre",
+            "origen_descripcion",
+            default="",
+        )
+        destino_cfdi = _pick_value(
+            "punto_destino",
+            "destino",
+            "domicilio_destino",
+            "destino_nombre",
+            "destino_descripcion",
+            default="",
+        )
+
+        def _dedupe_location(text: str) -> str:
+            if not text:
+                return text
+            parts = [segment.strip() for segment in text.split(",") if segment.strip()]
+            cleaned: List[str] = []
+            seen_norm: Set[str] = set()
+            for segment in parts:
+                normalized_segment = self._normalize_text_for_search(segment)
+                if normalized_segment in seen_norm:
+                    continue
+                seen_norm.add(normalized_segment)
+                cleaned.append(segment)
+            return ", ".join(cleaned) if cleaned else text
+
+        origen_cfdi = _dedupe_location(origen_cfdi)
+        destino_cfdi = _dedupe_location(destino_cfdi)
+
+        plates_display: List[str] = []
+        remolques_display: List[str] = []
+        plates_norm: Set[str] = set()
+
+        def _register_plate(value: Any, *, is_trailer: bool = False) -> None:
+            text = self._stringify_value(value)
+            if not text:
+                return
+            tokens = re.split(r"[,\s/;]+", text)
+            for token in tokens:
+                cleaned = token.strip().upper()
+                if not cleaned:
+                    continue
+                norm = self._normalize_plate(cleaned)
+                if not norm or norm in plates_norm:
+                    continue
+                plates_norm.add(norm)
+                if is_trailer:
+                    remolques_display.append(cleaned)
+                else:
+                    plates_display.append(cleaned)
+
+        _register_plate(_pick_value("placa_transporte", "placa_unidad", "placa_principal", "placa_tractor"))
+        _register_plate(_pick_value("placas", "placas_transporte", "placas_unidades"))
+        for seq in _pick_sequence("vehiculos", "unidades", "unidades_transporte"):
+            if isinstance(seq, dict):
+                _register_plate(
+                    seq.get("placa")
+                    or seq.get("placas")
+                    or seq.get("identificador")
+                    or seq.get("numero"),
+                    is_trailer=False,
+                )
+            else:
+                _register_plate(seq)
+        for seq in _pick_sequence("remolques", "placas_remolque", "remolques_detalle"):
+            if isinstance(seq, dict):
+                _register_plate(
+                    seq.get("placa")
+                    or seq.get("placas")
+                    or seq.get("identificador")
+                    or seq.get("numero"),
+                    is_trailer=True,
+                )
+            else:
+                _register_plate(seq, is_trailer=True)
+
+        tractor_plate = plates_display[0] if plates_display else ""
+
+        case_origins, case_destinations = self._collect_case_route_points(data_layer)
+
+        def _compare_location(value: str, references: List[str]) -> Tuple[str, Optional[float], str]:
+            if not value:
+                return "desconocido", None, ""
+            if not references:
+                return "desconocido", None, ""
+            normalized_value = self._normalize_text_for_search(value)
+            best_distance: Optional[float] = None
+            best_reference = ""
+            for ref in references:
+                if not ref:
+                    continue
+                normalized_ref = self._normalize_text_for_search(ref)
+                if normalized_value and normalized_ref and (
+                    normalized_value in normalized_ref or normalized_ref in normalized_value
+                ):
+                    return "coincide", 0.0, ref
+                distance = self._distance_between_locations(value, ref)
+                if distance is not None:
+                    if distance <= 500:
+                        return "coincide", distance, ref
+                    if best_distance is None or distance < best_distance:
+                        best_distance = distance
+                        best_reference = ref
+            if best_distance is not None:
+                return "discrepancia", best_distance, best_reference
+            return "discrepancia", None, ""
+
+        origin_status, origin_distance, origin_reference = _compare_location(origen_cfdi, case_origins)
+        destination_status, destination_distance, destination_reference = _compare_location(destino_cfdi, case_destinations)
+
+        if origin_status == "coincide" and destination_status == "coincide":
+            ruta_result = "coincide"
+        elif origin_status == "desconocido" and destination_status == "desconocido":
+            ruta_result = "desconocido"
+        elif origin_status == "discrepancia" and destination_status == "discrepancia":
+            ruta_result = "discrepancia"
+        else:
+            ruta_result = "parcial"
+
+        ruta_parts: List[str] = []
+        if origin_status == "coincide":
+            if origin_distance and origin_distance > 0:
+                ruta_parts.append(f"Origen coincide (±{origin_distance:.0f} m).")
+            else:
+                ruta_parts.append("Origen coincide con la denuncia.")
+        elif origin_status == "discrepancia":
+            if origin_distance is not None:
+                ruta_parts.append(
+                    f"Origen no coincide; distancia aproximada {origin_distance:.0f} m frente a {origin_reference or 'la referencia del expediente'}."
+                )
+            else:
+                ruta_parts.append("Origen declarado no coincide con los documentos del expediente.")
+        else:
+            ruta_parts.append("Sin referencia de origen para comparar.")
+
+        if destination_status == "coincide":
+            if destination_distance and destination_distance > 0:
+                ruta_parts.append(f"Destino coincide (±{destination_distance:.0f} m).")
+            else:
+                ruta_parts.append("Destino coincide con la denuncia.")
+        elif destination_status == "discrepancia":
+            if destination_distance is not None:
+                ruta_parts.append(
+                    f"Destino no coincide; distancia aproximada {destination_distance:.0f} m frente a {destination_reference or 'la referencia del expediente'}."
+                )
+            else:
+                ruta_parts.append("Destino declarado no coincide con los documentos del expediente.")
+        else:
+            ruta_parts.append("Sin referencia de destino para comparar.")
+
+        ruta_detalle = " ".join(segment.strip() for segment in ruta_parts if segment).strip()
+
+        denuncias_summary = self._collect_denuncia_summary(data_layer)
+        operator_entry = None
+        operator_norm = self._normalize_person_name(operador)
+        if operator_norm:
+            for entry in denuncias_summary:
+                entry_norm = entry.get("nombre_norm")
+                if not entry_norm:
+                    continue
+                if entry_norm == operator_norm or entry_norm.startswith(operator_norm) or operator_norm.startswith(entry_norm):
+                    operator_entry = entry
+                    break
+
+        if operator_norm and operator_entry:
+            if operator_entry.get("nombre"):
+                operador = self._format_entity_name(operator_entry.get("nombre"))
+            operador_result = "coincide"
+            operador_detalle = "El operador coincide con la denuncia."
+        elif operator_norm and operator_entry is None and denuncias_summary:
+            operador_result = "discrepancia"
+            operador_detalle = "El operador declarado no se localiza en denuncias."
+        elif operator_norm:
+            operador_result = "desconocido"
+            operador_detalle = "No se cuenta con denuncias para validar al operador declarado."
+        else:
+            operador_result = "desconocido"
+            operador_detalle = "El CFDI no identifica operador para comparar contra denuncias."
+
+        case_plates_all: Set[str] = set()
+        for entry in denuncias_summary:
+            for plate_norm in entry.get("placas_norm") or []:
+                case_plates_all.add(plate_norm)
+
+        operator_plates = set(operator_entry.get("placas_norm") or []) if operator_entry else set()
+        if plates_norm:
+            if operator_plates and plates_norm & operator_plates:
+                plates_result = "coincide"
+                plates_detalle = "Las placas coinciden con las asignadas al operador en la denuncia."
+            elif case_plates_all and plates_norm & case_plates_all:
+                plates_result = "parcial"
+                plates_detalle = "Las placas están presentes en el expediente pero asociadas a otro operador."
+            elif case_plates_all:
+                plates_result = "discrepancia"
+                plates_detalle = "Las placas declaradas no se localizaron en denuncias ni en la carpeta."
+            else:
+                plates_result = "desconocido"
+                plates_detalle = "No hay referencias en el expediente para validar las placas declaradas."
+        else:
+            plates_result = "desconocido"
+            plates_detalle = "El CFDI no detalla placas de las unidades."
+
+        display_index: Dict[str, str] = {}
+        for plate in plates_display + remolques_display:
+            norm = self._normalize_plate(plate)
+            if norm and norm not in display_index:
+                display_index[norm] = plate
+        plates_coincidentes_display = [
+            display_index.get(norm, norm)
+            for norm in sorted(plates_norm & case_plates_all)
+        ]
+
+        fiscal = analysis.fiscal_validation
+        validation_sentence = "Sin validación fiscal disponible para esta carta porte."
+        validation_rows: List[Tuple[str, Any]] = []
+        cancellation_display = ""
+        if fiscal:
+            if fiscal.cancellation_date:
+                cancel_dt = self._parse_datetime(fiscal.cancellation_date) or self._parse_iso_date(fiscal.cancellation_date)
+                if isinstance(cancel_dt, datetime):
+                    cancellation_display = cancel_dt.strftime("%d/%m/%Y %H:%M")
+                elif isinstance(cancel_dt, date):
+                    cancellation_display = self._format_date_slash(cancel_dt)
+            issuer_name = fiscal.issuer_name or _pick_value("emisor_nombre", "nombre_transportista", "emisor", default="")
+            recipient_name = fiscal.recipient_name or _pick_value("receptor_nombre", "destinatario", "receptor", default="")
+            validation_rows.extend(
+                [
+                    ("RFC del emisor", fiscal.request.issuer_rfc),
+                    ("Nombre o razón social del emisor", issuer_name),
+                    ("RFC del receptor", fiscal.request.recipient_rfc),
+                    ("Nombre o razón social del receptor", recipient_name),
+                    ("Folio fiscal (UUID)", fiscal.request.uuid.upper()),
+                    ("Fecha de expedición", fiscal.issue_date or fecha_emision_raw),
+                    ("Fecha certificación SAT", fiscal.sat_certification_date or ""),
+                    ("PAC que certificó", fiscal.pac_certifier or ""),
+                    ("Total del CFDI", self._format_currency(fiscal.request.total)),
+                    ("Efecto del comprobante", fiscal.invoice_effect or ""),
+                    ("Estado CFDI", fiscal.status.value.upper()),
+                    ("Estatus de cancelación", fiscal.cancelable_status or fiscal.status_detail or ""),
+                    ("Fecha de cancelación", cancellation_display),
+                ]
+            )
+            if fiscal.is_cancelado():
+                validation_sentence = (
+                    "Se realizó validación de carta de porte ante portal SAT, donde se aprecia registro, "
+                    "observando que se encuentra cancelada por plazo vencido."
+                )
+                if cancellation_display:
+                    validation_sentence += f" Siendo cancelada en fecha del {cancellation_display}."
+            elif fiscal.is_vigente():
+                validation_sentence = (
+                    "Se realizó validación de carta de porte donde se aprecia registro, encontrándose vigente ante portal SAT."
+                )
+            elif fiscal.is_not_found():
+                validation_sentence = (
+                    "La consulta en el portal SAT no localizó el CFDI carta porte; se requiere verificación manual."
+                )
+            elif fiscal.had_error():
+                validation_sentence = (
+                    "La validación fiscal devolvió un error por lo que debe repetirse manualmente en el portal SAT."
+                )
+            else:
+                validation_sentence = (
+                    "Se obtuvo un estatus pendiente en la validación fiscal; se requiere seguimiento manual."
+                )
+        validation_table = _render_table(validation_rows)
+
+        heading = f"CARTA DE PORTE TIMBRADA FOLIO {folio_display}"
+        representante_text = representante or "sin representante identificado"
+        transportista_text = transportista or "la transportista declarada"
+        summary_sentence = (
+            f"Se ha recibido la carta de porte con folio {folio_display}, emitida por {representante_text}, "
+            f"representante de la transportista {transportista_text}. Esta carta fue expedida el {fecha_emision_text}, "
+            f"es decir, {day_delta_phrase}. El contenido de la mercancía, según este documento, consiste en "
+            f"{goods_summary}, con un valor declarado de {value_text}."
+        ).replace("  ", " ").strip()
+
+        if operador:
+            operator_sentence = (
+                f"Podemos encontrar en esta carta porte los datos del operador, {operador}, "
+                "y la información de las unidades de transporte que este operaba en el momento del incidente."
+            )
+        else:
+            operator_sentence = (
+                "La carta porte no detalla el nombre del operador responsable de las unidades al momento del incidente."
+            )
+
+        unidades_parts: List[str] = []
+        if tractor_plate:
+            unidades_parts.append(f"el tractocamión con placa {tractor_plate}")
+        if remolques_display:
+            unidades_parts.append(f"los remolques con placas {', '.join(remolques_display)}")
+        unidades_text = " y ".join(unidades_parts) if unidades_parts else "las unidades declaradas en el complemento"
+
+        complemento_sentence_parts: List[str] = [
+            "Se cuenta con un complemento carta de porte donde se observan datos del traslado de mercancías."
+        ]
+        complemento_sentence_parts.append(f"La mercancía era transportada en {unidades_text}.")
+        if goods_complement:
+            complemento_sentence_parts.append(f"Se declara mercancía consistente en {goods_complement}.")
+        if origen_cfdi or destino_cfdi:
+            origen_text = origen_cfdi or "un origen no especificado"
+            destino_text = destino_cfdi or "un destino no especificado"
+            complemento_sentence_parts.append(f"Se aprecia origen {origen_text} y destino {destino_text}.")
+        if operador:
+            complemento_sentence_parts.append(f"Asimismo, se consigna al operador asignado {operador}.")
+        complemento_sentence = " ".join(segment.strip() for segment in complemento_sentence_parts if segment).strip()
+
+        narrative_lines = [
+            heading,
+            summary_sentence,
+            "",
+            operator_sentence,
+            "",
+            "VALIDACIÓN",
+            validation_sentence,
+        ]
+        if validation_table:
+            narrative_lines.append(validation_table)
+        narrative_lines.extend(
+            [
+                "",
+                "COMPLEMENTO CARTA DE PORTE",
+                complemento_sentence,
+            ]
+        )
+        analysis.analisis_completo = "\n".join(line for line in narrative_lines if line is not None).strip()
+
+        verificaciones = {
+            "operador_vs_denuncia": {
+                "resultado": operador_result,
+                "operador_carta": operador,
+                "operador_denuncia": operator_entry.get("nombre") if operator_entry else "",
+                "detalle": operador_detalle,
+            },
+            "placas_vs_denuncia": {
+                "resultado": plates_result,
+                "placas_cfdi": plates_display + [p for p in remolques_display if p not in plates_display],
+                "placas_coincidentes": plates_coincidentes_display,
+                "detalle": plates_detalle,
+            },
+            "ruta_vs_denuncia": {
+                "resultado": ruta_result,
+                "origen_cfdi": origen_cfdi,
+                "origen_referencia": origin_reference,
+                "destino_cfdi": destino_cfdi,
+                "destino_referencia": destination_reference,
+                "distancia_origen_m": origin_distance,
+                "distancia_destino_m": destination_distance,
+                "detalle": ruta_detalle,
+            },
+        }
+        analysis.verificaciones = verificaciones
+
+        cfdi_context = {
+            "serie": serie_clean,
+            "folio": folio_display,
+            "representante": representante,
+            "transportista": transportista,
+            "operador": operador,
+            "origen": origen_cfdi,
+            "destino": destino_cfdi,
+            "valor_declarado": value_text,
+            "placas": plates_display + [p for p in remolques_display if p not in plates_display],
+            "unidades": unidades_text,
+        }
+        if declared_value is not None:
+            try:
+                cfdi_context["valor_decimal"] = float(declared_value)
+            except Exception:
+                pass
+        validacion_cruzada = dict(analysis.validacion_cruzada or {})
+        validacion_cruzada["cfdi_carta_porte"] = cfdi_context
+        analysis.validacion_cruzada = validacion_cruzada
+
+        recommendations = [rec for rec in analysis.recommendations if rec]
+        if operador_result == "desconocido":
+            recommendations.append(
+                "Solicitar versión del CFDI Carta Porte que identifique al operador asignado."
+            )
+        if plates_result == "desconocido":
+            recommendations.append(
+                "Solicitar documentación del transportista que acredite las placas de las unidades declaradas."
+            )
+        if ruta_result == "desconocido":
+            recommendations.append(
+                "Obtener denuncias o soportes logísticos que acrediten origen y destino para validar el CFDI."
+            )
+        if fiscal and fiscal.is_cancelado():
+            if cancellation_display:
+                recommendations.append(
+                    f"Verificar en el portal SAT la fecha de cancelación ({cancellation_display}) y documentarla en el reporte."
+                )
+            else:
+                recommendations.append(
+                    "Verificar en el portal SAT la fecha de cancelación del CFDI y documentarla en el reporte."
+                )
+        analysis.recommendations = list(dict.fromkeys(recommendations))
+
+        indicators = [ind for ind in analysis.indicators or []]
+
+        def _add_indicator(pattern: str, description: str, severity: str, confidence: float = 0.8) -> None:
+            for idx, existing in enumerate(indicators):
+                if existing.pattern == pattern:
+                    indicators[idx] = FraudIndicator(
+                        pattern=pattern,
+                        description=description,
+                        severity=severity,
+                        confidence=confidence,
+                    )
+                    return
+            indicators.append(
+                FraudIndicator(
+                    pattern=pattern,
+                    description=description,
+                    severity=severity,
+                    confidence=confidence,
+                )
+            )
+
+        if fiscal and fiscal.is_cancelado():
+            _add_indicator(
+                "cfdi_cancelado",
+                "El CFDI aparece cancelado en la validación SAT.",
+                "alto",
+                0.85,
+            )
+        if operador_result == "discrepancia":
+            _add_indicator(
+                "operador_no_coincidente",
+                "El operador declarado en el CFDI no coincide con las declaraciones del expediente.",
+                "alto",
+                0.85,
+            )
+        if plates_result == "discrepancia":
+            _add_indicator(
+                "placas_no_coinciden_denuncia",
+                "Las placas declaradas en el CFDI no se localizaron en la denuncia ni en la carpeta.",
+                "alto",
+                0.85,
+            )
+        if ruta_result == "discrepancia":
+            _add_indicator(
+                "ruta_inconsistente_denuncia",
+                "La ruta declarada en el CFDI difiere de la denunciada o no se encuentra dentro de la tolerancia establecida.",
+                "alto",
+                0.85,
+            )
+
+        analysis.indicators = indicators
+
+        severity_rank = {"bajo": 1, "medio": 2, "alto": 3, "critico": 4}
+        if indicators:
+            max_severity = max(severity_rank.get(ind.severity.lower(), 2) for ind in indicators)
+            if max_severity >= 4:
+                analysis.risk_level = RiskLevel.CRITICO
+                analysis.fraud_score = max(analysis.fraud_score, 0.90)
+                analysis.confidence = max(analysis.confidence, 0.75)
+            elif max_severity == 3:
+                analysis.risk_level = RiskLevel.ALTO
+                analysis.fraud_score = max(analysis.fraud_score, 0.72)
+                analysis.confidence = max(analysis.confidence, 0.80)
+            elif max_severity == 2:
+                analysis.risk_level = RiskLevel.MEDIO
+                analysis.fraud_score = max(analysis.fraud_score, 0.48)
+                analysis.confidence = max(analysis.confidence, 0.85)
+            else:
+                analysis.risk_level = RiskLevel.BAJO
+                analysis.fraud_score = max(analysis.fraud_score, 0.30)
+                analysis.confidence = max(analysis.confidence, 0.90)
+        else:
+            analysis.risk_level = RiskLevel.BAJO
+            analysis.fraud_score = 0.24
+            analysis.confidence = max(analysis.confidence, 0.92)
+
+        if fiscal and fiscal.is_cancelado() and analysis.risk_level in {RiskLevel.BAJO, RiskLevel.MEDIO}:
+            analysis.risk_level = RiskLevel.ALTO
+            analysis.fraud_score = max(analysis.fraud_score, 0.72)
+            analysis.confidence = max(analysis.confidence, 0.80)
+
+        return analysis
+
     def _extract_transportista_from_text(self, text: str) -> str:
         if not text:
             return ""
@@ -8412,13 +10811,38 @@ class FraudAnalyzer:
         text = re.sub(r"[^A-Z]", "", text)
         return text
 
-    def _person_name_tokens(self, name: Optional[str]) -> Set[str]:
+    def _person_name_token_list(self, name: Optional[str]) -> List[str]:
         if not name:
-            return set()
+            return []
         cleaned = self._strip_accents(str(name).upper())
         tokens = [token for token in re.split(r"[^A-Z]+", cleaned) if token]
         blacklist = {"DE", "DEL", "LA", "LAS", "LOS", "SR", "SRA", "LIC", "ING", "ARQ", "C"}
-        return {token for token in tokens if token and token not in blacklist}
+        return [token for token in tokens if token and token not in blacklist]
+
+    def _person_name_tokens(self, name: Optional[str]) -> Set[str]:
+        return set(self._person_name_token_list(name))
+
+    def _person_names_match_loose(self, first_tokens: List[str], second_tokens: List[str]) -> bool:
+        if not first_tokens or not second_tokens:
+            return False
+
+        shared = {token for token in first_tokens if token in second_tokens and len(token) >= 3}
+        if shared:
+            return True
+
+        first_name_a = first_tokens[0]
+        first_name_b = second_tokens[0]
+        similarity = SequenceMatcher(None, first_name_a, first_name_b).ratio()
+        if similarity >= 0.8:
+            surnames_a = set(first_tokens[1:])
+            surnames_b = set(second_tokens[1:])
+            if surnames_a and surnames_b and surnames_a & surnames_b:
+                return True
+
+        if len(first_tokens) == 1 and len(second_tokens) == 1:
+            return SequenceMatcher(None, first_name_a, first_name_b).ratio() >= 0.8
+
+        return False
 
     def _normalize_company_name(self, name: Optional[str]) -> str:
         if not name:
@@ -8559,6 +10983,55 @@ class FraudAnalyzer:
         cleaned = text[:index].strip()
         return cleaned or text.strip()
 
+    def _extract_pedimento_goods_lines(self, text: str, *, limit: int = 5) -> List[str]:
+        if not text:
+            return []
+        keywords = (
+            "MERC",
+            "PLACA",
+            "LAMIN",
+            "ACERO",
+            "TUBO",
+            "BOB",
+            "ROLLO",
+            "TONEL",
+            "BULTO",
+            "PIEZA",
+            "PAQUETE",
+            "CAJA",
+        )
+        noise = re.compile(
+            r"PEDIMENTO|NUM\.?|REGIMEN|ADUANA|VALOR|IMPORTE|FECHA|DATOS|CONTRIB|CUADRO|CAPTURA|SEGUROS|FLETES|CARGO|DESCARGA|TOTAL|CERTIFIC",
+            re.IGNORECASE,
+        )
+        results: List[str] = []
+        seen: Set[str] = set()
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line or len(line) < 6:
+                continue
+            if ":" in line:
+                continue
+            upper = line.upper()
+            if noise.search(upper):
+                continue
+            if "IDENTIFIC" in upper or "SUBD" in upper:
+                continue
+            if not any(kw in upper for kw in keywords):
+                continue
+            if sum(ch.isalpha() for ch in upper) / max(len(upper), 1) < 0.6:
+                continue
+            if any(ch.islower() for ch in line):
+                continue
+            display = upper.title()
+            if display in seen:
+                continue
+            results.append(display)
+            seen.add(display)
+            if len(results) >= limit:
+                break
+        return results
+
     def _filter_recommendations(
         self,
         items: List[str],
@@ -8653,10 +11126,18 @@ class FraudAnalyzer:
             if rtype == "range":
                 minv = rule.get("min")
                 maxv = rule.get("max")
-                if minv is not None and value < minv:
-                    return False, f"Valor {value} < mínimo {minv}"
-                if maxv is not None and value > maxv:
-                    return False, f"Valor {value} > máximo {maxv}"
+                numeric: Optional[Decimal]
+                if isinstance(value, (int, float, Decimal)):
+                    numeric = Decimal(str(value))
+                else:
+                    numeric = self._parse_decimal(value)
+                if numeric is not None:
+                    if minv is not None and numeric < Decimal(str(minv)):
+                        return False, f"Valor {value} < mínimo {minv}"
+                    if maxv is not None and numeric > Decimal(str(maxv)):
+                        return False, f"Valor {value} > máximo {maxv}"
+                else:
+                    return True, "Sin comparación numérica"
             elif rtype == "pattern":
                 import re
                 pat = rule.get("pattern")

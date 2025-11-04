@@ -115,8 +115,17 @@ class FraudReportGenerator(AIReportGenerator):
                 doc_type,
                 {"titulo": self._format_document_title(doc_type), "icono": "ri-file-line", "orden": 99},
             )
+            if doc_type == "conocimiento_de_embarque" and len(group) > 1:
+                docs.append(self._build_conocimiento_embarque_multi(meta, group))
+                continue
             if doc_type == "carta_porte_simple" and len(group) > 1:
                 docs.append(self._build_carta_porte_multi(meta, group))
+                continue
+            if doc_type == "cfdi_carta_porte":
+                if len(group) > 1:
+                    docs.append(self._build_cfdi_carta_porte_multi(meta, group))
+                    continue
+                docs.append(self._serialize_analysis(group[0], self._format_cfdi_title(group[0]), meta["icono"]))
                 continue
             for analysis in group:
                 titulo = meta["titulo"]
@@ -139,6 +148,8 @@ class FraudReportGenerator(AIReportGenerator):
             }
         )
         correlation_data = self._prepare_correlation_section(correlation_report)
+        fiscal_sections = self._build_fiscal_sections(visible_analyses)
+        fiscal_summary = self._summarize_fiscal_sections(fiscal_sections)
 
         return {
             **base,
@@ -150,6 +161,11 @@ class FraudReportGenerator(AIReportGenerator):
             "mostrar_seccion_fraude": len(docs) > 0,
             "correlacion_inter_documentos": correlation_data,
             "mostrar_seccion_correlacion": correlation_data.get("has_findings", False),
+            "fiscal_validation": {
+                "entries": fiscal_sections,
+                "summary": fiscal_summary,
+                "has_data": bool(fiscal_sections),
+            },
         }
 
     def _serialize_analysis(
@@ -176,6 +192,62 @@ class FraudReportGenerator(AIReportGenerator):
                 "total_indicadores": len(analysis.indicators),
             },
         }
+
+    def _build_fiscal_sections(self, analyses: List[FraudAnalysisResult]) -> List[Dict[str, Any]]:
+        sections: List[Dict[str, Any]] = []
+        for analysis in analyses:
+            fiscal = getattr(analysis, "fiscal_validation", None)
+            if not fiscal:
+                continue
+            sections.append(
+                {
+                    "document_name": analysis.document_name,
+                    "document_type": analysis.document_type,
+                    "status": fiscal.status.value,
+                    "status_label": self._format_fiscal_status(fiscal.status.value),
+                    "status_code": fiscal.status_code,
+                    "status_detail": fiscal.status_detail,
+                    "cancelable_status": fiscal.cancelable_status,
+                    "matches_total": fiscal.matches_total,
+                    "is_efos": fiscal.is_efos(),
+                    "timestamp": fiscal.validation_timestamp.isoformat(),
+                    "raw_data": fiscal.raw_response,
+                    "request": fiscal.request.model_dump_safe(),
+                }
+            )
+        return sections
+
+    def _summarize_fiscal_sections(self, sections: List[Dict[str, Any]]) -> Dict[str, Any]:
+        summary = {
+            "total": len(sections),
+            "vigente": 0,
+            "cancelado": 0,
+            "no_encontrado": 0,
+            "errores": 0,
+            "efos": 0,
+        }
+        for item in sections:
+            status = item.get("status")
+            if status in summary:
+                summary[status] += 1
+            elif status:
+                summary.setdefault(status, 0)
+                summary[status] += 1
+            if item.get("is_efos"):
+                summary["efos"] += 1
+            if status == "error" or status == "validacion_pendiente":
+                summary["errores"] += 1
+        return summary
+
+    def _format_fiscal_status(self, status: str) -> str:
+        mapping = {
+            "vigente": "Vigente",
+            "cancelado": "Cancelado",
+            "no_encontrado": "No encontrado",
+            "validacion_pendiente": "Validación pendiente",
+            "error": "Error",
+        }
+        return mapping.get(status, status.title())
 
     def _build_carta_porte_multi(
         self,
@@ -225,6 +297,110 @@ class FraudReportGenerator(AIReportGenerator):
             sub_payload = self._serialize_analysis(item, f"Carta Porte Simple {idx}", meta["icono"])
             aggregated["subanalyses"].append(sub_payload)
         return aggregated
+
+    def _build_conocimiento_embarque_multi(
+        self,
+        meta: Dict[str, Any],
+        analyses: List[FraudAnalysisResult],
+    ) -> Dict[str, Any]:
+        count = len(analyses)
+        sorted_group = sorted(analyses, key=lambda item: item.document_name or "")
+        risk_priority = {"bajo": 1, "medio": 2, "alto": 3, "critico": 4}
+        highest = max(sorted_group, key=lambda item: risk_priority.get(item.risk_level.value, 1))
+        max_score = max(element.fraud_score for element in sorted_group)
+        min_confidence = min(element.confidence for element in sorted_group)
+
+        intro_text = (
+            f"Se analizan {self._number_to_spanish_word(count)} conocimientos de embarque asociados al expediente."
+        )
+
+        aggregated: Dict[str, Any] = {
+            "tipo": "conocimiento_de_embarque",
+            "titulo": meta["titulo"],
+            "icono": meta["icono"],
+            "nombre_archivo": f"Múltiples ({count} documentos)",
+            "risk_level": highest.risk_level.value,
+            "risk_color": self._get_risk_color(highest.risk_level.value),
+            "fraud_score": f"{max_score * 100:.1f}%",
+            "confidence": f"{min_confidence * 100:.0f}%",
+            "analisis_completo": intro_text,
+            "analisis": {
+                "indicadores": [],
+                "recomendaciones": [],
+                "verificaciones": {},
+                "validacion_cruzada": {},
+                "total_indicadores": 0,
+            },
+            "subanalyses": [],
+            "is_multi": True,
+        }
+
+        for idx, item in enumerate(sorted_group, start=1):
+            titulo = f"Conocimiento de Embarque {idx}"
+            aggregated["subanalyses"].append(self._serialize_analysis(item, titulo, meta["icono"]))
+        return aggregated
+
+    def _build_cfdi_carta_porte_multi(
+        self,
+        meta: Dict[str, Any],
+        analyses: List[FraudAnalysisResult],
+    ) -> Dict[str, Any]:
+        count = len(analyses)
+        sorted_group = sorted(analyses, key=lambda item: item.document_name or "")
+        risk_priority = {"bajo": 1, "medio": 2, "alto": 3, "critico": 4}
+        highest = max(sorted_group, key=lambda item: risk_priority.get(item.risk_level.value, 1))
+        max_score = max(element.fraud_score for element in sorted_group)
+        min_confidence = min(element.confidence for element in sorted_group)
+
+        folio_resumen: List[str] = []
+        for idx, element in enumerate(sorted_group, start=1):
+            cfdi_context = (element.validacion_cruzada or {}).get("cfdi_carta_porte") or {}
+            folio = cfdi_context.get("folio")
+            if folio:
+                folio_resumen.append(f"{idx}) Folio {folio}")
+
+        intro_parts = [
+            f"Se presentan {self._number_to_spanish_word(count)} CFDI Carta Porte timbrados correspondientes al expediente."
+        ]
+        if folio_resumen:
+            intro_parts.append("Folios analizados: " + "; ".join(folio_resumen) + ".")
+        intro_text = " ".join(intro_parts)
+
+        aggregated = {
+            "tipo": "cfdi_carta_porte",
+            "titulo": meta["titulo"],
+            "icono": meta["icono"],
+            "nombre_archivo": f"Múltiples ({count} documentos)",
+            "risk_level": highest.risk_level.value,
+            "risk_color": self._get_risk_color(highest.risk_level.value),
+            "fraud_score": f"{max_score * 100:.1f}%",
+            "confidence": f"{min_confidence * 100:.0f}%",
+            "analisis_completo": intro_text,
+            "analisis": {
+                "indicadores": [],
+                "recomendaciones": [],
+                "verificaciones": {},
+                "validacion_cruzada": {},
+                "total_indicadores": 0,
+            },
+            "subanalyses": [],
+            "is_multi": True,
+        }
+
+        for idx, item in enumerate(sorted_group, start=1):
+            titulo = self._format_cfdi_title(item, index=idx)
+            aggregated["subanalyses"].append(self._serialize_analysis(item, titulo, meta["icono"]))
+        return aggregated
+
+    def _format_cfdi_title(
+        self,
+        analysis: FraudAnalysisResult,
+        index: Optional[int] = None,
+    ) -> str:
+        base = "CFDI Carta Porte"
+        if index is None:
+            return base
+        return f"{base} {index}"
 
     def _number_to_spanish_word(self, value: int) -> str:
         mapping = {

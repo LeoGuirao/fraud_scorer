@@ -510,6 +510,117 @@
     .status-badge.fail { background: #991b1b; }
     .status-badge.needs_context { background: #d97706; }
 
+    .fiscal-summary {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-bottom: 16px;
+    }
+
+    .fiscal-summary-card {
+      flex: 1 1 160px;
+      background: var(--card-primary);
+      border: 1px solid var(--slate-200);
+      border-radius: 6px;
+      padding: 12px;
+      box-shadow: var(--shadow-sm);
+    }
+
+    .fiscal-summary-card .label {
+      font-size: 11px;
+      color: var(--slate-500);
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .fiscal-summary-card .value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--slate-700);
+      font-family: 'IBM Plex Mono', monospace;
+    }
+
+    .fiscal-summary-card.vigente { border-left: 3px solid var(--success-medium); }
+    .fiscal-summary-card.cancelado { border-left: 3px solid #991b1b; }
+    .fiscal-summary-card.no_encontrado { border-left: 3px solid var(--amber-600); }
+    .fiscal-summary-card.errores { border-left: 3px solid var(--slate-500); }
+    .fiscal-summary-card.efos { border-left: 3px solid #c026d3; }
+
+    .fiscal-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+      margin-top: 12px;
+    }
+
+    .fiscal-table th,
+    .fiscal-table td {
+      padding: 8px;
+      border: 1px solid var(--slate-200);
+      text-align: left;
+      vertical-align: top;
+    }
+
+    .fiscal-table th {
+      background: var(--slate-100);
+      color: var(--slate-600);
+      font-weight: 600;
+    }
+
+    .fiscal-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .fiscal-status-badge.vigente { background: var(--success-medium); }
+    .fiscal-status-badge.cancelado { background: #991b1b; }
+    .fiscal-status-badge.no_encontrado { background: var(--amber-600); }
+    .fiscal-status-badge.validacion_pendiente { background: var(--slate-500); }
+    .fiscal-status-badge.error { background: #6b7280; }
+
+    .fiscal-flag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: var(--slate-100);
+      color: var(--slate-600);
+      font-weight: 600;
+      font-size: 11px;
+      margin-right: 4px;
+    }
+
+    details.fiscal-raw {
+      margin-top: 6px;
+    }
+
+    details.fiscal-raw summary {
+      cursor: pointer;
+      color: var(--primary-blue);
+      font-weight: 600;
+    }
+
+    pre.fiscal-json {
+      background: var(--slate-900);
+      color: #f8fafc;
+      padding: 10px;
+      border-radius: 4px;
+      white-space: pre-wrap;
+      font-size: 11px;
+      margin-top: 8px;
+    }
+
     .correlation-summary {
       display: flex;
       flex-wrap: wrap;
@@ -904,6 +1015,106 @@
       </div>
       {% endfor %}
 
+      </div>
+      {% endif %}
+
+      {% if fiscal_validation.has_data %}
+      <div class="analysis-section">
+        <h2 class="analysis-title"><i class="ri-shield-check-line"></i>Validación Fiscal SAT</h2>
+
+        <div class="fiscal-summary">
+          <div class="fiscal-summary-card vigente">
+            <div class="label">CFDI vigentes</div>
+            <div class="value">{{ fiscal_validation.summary.vigente|default(0) }}</div>
+          </div>
+          <div class="fiscal-summary-card cancelado">
+            <div class="label">CFDI cancelados</div>
+            <div class="value">{{ fiscal_validation.summary.cancelado|default(0) }}</div>
+          </div>
+          <div class="fiscal-summary-card no_encontrado">
+            <div class="label">No encontrados</div>
+            <div class="value">{{ fiscal_validation.summary.no_encontrado|default(0) }}</div>
+          </div>
+          <div class="fiscal-summary-card efos">
+            <div class="label">Emisores EFOS</div>
+            <div class="value">{{ fiscal_validation.summary.efos|default(0) }}</div>
+          </div>
+          <div class="fiscal-summary-card errores">
+            <div class="label">Validaciones con incidencias</div>
+            <div class="value">{{ fiscal_validation.summary.errores|default(0) }}</div>
+          </div>
+        </div>
+
+        <div style="overflow-x:auto;">
+          <table class="fiscal-table">
+            <thead>
+              <tr>
+                <th>Documento</th>
+                <th>Estatus SAT</th>
+                <th>Totales</th>
+                <th>EFOS</th>
+                <th>Validado</th>
+                <th>Detalle</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in fiscal_validation.entries %}
+              <tr>
+                <td>
+                  <strong>{{ entry.document_name }}</strong>
+                  <div style="color: var(--slate-500); font-size:11px;">{{ entry.document_type }}</div>
+                </td>
+                <td>
+                  <span class="fiscal-status-badge {{ entry.status|default('validacion_pendiente') }}">
+                    {{ entry.status_label }}
+                  </span>
+                  {% if entry.status_code %}
+                  <div style="font-size:11px; color: var(--slate-600); margin-top:4px;">Código: {{ entry.status_code }}</div>
+                  {% endif %}
+                  {% if entry.status_detail %}
+                  <div style="font-size:11px; color: var(--slate-600); margin-top:4px;">{{ entry.status_detail }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if entry.matches_total is none %}
+                    <span class="fiscal-flag">Sin dato</span>
+                  {% elif entry.matches_total %}
+                    <span class="fiscal-flag" style="color: var(--success-dark); background: var(--success-light);"><i class="ri-check-line"></i>Coincide</span>
+                  {% else %}
+                    <span class="fiscal-flag" style="color: #991b1b; background: #fee2e2;"><i class="ri-alert-line"></i>Difiere</span>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if entry.is_efos %}
+                    <span class="fiscal-flag" style="color:#7c3aed; background:#ede9fe;"><i class="ri-error-warning-line"></i>Listado EFOS</span>
+                  {% else %}
+                    <span class="fiscal-flag"><i class="ri-shield-check-line"></i>No listado</span>
+                  {% endif %}
+                </td>
+                <td>
+                  <div style="font-size:12px;">{{ entry.timestamp|default('N/D') }}</div>
+                </td>
+                <td>
+                  {% if entry.request %}
+                  <div style="font-size:11px; color: var(--slate-600);">
+                    <div><strong>Emisor:</strong> {{ entry.request.issuer_rfc }}</div>
+                    <div><strong>Receptor:</strong> {{ entry.request.recipient_rfc }}</div>
+                    <div><strong>UUID:</strong> {{ entry.request.uuid }}</div>
+                    <div><strong>Total:</strong> {{ entry.request.total }}</div>
+                  </div>
+                  {% endif %}
+                  {% if entry.raw_data %}
+                  <details class="fiscal-raw">
+                    <summary>Ver respuesta FiscalAPI</summary>
+                    <pre class="fiscal-json">{{ entry.raw_data | tojson(indent=2) }}</pre>
+                  </details>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
       {% endif %}
 

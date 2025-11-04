@@ -19,6 +19,13 @@ import os
 from pathlib import Path
 from typing import Optional, Dict, Any
 
+try:  # pragma: no cover - carga opcional
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:  # pragma: no cover - fallback silencioso
+    pass
+
 from fraud_scorer.analyzers.fraud_analyzer import FraudAnalyzer
 from fraud_scorer.analyzers.unified_data_layer import UnifiedDataLayer
 from fraud_scorer.storage.db import get_conn, save_extracted_data

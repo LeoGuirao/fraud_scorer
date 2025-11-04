@@ -63,7 +63,8 @@ dependencies = [
     "python-dotenv",
     "requests",
     "httpx",
-    "rapidfuzz"
+    "rapidfuzz",
+    "tenacity"
 ]
 
 [project.optional-dependencies]

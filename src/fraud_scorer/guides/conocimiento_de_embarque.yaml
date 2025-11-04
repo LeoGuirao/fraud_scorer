@@ -1,13 +1,13 @@
 metadata:
   type: conocimiento_de_embarque
-  version: "1.0"
-  author: "Sistema Experto HDI"
-  last_updated: "2025-02-15"
-  description: "Guía especializada para auditar conocimientos de embarque y validar la trazabilidad marítima de mercancías"
+  version: "2.0"
+  author: "Equipo Fraude HDI"
+  last_updated: "2025-03-15"
+  description: "Guía actualizada para auditar conocimientos de embarque integrando verificaciones cruzadas obligatorias y narrativa estandarizada"
 
 definition:
   nature: "Documento portuario que avala la entrega de mercancía al transportista, indicando origen, destino y condiciones de embarque"
-  legal_importance: "Alta - Sustenta la entrega y responsabilidad del transporte en operaciones marítimas"
+  legal_importance: "Alta — sustenta la entrega y responsabilidad del transporte en operaciones marítimas y sirve como soporte de subrogación"
   critical_elements:
     - numero_conocimiento
     - fecha_salida
@@ -16,63 +16,63 @@ definition:
     - puerto_destino
     - nombre_transportista
     - nombre_operador
-    - firma_operador
     - identificacion_unidad
     - placas_unidad
     - descripcion_mercancia
     - peso
     - valor_carga
+    - numero_pedimento
     - documentos_anexos
 
 methodology:
   analysis_approach: |
-    1. Verificar integridad del documento: membrete, folio, fecha y firma de salida del operador o checador.
-    2. Confirmar punto de origen, destino y horario; correlacionarlos con Carta Porte, pedimento, reporte GPS y cartas de reclamación.
-    3. Validar datos del transportista, operador y unidad (placas, identificaciones) con documentos logísticos y licencias.
-    4. Analizar la mercancía (descripción, peso, valor) y cruzar con facturas, pedimentos y CFDI.
-    5. Revisar que la firma del operador coincida con otros documentos (licencia, Carta Porte, denuncia).
-    6. Evaluar formatos (puede ser informal) y detectar alteraciones (ediciones, campos faltantes); registrar acciones de seguimiento.
-    7. Documentar hallazgos relevantes para trazabilidad y acciones jurídicas/subrogatorias.
+    1. Confirmar integridad documental: membrete, folio/número, datos del emisor y fecha de expedición.
+    2. Cruzar fecha y hora de salida con otros conocimientos de embarque del expediente (si existen) y reportar discrepancias.
+    3. Validar el número de pedimento citado: indicar si coincide totalmente o parcialmente (dígitos consecutivos) con pedimentos de importación en el caso.
+    4. Corroborar transportista, operadores y unidades (placas y semirremolques) con la carpeta de investigación y denuncias.
+    5. Verificar que la mercancía, cantidades y pesos coincidan con Carta Porte, denuncia de los hechos y carpeta de investigación.
+    6. Sólo reportar indicadores de riesgo cuando las verificaciones anteriores arrojen inconsistencias o datos faltantes; omitir evidencia textual.
+    7. Registrar recomendaciones únicamente cuando falten documentos o datos en otros soportes (pedimento, carta al transportista, denuncias).
 
   fraud_indicators:
     high_risk:
-      - pattern: datos_operador_incorrectos
-        detection: "Nombre/firma del operador no coincide con Carta Porte o denuncias"
+      - pattern: pedimento_no_coincide
+        detection: "El número de pedimento citado no coincide (ni parcialmente) con los pedimentos del expediente"
         severity: "alto"
-        evidence_hint: "Comparar firmas y nombres"
-        follow_up: "Solicitar aclaración o ratificación"
-      - pattern: origen_destino_incongruente
-        detection: "Origen/destino difiere de lo declarado en documentos logísticos"
+        evidence_hint: "Comparar dígitos reportados vs. pedimento importación"
+        follow_up: "Solicitar pedimento correcto o documentación que justifique la discrepancia"
+      - pattern: operador_placas_inconsistentes
+        detection: "Operador o placas asignadas difieren respecto a denuncia/carpeta"
         severity: "alto"
-        evidence_hint: "Listar discrepancias"
-        follow_up: "Requerir corrección y validar documentos relacionados"
-      - pattern: peso_valor_no_alineado
-        detection: "Peso o valor no coincide con pedimento/facturas"
+        evidence_hint: "Listar operador/placas en conocimiento vs. carpeta"
+        follow_up: "Solicitar aclaración y soportes actualizados"
+      - pattern: mercancia_no_coincide
+        detection: "Descripción, cantidad o peso no coinciden con Carta Porte o denuncia"
         severity: "alto"
-        evidence_hint: "Comparar valores exactos"
-        follow_up: "Solicitar documentación adicional"
+        evidence_hint: "Detallar diferencias por documento"
+        follow_up: "Requerir conciliación de inventarios y soportes"
     medium_risk:
-      - pattern: horario_no_corresponde
-        detection: "Hora de salida no coincide con reportes GPS o declaraciones"
+      - pattern: fechas_conocimientos_divergen
+        detection: "Las fechas entre conocimientos de embarque del mismo caso difieren sin justificación"
         severity: "medio"
-        evidence_hint: "Citar horas y documentos comparados"
-        follow_up: "Requerir aclaración"
-      - pattern: formato_informal_sin_respaldo
-        detection: "Documento informal sin sellos ni respaldo logístico"
+        evidence_hint: "Citar fechas detectadas por documento"
+        follow_up: "Solicitar cronograma validado del embarque"
+      - pattern: pedimento_coincide_parcial
+        detection: "Sólo coinciden parcialmente los dígitos del pedimento"
         severity: "medio"
-        evidence_hint: "Describir ausencia de elementos formales"
-        follow_up: "Solicitar confirmación escrita o bitácoras oficiales"
+        evidence_hint: "Indicar número de dígitos coincidentes"
+        follow_up: "Requerir copia íntegra del pedimento y confirmación del agente aduanal"
       - pattern: datos_unidad_incompletos
-        detection: "Faltan placas o identificadores del vehículo"
+        detection: "Faltan placas o identificadores de unidades o remolques"
         severity: "medio"
         evidence_hint: "Enumerar campos faltantes"
-        follow_up: "Requerir información complementaria"
+        follow_up: "Solicitar información complementaria"
     low_risk:
-      - pattern: campos_secundarios_vacios
-        detection: "Campos opcionales (contactos, notas) vacíos"
+      - pattern: narrativa_general
+        detection: "La narrativa es general pero coherente, sin afectar verificaciones principales"
         severity: "bajo"
-        evidence_hint: "Listar campos"
-        follow_up: "Recomendar completar"
+        evidence_hint: "Precisar elementos que podrían detallarse"
+        follow_up: "Recomendar completar información para expediente"
 
   validation_rules:
     numero_conocimiento:
@@ -95,18 +95,18 @@ methodology:
     - carta_porte_simple
     - cfdi_carta_porte
     - pedimento_importacion
-    - facturas_comerciales_internacionales
-    - carta_de_reclamacion_formal_a_la_aseguradora
     - carta_de_reclamacion_formal_al_transportista
+    - carta_de_reclamacion_formal_a_la_aseguradora
     - denuncia_de_los_hechos
-    - reporte_gps
+    - carpeta_de_investigacion
+    - facturas_comerciales_internacionales
 
   evidence_expectations:
-    - "Fecha y hora de salida coherentes con documentos del siniestro"
-    - "Transportista, operador y unidad coincidentes"
-    - "Mercancía (peso/valor) alineada con pedimento y facturas"
-    - "Firma del operador auténtica"
-    - "Ruta declarada consistente con expedientes"
+    - "Fecha de salida y horario consistentes entre conocimientos de embarque del caso"
+    - "Número de pedimento validado con pedimento de importación"
+    - "Operador y placas coincidentes con denuncia/carpeta"
+    - "Mercancía (descripción, peso, cantidad) alineada con Carta Porte y denuncia"
+    - "Documentos soporte disponibles (pedimento, carta al transportista, facturas)"
 
   red_flags:
     critical:
@@ -124,57 +124,70 @@ response_template:
   output_format:
     documento_analizado: "conocimiento_de_embarque"
     analisis_completo: |
-      Se confirmó la notificación sobre la salida de la mercancía, ya que estas corresponden con los documentos presentados durante la reclamación. Se detalla:
-      1) Fecha, hora, origen y destino vs Carta Porte, pedimento y GPS.
-      2) Operador, transportista, unidad (placas/series) y coincidencia de firmas.
-      3) Mercancía (descripción, peso, valor) comparada con facturas y pedimento.
-      4) Observaciones sobre formato, anexos y soporte documental.
-      5) Recomendaciones para seguimiento o complementación.
+      Se cuenta con comprobante emitido por {emisor_documento}, fechado el {fecha_documento}. El documento detalla la información del transportista, los datos de las unidades que trasladaban la mercancía, los operadores asignados a cada una, y el contenido y peso de cada cargamento.
     risk_level: "bajo|medio|alto|critico"
     fraud_score: 0.0
     confidence: 0.0
     indicators: []
     recommendations: []
 
-    salida_mercancia:
-      numero_conocimiento: ""
-      fecha_salida: ""
-      hora_salida: ""
-      origen: ""
-      destino: ""
-      coincide_con_documentos: []
+    verificaciones:
+      fechas_entre_conocimientos:
+        resultado: "desconocido"
+        fecha_documento: ""
+        fechas_detectadas: []
+        detalle: ""
+      pedimento_vs_pedimento:
+        resultado: "desconocido"
+        pedimento_conocimiento: ""
+        pedimento_referencia: ""
+        coincidencia_digitos: ""
+        detalle: ""
+      operador_vs_denuncia:
+        resultado: "desconocido"
+        operador_conocimiento: ""
+        operador_denuncia: ""
+        detalle: ""
+      placas_vs_carpeta:
+        resultado: "desconocido"
+        placas_conocimiento: []
+        placas_carpeta: []
+        coincidencias: []
+        detalle: ""
+      cantidades_vs_documentos:
+        resultado: "desconocido"
+        resumen_conocimiento: ""
+        referencias: []
+        detalle: ""
 
-    operador_y_unidad:
-      nombre_operador: ""
-      firma_operador: ""
-      firma_coincide: false
-      transportista: ""
-      placas_unidad: ""
-      observaciones: ""
-
-    mercancia:
-      descripcion_mercancia: ""
-      peso: 0.0
-      valor_carga: 0.0
-      coincide_con_facturas: false
-      coincide_con_pedimento: false
-      observaciones: ""
-
-    observaciones_generales:
-      formato_formal: false
-      anexos_presentes: []
-      discrepancias: []
+    validacion_cruzada:
+      pedimento:
+        numero_en_pedimento: ""
+        coincidencia: "pendiente"
+        observaciones: ""
+      denuncia:
+        operadores: []
+        coincidencia_operador: "pendiente"
+        observaciones: ""
+      carpeta_investigacion:
+        placas_registradas: []
+        coincidencia_placas: "pendiente"
+        observaciones: ""
+      carta_porte:
+        mercancia_declarada: ""
+        coincidencia: "pendiente"
+        observaciones: ""
 
     validation_tasks:
-      - tarea: "Cruzar fecha y hora con Carta Porte y GPS"
-        fuente: "Carta Porte / reporte GPS"
+      - tarea: "Conciliar número de pedimento contra el documento de pedimento de importación"
+        fuente: "Pedimento de importación"
         prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Validar operador y unidad con licencias y Carta Porte"
-        fuente: "Licencia del operador / Carta Porte"
-        prioridad: "media"
+      - tarea: "Corroborar operadores y placas con denuncia y carpeta de investigación"
+        fuente: "Denuncia / carpeta de investigación"
+        prioridad: "alta"
         estado: "pendiente"
-      - tarea: "Revisar peso y valor con facturas y pedimento"
-        fuente: "Factura / pedimento"
+      - tarea: "Verificar cantidades y pesos contra Carta Porte y mercancía declarada"
+        fuente: "Carta Porte / denuncias"
         prioridad: "media"
         estado: "pendiente"

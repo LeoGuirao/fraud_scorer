@@ -9,6 +9,12 @@ Este documento (Better Practices) describe en detalle los problemas detectados y
 - Reutilización de análisis de fraude en reprocesos parciales sin romper plantillas.
 - Limpieza completa de casos (deep purge y purgas parciales) sin residuos en el filesystem.
 - Variables sensibles (.env): las claves de servicios externos (por ejemplo `OPENAI_API_KEY`, `AZURE_OCR_KEY`) se almacenan en la raíz del proyecto en `.env`. Cualquier instalación o reparación debe verificar este archivo antes de ejecutar scripts que dependan de esos proveedores.
+- FiscalAPI (validación CFDI):
+  - Los CLI que disparan validaciones (p.ej. `scripts/preview_fraud_analysis.py`, `scripts/run_report.py`, `scripts/replay_case.py`) deben cargar `.env` explícitamente antes de importar servicios; de lo contrario `FISCAL_VALIDATION_ROLLOUT` queda en `disabled` y la validación se omite.
+  - Alinea `FISCAL_API_ENVIRONMENT` con el tipo de credenciales: usa `production` para claves `sk_live_` y `test` para `sk_test_`. Ejecuta `scripts/env_check_fiscal_api.py --environment <env> --probe` para validar conectividad.
+  - Verifica que `DEFAULT_PROD_BASE_URL` (ruta `src/fraud_scorer/config/fiscal_api_config.py`) apunte a `https://live.fiscalapi.com`; la URL `https://api.fiscalapi.com` no responde en productivo.
+  - Mantén `FISCAL_VALIDATION_ROLLOUT=enabled` en `.env` cuando quieras que el análisis de fraude consuma FiscalAPI; si necesitas desactivar temporalmente las consultas, cambia la bandera en lugar de editar el código.
+  - Si no planeas usar Redis para cache distribuido, fija `FISCAL_CACHE_USE_REDIS=false` o deja sin definir `REDIS_URL`/`REDIS_HOST`; el cache caerá silenciosamente al backend en memoria sin generar warnings.
 - Gobernanza LLM GPS: antes de habilitar `GPS_LLM_ENABLED`, revisa las salvaguardas descritas en `guides_md/GPS_LLM_GOVERNANCE.md` (umbrales de costo, registro de prompts y auditoría por caso).
 - Motor de correlación inter-documental (CaseContext + RuleEngine) y generación de reportes consolidados.
 - Actualización del pipeline de extracción/consolidación IA (septiembre 2025).
@@ -1069,6 +1075,13 @@ La vista `editor_analista.html` consolida reporte, reprocesos selectivos y Agent
   - Extracción (OCR texto): `gpt-5` es la base; `gpt-5-thinking` se reserva para huecos >5 % en campos críticos.
   - Extracción directa/visión: `gpt-5-vision` es el estándar para escaneos; no requiere escalación adicional.
   - Consolidación: `gpt-5-mini` + IA guiada cubre la mayoría de conflictos; `gpt-5` sólo cuando la confianza cae o persisten discrepancias entre póliza e informe.
+
+### Carta Porte Simple — Validaciones IA reforzadas (marzo 2025)
+- **Prompts primero**: reforzar la guía `carta_porte_simple.yaml` antes de introducir heurísticas. `_postprocess_carta_porte_simple` depura indicadores genéricos (`datos_transporte_incompletos`, `mercancia_no_coincide`, `ruta_invalida`) cuando la IA ya recuperó la información crítica del documento.
+- **Normalización de entidades**: las utilidades `_normalize_company_name`, `_company_name_tokens` y `_company_names_match` alinean abreviaturas (“Aceros Ocotlan”) con razones sociales completas (“Grupo Aceros Ocotlan SA de CV”). Documentar aquí cualquier alias nuevo para que póliza, carta al transportista y demás guías compartan la misma lógica.
+- **Regla temporal**: `fecha_vs_denuncia` compara la fecha de emisión con la fecha de inicio del recorrido identificada en denuncias/carpeta. Se acepta ±1 día; fuera de ese rango se reactiva `fecha_emision_incoherente`. Si la denuncia carece de fecha, mantener el resultado en “desconocido” y emitir la recomendación correspondiente.
+- **Cruce de mercancía**: `_summarize_goods_from_letter`, `_goods_tokens` y `_derive_carpeta_denuncias_from_text` realizan matching semántico (tokens, palabras clave, listados de mercancias). Conservar esta combinación para que la validación cruzada marque “coincide” aun con variaciones de redacción (“placas de acero” vs. “láminas de acero”).
+- **Validación cruzada limpia**: la salida consolidada conserva únicamente `poliza`, `denuncia` y `carta_porte`. Se eliminó el bloque del ajustador para cartas porte simples; aplicar el mismo criterio al añadir nuevos campos y evitar ruido en dashboards.
 
 ## 15) GPS directo — Fallback de texto plano y PDFs verticales
 

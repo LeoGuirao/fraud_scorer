@@ -16,6 +16,13 @@ import threading
 import signal
 import shutil
 
+try:  # pragma: no cover - carga opcional
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except Exception:  # pragma: no cover - fallback silencioso
+    pass
+
 # Añadir la raíz del proyecto al path de Python
 project_root = Path(__file__).resolve().parents[1]
 src_path = project_root / "src"
