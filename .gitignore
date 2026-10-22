@@ -57,3 +57,4 @@ tests/*
 !/README.md
 !/BETTER_PRACTICES.md
 !/GUIA_IMPLEMENTACION_AGENTICO_RICK_GPS.md
+!tests/test_auth_simple.py

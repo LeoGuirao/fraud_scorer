@@ -86,10 +86,10 @@ app = FastAPI(
     version="2.0.0"
 )
 
-# Configurar CORS para permitir acceso desde la red local
+# Authenticated browser requests must come from the web UI origin.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # En producción, especifica los orígenes permitidos
+    allow_origins=[],  # The web UI and its authenticated API share an origin.
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -141,7 +141,7 @@ def _is_public_path(path: str) -> bool:
 async def simple_auth_guard(request: Request, call_next):
     if _is_public_path(request.url.path):
         return await call_next(request)
-    if not is_authenticated():
+    if not is_authenticated(request):
         if request.method.upper() in {"GET", "HEAD"}:
             return RedirectResponse(url="/login", status_code=302)
         return JSONResponse(
@@ -605,7 +605,7 @@ def create_mock_consolidated_extraction(corrected_data: dict, case_id: str):
 
 @app.get("/login", response_class=HTMLResponse)
 async def get_login_page(request: Request):
-    if is_authenticated():
+    if is_authenticated(request):
         return RedirectResponse("/", status_code=302)
     return templates.TemplateResponse("login.html", {"request": request})
 
@@ -629,21 +629,22 @@ async def login(request: Request):
             status_code=401,
         )
 
-    mark_authenticated(username)
-    return JSONResponse(
+    response = JSONResponse(
         {
             "success": True,
             "message": "Inicio de sesión exitoso. Redirigiendo...",
             "redirect": "/",
         }
     )
+    mark_authenticated(username, response)
+    return response
 
 
 @app.post("/api/logout")
 async def logout():
-    if is_authenticated():
-        clear_authentication()
-    return JSONResponse({"success": True, "message": "Sesión finalizada."})
+    response = JSONResponse({"success": True, "message": "Sesión finalizada."})
+    clear_authentication(response)
+    return response
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -652,10 +653,10 @@ async def get_main_portal(request: Request):
     Sirve la nueva página principal (el portal) que permite al usuario
     elegir entre 'Upload' y 'Replay'.
     """
-    last_login_at = last_login()
+    last_login_at = last_login(request)
     context = {
         "request": request,
-        "user": current_user(),
+        "user": current_user(request),
         "last_login_iso": last_login_at.isoformat() if last_login_at else None,
         "last_login_display": last_login_at.strftime("%d/%m/%Y %H:%M:%S") if last_login_at else None,
     }
@@ -667,7 +668,7 @@ async def get_upload_page(request: Request):
     Sirve la página original de carga de documentos.
     Esta es la nueva ruta para la funcionalidad de 'run_report'.
     """
-    return templates.TemplateResponse("process_monitor.html", {"request": request, "user": current_user()})
+    return templates.TemplateResponse("process_monitor.html", {"request": request, "user": current_user(request)})
 
 @app.get("/analyst/{case_id}", response_class=HTMLResponse)
 async def get_analyst_editor(request: Request, case_id: str):
@@ -677,7 +678,7 @@ async def get_analyst_editor(request: Request, case_id: str):
         raise HTTPException(status_code=404, detail="Caso no encontrado")
     context = {
         "request": request,
-        "user": current_user(),
+        "user": current_user(request),
         "case_id": case_id,
     }
     return templates.TemplateResponse("editor_analista.html", context)
@@ -1399,7 +1400,7 @@ async def editor_report_pdf(case_id: str):
 
 
 @app.post("/api/case/{case_id}/decision")
-async def set_case_manual_decision(case_id: str, payload: CaseDecisionRequest):
+async def set_case_manual_decision(case_id: str, payload: CaseDecisionRequest, request: Request):
     case_row = get_case_by_id(case_id)
     if not case_row:
         raise HTTPException(status_code=404, detail="Caso no encontrado")
@@ -1412,7 +1413,7 @@ async def set_case_manual_decision(case_id: str, payload: CaseDecisionRequest):
     claim_amount = replay_service.compute_claim_amount(case_index)
     savings = float(claim_amount or 0.0) if payload.decision == 'with' and claim_amount else 0.0
 
-    user_obj = current_user()
+    user_obj = current_user(request)
     if isinstance(user_obj, dict):
         user_name = user_obj.get('username') or user_obj.get('email') or 'analyst'
     else:
@@ -2343,8 +2344,8 @@ class RickQueryRequest(BaseModel):
 
 
 @app.post("/api/rick/query")
-async def query_rick(request: RickQueryRequest):
-    user = current_user()
+async def query_rick(request: RickQueryRequest, http_request: Request):
+    user = current_user(http_request)
     result = rick_service.query(
         case_id=request.case_id,
         question=request.question,
